@@ -1,0 +1,52 @@
+[
+  {
+    "id": "652a1899-0f70-4e23-9a52-6428828aa83a",
+    "project_id": 1,
+    "type": "Elektroinstalace",
+    "number": "RZ-82",
+    "date_done": "2025-07-17",
+    "valid_until": "2029-07-17",
+    "status": "Rozpracovaná",
+    "data_json": "{\"poznámka\":\"zatím prázdné\"}"
+  },
+  {
+    "id": "fe80e33f-5b4e-4e4d-90c5-7b12564454c8",
+    "project_id": 2,
+    "type": "Stroj",
+    "number": "RZ-468",
+    "date_done": "2025-07-17",
+    "valid_until": "2029-07-17",
+    "status": "Rozpracovaná",
+    "data_json": "{\"poznámka\":\"zatím prázdné\"}"
+  },
+  {
+    "id": "1836e814-824c-4462-abcb-772dcf49c662",
+    "project_id": 1,
+    "type": "Spotřebič",
+    "number": "RZ-428",
+    "date_done": "2025-07-17",
+    "valid_until": "2029-07-17",
+    "status": "Rozpracovaná",
+    "data_json": "{\"poznámka\":\"zatím prázdné\"}"
+  },
+  {
+    "id": "79b85e44-056e-401d-9fd6-c353fc274f78",
+    "project_id": 1,
+    "type": "Spotřebič",
+    "number": "RZ-144",
+    "date_done": "2025-07-17",
+    "valid_until": "2029-07-17",
+    "status": "Rozpracovaná",
+    "data_json": "{\"poznámka\":\"zatím prázdné\"}"
+  },
+  {
+    "id": "be599f69-916d-4113-ae57-f335f977f4c7",
+    "project_id": 1,
+    "type": "Spotřebič",
+    "number": "RZ-925",
+    "date_done": "2025-07-17",
+    "valid_until": "2029-07-17",
+    "status": "Rozpracovaná",
+    "data_json": "{\"poznámka\":\"zatím prázdné\"}"
+  }
+]
