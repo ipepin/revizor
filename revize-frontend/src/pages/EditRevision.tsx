@@ -3,6 +3,8 @@ import IdentifikaceSection from "../sections/IdentifikaceSection";
 import ProhlidkaSection from "../sections/ProhlidkaSection";
 import ZkouskySection from "../sections/ZkouskySection";
 import MereniSection from "../sections/MereniSection";
+import DefectsRecommendationsSection from "../sections/DefectsRecommendationsSection";
+import ConclusionSection from "../sections/ConclusionSection";
 export default function EditRevision() {
   const [activeSection, setActiveSection] = useState("identifikace");
   const contentRef = useRef<HTMLDivElement>(null);
@@ -20,7 +22,7 @@ export default function EditRevision() {
     const currentIndex = sections.findIndex(s => s.key === activeSection);
     return sections[currentIndex + 1]?.key;
   };
-
+/** 
   useEffect(() => {
     const handleScroll = () => {
       const el = contentRef.current;
@@ -36,7 +38,7 @@ export default function EditRevision() {
       if (el) el.removeEventListener("scroll", handleScroll);
     };
   }, [activeSection]);
-
+*/
   const renderSection = () => {
     switch (activeSection) {
       case "identifikace":
@@ -47,6 +49,10 @@ export default function EditRevision() {
         return <ZkouskySection/>
       case "mereni":
         return <MereniSection/>
+      case "zavady":
+        return <DefectsRecommendationsSection/>
+      case "zaver":
+        return <ConclusionSection/>
       default:
         return <div className="text-gray-500">Obsah sekce zatím není k dispozici.</div>;
     }

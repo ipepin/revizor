@@ -1,0 +1,142 @@
+{
+  "Jistič": {
+    "Noark": [
+      "Ex9BH 6A",  "Ex9BH 10A", "Ex9BH 16A", "Ex9BH 20A", "Ex9BH 25A", "Ex9BH 32A", "Ex9BH 40A", "Ex9BH 50A", "Ex9BH 63A",
+      "Ex9BN 6A",  "Ex9BN 10A", "Ex9BN 16A", "Ex9BN 20A", "Ex9BN 25A", "Ex9BN 32A", "Ex9BN 40A", "Ex9BN 50A", "Ex9BN 63A",
+      "Ex9BP 6A",  "Ex9BP 10A", "Ex9BP 16A", "Ex9BP 20A", "Ex9BP 25A", "Ex9BP 32A", "Ex9BP 40A", "Ex9BP 50A", "Ex9BP 63A",
+      "Ex9B125 80A", "Ex9B125 100A", "Ex9B125 125A",
+      "B1N 6A",  "B1N 10A", "B1N 16A", "B1N 20A", "B1N 25A", "B1N 32A", "B1N 40A", "B1N 50A", "B1N 63A",
+      "B1H 6A",  "B1H 10A", "B1H 16A", "B1H 20A", "B1H 25A", "B1H 32A", "B1H 40A", "B1H 50A", "B1H 63A"
+    ],
+    "Eaton": [
+      "PL7 6A",  "PL7 10A", "PL7 16A", "PL7 20A", "PL7 25A", "PL7 32A", "PL7 40A", "PL7 50A", "PL7 63A",
+      "PLSM 6A", "PLSM 10A", "PLSM 16A", "PLSM 20A", "PLSM 25A", "PLSM 32A", "PLSM 40A", "PLSM 50A", "PLSM 63A"
+    ],
+    "SEZ": [
+      "SLS 6A",  "SLS 10A", "SLS 16A", "SLS 20A", "SLS 25A", "SLS 32A", "SLS 40A", "SLS 50A", "SLS 63A",
+      "TDM 6A",  "TDM 10A", "TDM 16A", "TDM 20A", "TDM 25A", "TDM 32A", "TDM 40A", "TDM 50A", "TDM 63A", "TDM 80A", "TDM 100A", "TDM 125A",
+      "ITM 6A",  "ITM 10A", "ITM 16A", "ITM 20A", "ITM 25A", "ITM 32A", "ITM 40A", "ITM 50A", "ITM 63A",
+      "ITV 6A",  "ITV 10A", "ITV 16A", "ITV 20A", "ITV 25A", "ITV 32A", "ITV 40A", "ITV 50A", "ITV 63A",
+      "IJM 6A",  "IJM 10A", "IJM 16A", "IJM 20A", "IJM 25A", "IJM 32A", "IJM 40A", "IJM 50A", "IJM 63A",
+      "IJV 6A",  "IJV 10A", "IJV 16A", "IJV 20A", "IJV 25A", "IJV 32A", "IJV 40A", "IJV 50A", "IJV 63A"
+    ],
+    "FaG": [
+      "L7 6A",  "L7 10A", "L7 16A", "L7 20A", "L7 25A", "L7 32A", "L7 40A", "L7 50A", "L7 63A"
+    ],
+    "Schneider": [
+      "iC60 6A",
+      "iC60 10A",
+      "iC60 16A",
+      "iC60 20A",
+      "iC60 25A",
+      "iC60 32A",
+      "iC60 40A",
+      "iC60 50A",
+      "iC60 63A"
+    ]
+  },
+
+  "Proudový chránič": {
+    "Eaton": [
+      "PF6 16 A 30 mA AC",  "PF6 25 A 30 mA AC",  "PF6 40 A 30 mA AC",  "PF6 63 A 30 mA AC",
+      "PF6 16 A 100 mA AC", "PF6 25 A 100 mA AC", "PF6 40 A 100 mA AC", "PF6 63 A 100 mA AC",
+      "PF6 16 A 30 mA A",   "PF6 25 A 30 mA A",   "PF6 40 A 30 mA A",   "PF6 63 A 30 mA A",
+      "PF6 16 A 100 mA A",  "PF6 25 A 100 mA A",  "PF6 40 A 100 mA A",  "PF6 63 A 100 mA A",
+
+      "PF7 25 A 30 mA A",   "PF7 40 A 30 mA A",   "PF7 63 A 30 mA A",   "PF7 80 A 30 mA A",
+      "PF7 100 A 30 mA A",  "PF7 125 A 30 mA A",  "PF7 25 A 100 mA A",  "PF7 40 A 100 mA A",
+      "PF7 63 A 100 mA A",  "PF7 80 A 100 mA A",  "PF7 100 A 100 mA A", "PF7 125 A 100 mA A",
+
+      "PF7 40 A 30 mA F",   "PF7 63 A 30 mA F",   "PF7 40 A 100 mA F",  "PF7 63 A 100 mA F",
+
+      "PF7 25 A 30 mA B",   "PF7 40 A 30 mA B",   "PF7 63 A 30 mA B",
+      "PF7 25 A 100 mA B",  "PF7 40 A 100 mA B",  "PF7 63 A 100 mA B",
+
+      "PF7 40 A 30 mA B+",  "PF7 63 A 30 mA B+",  "PF7 40 A 100 mA B+", "PF7 63 A 100 mA B+"
+    ],
+
+    "Noark": [
+      "Ex9L 25 A 30 mA AC", "Ex9L 40 A 30 mA AC", "Ex9L 63 A 30 mA AC",
+      "Ex9L 25 A 100 mA AC","Ex9L 40 A 100 mA AC","Ex9L 63 A 100 mA AC",
+
+      "Ex9L 25 A 30 mA A",  "Ex9L 40 A 30 mA A",  "Ex9L 63 A 30 mA A",
+      "Ex9L 25 A 100 mA A", "Ex9L 40 A 100 mA A", "Ex9L 63 A 100 mA A",
+
+      "Ex9L-H 40 A 30 mA F","Ex9L-H 63 A 30 mA F","Ex9L-H 40 A 100 mA F","Ex9L-H 63 A 100 mA F",
+
+      "Ex9LB63 40 A 30 mA B","Ex9LB63 63 A 30 mA B","Ex9LB63 40 A 100 mA B","Ex9LB63 63 A 100 mA B"
+    ],
+
+    "OEZ": [
+      "OFI 25 A 30 mA AC",  "OFI 40 A 30 mA AC",  "OFI 63 A 30 mA AC",
+      "OFI 25 A 100 mA AC", "OFI 40 A 100 mA AC", "OFI 63 A 100 mA AC",
+      "OFI 25 A 30 mA A",   "OFI 40 A 30 mA A",   "OFI 63 A 30 mA A",
+      "OFI 25 A 100 mA A",  "OFI 40 A 100 mA A",  "OFI 63 A 100 mA A",
+
+      "LFE 25 A 30 mA A",   "LFE 40 A 30 mA A",   "LFE 63 A 30 mA A",
+      "LFE 25 A 100 mA A",  "LFE 40 A 100 mA A",  "LFE 63 A 100 mA A"
+    ],
+
+    "Moeller": [
+      "PF6 16 A 30 mA AC",  "PF6 25 A 30 mA AC",  "PF6 40 A 30 mA AC",  "PF6 63 A 30 mA AC",
+      "PF6 16 A 100 mA AC", "PF6 25 A 100 mA AC", "PF6 40 A 100 mA AC", "PF6 63 A 100 mA AC",
+      "PF6 16 A 30 mA A",   "PF6 25 A 30 mA A",   "PF6 40 A 30 mA A",   "PF6 63 A 30 mA A",
+      "PF6 16 A 100 mA A",  "PF6 25 A 100 mA A",  "PF6 40 A 100 mA A",  "PF6 63 A 100 mA A",
+
+      "PF7 25 A 30 mA A",   "PF7 40 A 30 mA A",   "PF7 63 A 30 mA A",   "PF7 80 A 30 mA A",
+      "PF7 100 A 30 mA A",  "PF7 125 A 30 mA A",  "PF7 25 A 100 mA A",  "PF7 40 A 100 mA A",
+      "PF7 63 A 100 mA A",  "PF7 80 A 100 mA A",  "PF7 100 A 100 mA A", "PF7 125 A 100 mA A",
+
+      "PF7 40 A 30 mA F",   "PF7 63 A 30 mA F",   "PF7 40 A 100 mA F",  "PF7 63 A 100 mA F",
+      "PF7 25 A 30 mA B",   "PF7 40 A 30 mA B",   "PF7 63 A 30 mA B",
+      "PF7 25 A 100 mA B",  "PF7 40 A 100 mA B",  "PF7 63 A 100 mA B",
+      "PF7 40 A 30 mA B+",  "PF7 63 A 30 mA B+",  "PF7 40 A 100 mA B+", "PF7 63 A 100 mA B+"
+    ],
+
+    "FaG": [
+      "FGR-A 25 A 30 mA A", "FGR-A 40 A 30 mA A", "FGR-A 63 A 30 mA A",
+      "FGR-A 25 A 100 mA A","FGR-A 40 A 100 mA A","FGR-A 63 A 100 mA A"
+    ],
+
+    "ABB": [
+      "F200 40 A 30 mA AC", "F200 40 A 30 mA A", "F200 40 A 30 mA B",
+      "F200 40 A 100 mA AC","F200 40 A 100 mA A","F200 40 A 100 mA B"
+    ],
+
+    "Legrand": [
+      "DX³ 40 A 30 mA AC","DX³ 40 A 30 mA A","DX³ 40 A 30 mA B",
+      "DX³ 40 A 100 mA AC","DX³ 40 A 100 mA A","DX³ 40 A 100 mA B"
+    ],
+
+    "Schneider": [
+      "Acti 9 iID 40 A 30 mA AC",
+      "Acti 9 iID 40 A 30 mA A",
+      "Acti 9 iID 40 A 30 mA B",
+      "Acti 9 iID 40 A 100 mA AC",
+      "Acti 9 iID 40 A 100 mA A",
+      "Acti 9 iID 40 A 100 mA B"
+    ]
+  },
+
+  "Stykač": {
+    "Eaton":     ["DILM9-10","DILM17-10","DILM32-10","DILM40-10","DILM65-10"],
+    "Noark":     ["CT-9","CT-16","CT-25","CT-40","CT-63"],
+    "OEZ":       ["CT3-9","CT3-25","CT4-40","CT4-65"],
+    "FaG":       ["FIC-12","FIC-25","FIC-40","FIC-63"],
+    "Schneider": ["TeSys D LC1D09","TeSys D LC1D12","TeSys D LC1D25","TeSys D LC1D40","TeSys D LC1D65"]
+  },
+
+  "Relé": {
+    "Eaton":     ["ESR5-NO-31-UC","ESR5-ST-230VAC","Z-BM230-PLC"],
+    "Noark":     ["UVR100","SVR100","TPR50"],
+    "ELKO EP":   ["CRM-93H","CRM-2S","SMR-T"],
+    "Schneider": ["Zelio RXM2AB2BD","Zelio RXM4AB2BD","Zelio RPM1AD23"]
+  },
+
+  "Pojistková pouzdra": {
+    "-": [
+      "E27 6A","E27 10A","E27 16A","E27 20A","E27 25A","E27 32A","E27 40A","E27 50A","E27 63A",
+      "E33 6A","E33 10A","E33 16A","E33 20A","E33 25A","E33 32A","E33 40A","E33 50A","E33 63A","E33 80A","E33 100A"
+    ]
+  }
+}

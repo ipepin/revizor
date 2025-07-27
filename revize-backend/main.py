@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import Base, engine
 from routers import projects
-from routers import projects, revisions
+from routers import projects, revisions,catalog,defects
 
 app = FastAPI()
 
@@ -21,3 +21,5 @@ Base.metadata.create_all(bind=engine)
 # Připojení routerů
 app.include_router(projects.router)
 app.include_router(revisions.router)
+app.include_router(catalog.router)
+app.include_router(defects.router)

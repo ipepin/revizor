@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends,HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Revision
-from schemas import RevisionCreate
+from schemas import RevisionCreate,RevisionUpdate,RevisionRead
 
 router = APIRouter()
 
@@ -34,3 +34,19 @@ def delete_revision(revision_id: int, db: Session = Depends(get_db)):
     db.delete(rev)
     db.commit()
     return {"message": "Revize byla smazána"}
+
+@router.patch("/{rev_id}", response_model=RevisionRead)
+def update_revision_partial(
+    rev_id: int,
+    payload: RevisionUpdate,
+    db: Session = Depends(get_db),
+):
+    rev = db.get(Revision, rev_id)
+    if not rev:
+        raise HTTPException(404, "Revision not found")
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(rev, k, v)
+    db.commit()
+    db.refresh(rev)
+    return rev
