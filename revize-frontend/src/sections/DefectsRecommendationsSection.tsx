@@ -1,4 +1,4 @@
-// src/components/DefectsRecommendationsSection.tsx
+// src/sections/DefectsRecommendationsSection.tsx
 
 import React, {
   useState,
@@ -18,6 +18,7 @@ type Defect = {
 
 export default function DefectsRecommendationsSection() {
   const { form, setForm } = useContext(RevisionFormContext);
+
   const [catalog, setCatalog] = useState<Defect[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -28,41 +29,48 @@ export default function DefectsRecommendationsSection() {
   });
   const [toDelete, setToDelete] = useState<Defect | null>(null);
 
-  // načtení katalogu z API
   useEffect(() => {
-    axios
-      .get<Defect[]>("/defects")
-      .then(r => setCatalog(r.data))
-      .catch(() => alert("Chyba při načítání katalogu závad"));
+    loadCatalog();
   }, []);
 
-  // přidat vybranou závadu
-  const addToList = (d: Defect) => {
-    const entry = `${d.description} (${d.standard}, čl. ${d.article})`;
-    setForm(f => ({ ...f, defects: [...f.defects, entry] }));
-    setShowPicker(false);
-  };
+  function loadCatalog() {
+    axios
+      .get<Defect[]>("/defects")
+      .then((res) => setCatalog(res.data))
+      .catch(() => alert("Chyba při načítání katalogu závad"));
+  }
 
-  // synchronizace textarea ↔ context
-  const onChangeTextarea = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    const lines = e.target.value
-      .split("\n")
-      .map(l => l.replace(/^\d+\)\s*/, "").trim())
-      .filter(l => l);
-    setForm(f => ({ ...f, defects: lines }));
-  };
+function addDefectToList(d: Defect) {
+  setForm((f) => ({
+    ...f,
+    defects: [...f.defects, d], // přidáme rovnou celý objekt
+  }));
+  setShowPicker(false);
+}
 
-  // CRUD v editoru
-  const onChangeCatalogField = (
-    idx: number,
-    field: keyof Omit<Defect, "id">,
-    val: string
-  ) => {
-    setCatalog(c =>
+function onChangeTextarea(e: ChangeEvent<HTMLTextAreaElement>) {
+  const lines = e.target.value
+    .split("\n")
+    .map((l) => l.replace(/^\d+\)\s*/, "").trim())
+    .filter((l) => l.length > 0);
+
+  // Převedeme každý řádek na objekt Defect (např. bez standardu a článku)
+  setForm((f) => ({
+    ...f,
+    defects: lines.map((desc) => ({
+      description: desc,
+      standard: "",
+      article: "",
+    })),
+  }));
+}
+  function onChangeCatalog(idx: number, field: keyof Omit<Defect, "id">, val: string) {
+    setCatalog((c) =>
       c.map((d, i) => (i === idx ? { ...d, [field]: val } : d))
     );
-  };
-  const saveCatalogItem = (idx: number) => {
+  }
+
+  function saveCatalogItem(idx: number) {
     const d = catalog[idx];
     axios
       .put(`/defects/${d.id}`, {
@@ -70,51 +78,48 @@ export default function DefectsRecommendationsSection() {
         standard: d.standard,
         article: d.article,
       })
-      .then(() =>
-        axios.get<Defect[]>("/defects").then(r => setCatalog(r.data))
-      )
-      .catch(() => alert("Chyba při ukládání položky"));
-  };
-  const confirmDelete = (d: Defect) => setToDelete(d);
-  const deleteCatalogItem = () => {
+      .then(() => loadCatalog())
+      .catch(() => alert("Chyba při ukládání změn"));
+  }
+
+  function confirmDelete(d: Defect) {
+    setToDelete(d);
+  }
+
+  function deleteCatalogItem() {
     if (!toDelete) return;
     axios
       .delete(`/defects/${toDelete.id}`)
       .then(() => {
         setToDelete(null);
-        axios.get<Defect[]>("/defects").then(r => setCatalog(r.data));
+        loadCatalog();
       })
       .catch(() => {
         setToDelete(null);
         alert("Chyba při mazání položky");
       });
-  };
-  const createCatalogItem = () => {
+  }
+
+  function createCatalogItem() {
     axios
       .post("/defects", newDefect)
       .then(() => {
         setNewDefect({ description: "", standard: "", article: "" });
-        axios.get<Defect[]>("/defects").then(r => setCatalog(r.data));
+        loadCatalog();
       })
       .catch(() => alert("Chyba při vytváření položky"));
-  };
+  }
 
   return (
     <section className="w-full bg-white p-4 rounded shadow mb-8">
-      <h2 className="text-lg font-semibold mb-2">
-        Závady a doporučení
-      </h2>
-
+      <h2 className="text-lg font-semibold mb-2">Závady a doporučení</h2>
       <textarea
         className="w-full p-2 border rounded text-sm mb-4"
         rows={6}
         placeholder="Každá závada na samostatném řádku"
-        value={form.defects
-          .map((d, i) => `${i + 1}) ${d}`)
-          .join("\n")}
+        value={(form.defects || []).map((d, i) => `${i + 1}) ${d}`).join("\n")}
         onChange={onChangeTextarea}
       />
-
       <div className="flex gap-2 mb-4">
         <button
           className="bg-blue-600 text-white py-1 px-3 rounded text-sm"
@@ -130,13 +135,10 @@ export default function DefectsRecommendationsSection() {
         </button>
       </div>
 
-      {/* picker dialog */}
       {showPicker && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-full max-w-2xl">
-            <h3 className="text-lg font-semibold mb-4">
-              Vyberte závadu
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Vyberte závadu</h3>
             <div className="overflow-auto max-h-64 mb-4">
               <table className="w-full text-sm border">
                 <thead className="bg-gray-100">
@@ -148,7 +150,7 @@ export default function DefectsRecommendationsSection() {
                   </tr>
                 </thead>
                 <tbody>
-                  {catalog.map(d => (
+                  {catalog.map((d) => (
                     <tr key={d.id} className="border-t">
                       <td className="p-2">{d.description}</td>
                       <td className="p-2">{d.standard}</td>
@@ -156,7 +158,7 @@ export default function DefectsRecommendationsSection() {
                       <td className="p-2 text-center">
                         <button
                           className="text-green-600 px-2"
-                          onClick={() => addToList(d)}
+                          onClick={() => addDefectToList(d)}
                         >
                           ✔️
                         </button>
@@ -178,7 +180,6 @@ export default function DefectsRecommendationsSection() {
         </div>
       )}
 
-      {/* editor dialog */}
       {showEditor && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-full max-w-3xl overflow-auto max-h-[80vh]">
@@ -202,8 +203,8 @@ export default function DefectsRecommendationsSection() {
                       <input
                         className="w-full border rounded p-1 text-sm"
                         value={d.description}
-                        onChange={e =>
-                          onChangeCatalogField(idx, "description", e.target.value)
+                        onChange={(e) =>
+                          onChangeCatalog(idx, "description", e.target.value)
                         }
                       />
                     </td>
@@ -211,8 +212,8 @@ export default function DefectsRecommendationsSection() {
                       <input
                         className="w-full border rounded p-1 text-sm"
                         value={d.standard}
-                        onChange={e =>
-                          onChangeCatalogField(idx, "standard", e.target.value)
+                        onChange={(e) =>
+                          onChangeCatalog(idx, "standard", e.target.value)
                         }
                       />
                     </td>
@@ -220,8 +221,8 @@ export default function DefectsRecommendationsSection() {
                       <input
                         className="w-full border rounded p-1 text-sm"
                         value={d.article}
-                        onChange={e =>
-                          onChangeCatalogField(idx, "article", e.target.value)
+                        onChange={(e) =>
+                          onChangeCatalog(idx, "article", e.target.value)
                         }
                       />
                     </td>
@@ -249,24 +250,27 @@ export default function DefectsRecommendationsSection() {
                 placeholder="Závada"
                 className="border rounded p-2 text-sm"
                 value={newDefect.description}
-                onChange={e =>
-                  setNewDefect(nd => ({ ...nd, description: e.target.value }))
+                onChange={(e) =>
+                  setNewDefect((nd) => ({
+                    ...nd,
+                    description: e.target.value,
+                  }))
                 }
               />
               <input
                 placeholder="Norma"
                 className="border rounded p-2 text-sm"
                 value={newDefect.standard}
-                onChange={e =>
-                  setNewDefect(nd => ({ ...nd, standard: e.target.value }))
+                onChange={(e) =>
+                  setNewDefect((nd) => ({ ...nd, standard: e.target.value }))
                 }
               />
               <input
                 placeholder="Článek"
                 className="border rounded p-2 text-sm"
                 value={newDefect.article}
-                onChange={e =>
-                  setNewDefect(nd => ({ ...nd, article: e.target.value }))
+                onChange={(e) =>
+                  setNewDefect((nd) => ({ ...nd, article: e.target.value }))
                 }
               />
             </div>
@@ -279,7 +283,7 @@ export default function DefectsRecommendationsSection() {
               </button>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end">
               <button
                 className="bg-gray-300 py-1 px-3 rounded text-sm"
                 onClick={() => setShowEditor(false)}
@@ -291,7 +295,6 @@ export default function DefectsRecommendationsSection() {
         </div>
       )}
 
-      {/* potvrzovací dialog pro mazání */}
       {toDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-full max-w-lg">
@@ -319,5 +322,5 @@ export default function DefectsRecommendationsSection() {
         </div>
       )}
     </section>
-);
+  );
 }

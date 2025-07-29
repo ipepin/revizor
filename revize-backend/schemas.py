@@ -3,10 +3,10 @@
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
-# --- User ---
+# --- Users ---
 
 class UserBase(BaseModel):
-    name: str
+    name:  str
     email: str
 
 class UserCreate(UserBase):
@@ -18,59 +18,59 @@ class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- Project ---
+# --- Projects ---
 
 class ProjectBase(BaseModel):
     address: str
-    client: str
+    client:  str
 
 class ProjectCreate(ProjectBase):
     owner_id: Optional[int] = None
 
 class ProjectRead(ProjectBase):
-    id: int
+    id:       int
     owner_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- Revision ---
+# --- Revisions ---
 
 class RevisionBase(BaseModel):
-    number: str
-    type: Optional[str] = None
-    date_done: Optional[str] = None
+    number:      str
+    type:        Optional[str] = None
+    date_done:   Optional[str] = None
     valid_until: Optional[str] = None
-    status: Optional[str] = None
-    data_json: Optional[str] = None
+    status:      Optional[str] = None
+    data_json:   Optional[str] = None
 
-    # nová pole
-    defects: Optional[str] = None
-    conclusion_text: Optional[str] = None
-    conclusion_safety: Optional[str] = None
+    # nová pole pro sekce
+    defects:                Optional[str] = None
+    conclusion_text:        Optional[str] = None
+    conclusion_safety:      Optional[str] = None
     conclusion_valid_until: Optional[str] = None
 
 class RevisionCreate(RevisionBase):
     project_id: int
 
 class RevisionRead(RevisionBase):
-    id: int
+    id:         int
     project_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 class RevisionUpdate(BaseModel):
-    number:        Optional[str] = None
-    type:          Optional[str] = None
-    date_done:     Optional[str] = None
-    valid_until:   Optional[str] = None
-    status:        Optional[str] = None
-    data_json:     Optional[str] = None
+    number:      Optional[str] = None
+    type:        Optional[str] = None
+    date_done:   Optional[str] = None
+    valid_until: Optional[str] = None
+    status:      Optional[str] = None
+    data_json:   Optional[str] = None
 
-    defects:                  Optional[str] = None
-    conclusion_text:          Optional[str] = None
-    conclusion_safety:        Optional[str] = None
-    conclusion_valid_until:   Optional[str] = None
+    defects:                Optional[str] = None
+    conclusion_text:        Optional[str] = None
+    conclusion_safety:      Optional[str] = None
+    conclusion_valid_until: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,10 +84,11 @@ class ComponentModelCreate(ComponentModelBase):
     manufacturer_id: int
 
 class ComponentModelRead(ComponentModelBase):
-    id: int
+    id:              int
     manufacturer_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ManufacturerBase(BaseModel):
     name: str
@@ -96,11 +97,12 @@ class ManufacturerCreate(ManufacturerBase):
     type_id: int
 
 class ManufacturerRead(ManufacturerBase):
-    id: int
+    id:      int
     type_id: int
-    models: List[ComponentModelRead] = []
+    models:  List[ComponentModelRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class ComponentTypeBase(BaseModel):
     name: str
@@ -109,7 +111,7 @@ class ComponentTypeCreate(ComponentTypeBase):
     pass
 
 class ComponentTypeRead(ComponentTypeBase):
-    id: int
+    id:            int
     manufacturers: List[ManufacturerRead] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -129,3 +131,22 @@ class DefectRead(DefectBase):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class RevisionRead(RevisionBase):
+    id: int
+    project_id: int
+    data_json: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class RevisionUpdate(BaseModel):
+    data_json: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+# --- Aliasy pro zpětnou kompatibilitu starších importů ---
+
+ComponentTypeOut    = ComponentTypeRead
+ManufacturerOut     = ManufacturerRead
+ComponentModelOut   = ComponentModelRead
+DefectOut           = DefectRead
+UserOut             = UserRead
+ProjectOut          = ProjectRead
+RevisionOut         = RevisionRead

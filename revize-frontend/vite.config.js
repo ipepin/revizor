@@ -1,27 +1,46 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// vite.config.ts
+
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  port:5173,
   server: {
+    // port, na kterém běží dev-server
+    port: 5173,
     proxy: {
+      // katalog komponent
       '/catalog': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: path => path.replace(/^\/catalog/, '/catalog'),
+        secure: false,
+        rewrite: (path) => path.replace(/^\/catalog/, '/catalog'),
       },
-      '/api': {
+      // seznam závad
+      '/defects': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-
-       "/defects": {
-        target: "http://localhost:8000",
         changeOrigin: true,
         secure: false,
       },
+      // revize (GET, PATCH, POST)
+      '/revisions': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // projekty
+      '/projects': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+      // případné další endpointy pod /api
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
     },
   },
-})
-
+});

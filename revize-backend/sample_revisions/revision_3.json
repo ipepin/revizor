@@ -1,0 +1,70 @@
+{
+  "evidencni": "REV-003",
+  "objekt": "Objekt č. 3",
+  "adresa": "Ulice 3, Město",
+  "objednatel": "Objednatel 3",
+  "typRevize": "Výchozí",
+  "sit": "TN-C-S",
+  "voltage": "230V/400V",
+  "date_start": "2025-07-04",
+  "date_end": "2025-07-05",
+  "date_created": "2025-07-06",
+  "documentation": "Dokumentace objektu 3",
+  "environment": "Normální prostředí",
+  "extraNotes": "Žádné další poznámky.",
+  "protection_basic": [
+    "Základní izolace",
+    "Přepážky a kryty"
+  ],
+  "protection_fault": [
+    "Automatické odpojení od zdroje"
+  ],
+  "protection_additional": [
+    "Proudové chrániče (RCD)"
+  ],
+  "norms": [
+    "ČSN 33 1500",
+    "ČSN 33 2000-6 ed.2 + Z2"
+  ],
+  "customNorm1": "",
+  "customNorm2": "",
+  "customNorm3": "",
+  "boards": [
+    {
+      "id": 1,
+      "name": "Rozvaděč 3",
+      "vyrobce": "ABB",
+      "typ": "ECO",
+      "vyrobniCislo": "HR-2025-03",
+      "napeti": "400V",
+      "proud": "32A",
+      "ip": "IP44",
+      "odpor": "0.05",
+      "umisteni": "Místnost 3",
+      "komponenty": [
+        {
+          "id": 1,
+          "nazev": "Jistič",
+          "popis": "Jistič B16",
+          "dimenze": "CYKY 3x2,5",
+          "riso": ">1 MΩ",
+          "ochrana": "automatické odpojení",
+          "poznamka": ""
+        }
+      ]
+    }
+  ],
+  "rooms": [],
+  "defects": [
+    {
+      "description": "Závada 3",
+      "standard": "ČSN 33 2130 ed.4",
+      "article": "5.3.4"
+    }
+  ],
+  "conclusion": {
+    "text": "Instalace č. 3 je schopna bezpečného provozu.",
+    "safety": "able",
+    "validUntil": "2027-07-04"
+  }
+}

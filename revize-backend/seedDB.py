@@ -1,66 +1,61 @@
-import json
+# scripts/seed_projects_and_revisions.py
+
+import random
+from datetime import date, timedelta
 from sqlalchemy.orm import Session
+
 from database import SessionLocal, engine, Base
-from models import ComponentType, Manufacturer, ComponentModel
+from models import Project, Revision
 
-# Create tables if they don't exist
-def init_db():
-    Base.metadata.create_all(bind=engine)
+# 1) Vytvoření všech tabulek (pokud ještě neexistují)
+Base.metadata.create_all(bind=engine)
 
+# 2) Definice testovacích dat
+PROJECT_COUNT = 10
+REVISION_TYPES = ["electro", "appliance", "fve", "odberne_misto"]
+STATUSES = ["draft", "in_review", "completed"]
 
-def seed_catalog(json_path: str = "komponenty.json"):
-    """
-    Seed the database with component types, manufacturers, and models
-    based on the provided JSON file.
-    """
-    # Initialize DB schema
-    init_db()
+def random_date(start: date, end: date) -> date:
+    """Vrátí náhodné datum mezi start a end."""
+    delta = end - start
+    return start + timedelta(days=random.randint(0, delta.days))
 
-    # Open a DB session
-    session: Session = SessionLocal()
+def seed(db: Session):
+    for i in range(1, PROJECT_COUNT + 1):
+        proj = Project(
+            address=f"Ulice {i}, Město {i}",
+            client=f"Klient {i}",
+            owner_id=None  # nebo nějaký existující uživatel
+        )
+        db.add(proj)
+        db.flush()  # aby získal proj.id
 
-    # Load JSON data
-    with open(json_path, 'r', encoding='utf-8') as f:
-        catalog = json.load(f)
-
-    for type_name, makers in catalog.items():
-        # Create or get ComponentType
-        type_obj = session.query(ComponentType).filter_by(name=type_name).first()
-        if not type_obj:
-            type_obj = ComponentType(name=type_name)
-            session.add(type_obj)
-            session.commit()
-        
-        for maker_name, models in makers.items():
-            # Create or get Manufacturer
-            manu_obj = (
-                session.query(Manufacturer)
-                .filter_by(name=maker_name, type_id=type_obj.id)
-                .first()
+        # Pro tento projekt vytvoříme 1–3 revize
+        rev_count = random.randint(1, 3)
+        for j in range(1, rev_count + 1):
+            done = random_date(date(2020, 1, 1), date(2022, 12, 31))
+            valid = done + timedelta(days=365)
+            rev = Revision(
+                number=f"REV-{proj.id:02d}-{j:02d}",
+                type=random.choice(REVISION_TYPES),
+                date_done=done.isoformat(),
+                valid_until=valid.isoformat(),
+                status=random.choice(STATUSES),
+                data_json="{}",            # prázdné JSON pole
+                defects="",                # prázdný řetězec
+                conclusion_text="",        # prázdný řetězec
+                conclusion_safety="",      # prázdný řetězec
+                conclusion_valid_until="", # prázdný řetězec
+                project_id=proj.id,
             )
-            if not manu_obj:
-                manu_obj = Manufacturer(name=maker_name, type=type_obj)
-                session.add(manu_obj)
-                session.commit()
+            db.add(rev)
 
-            # Iterate over model names
-            for model_name in models:
-                # Check if model exists
-                model_obj = (
-                    session.query(ComponentModel)
-                    .filter_by(name=model_name, manufacturer_id=manu_obj.id)
-                    .first()
-                )
-                if not model_obj:
-                    model_obj = ComponentModel(name=model_name, manufacturer=manu_obj)
-                    session.add(model_obj)
-            # Commit all added models for this manufacturer
-            session.commit()
+    db.commit()
+    print(f"✅ Seedováno {PROJECT_COUNT} projektů s revizemi.")
 
-    # Close session
-    session.close()
-    print("Seeding complete.")
-
-
-if __name__ == '__main__':
-    seed_catalog()
+if __name__ == "__main__":
+    db = SessionLocal()
+    try:
+        seed(db)
+    finally:
+        db.close()

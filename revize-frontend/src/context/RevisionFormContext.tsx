@@ -1,23 +1,92 @@
 // src/context/RevisionFormContext.tsx
 
-import React, { createContext, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from "react";
 import axios from "axios";
 
-export interface RevisionForm {
-  defects: string[];
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// Typ pro jednu komponentu v rozvaděči
+export interface Komponenta {
+  id: number;
+  nazev: string;
+  popis: string;
+  dimenze: string;
+  riso: string;
+  ochrana: string;
+  poznamka: string;
+}
+
+// Typ pro jeden rozvaděč
+export interface Board {
+  id: number;
+  name: string;
+  vyrobce: string;
+  typ: string;
+  vyrobniCislo: string;
+  napeti: string;
+  proud: string;
+  ip: string;
+  odpor: string;
+  umisteni: string;
+  komponenty: Komponenta[];
+}
+
+// Typ pro jednu závadu
+export interface Defect {
+  description: string;
+  standard: string;
+  article: string;
+}
+
+// Celkový typ formuláře
+export type RevisionForm = {
+  evidencni: string;
+  objekt: string;
+  adresa: string;
+  objednatel: string;
+  typRevize: string;
+  sit: string;
+  voltage: string;
+  date_start: string;
+  date_end: string;
+  date_created: string;
+  documentation: string;
+  environment: string;
+  extraNotes: string;
+
+  protection_basic: string[];
+  protection_fault: string[];
+  protection_additional: string[];
+
+  norms: string[];
+  customNorm1: string;
+  customNorm2: string;
+  customNorm3: string;
+
+  boards: Board[];
+  rooms: any[];
+
+  defects: Defect[];
+
   conclusion: {
     text: string;
     safety: "able" | "not_able" | "";
     validUntil: string;
   };
-}
+};
 
-interface ContextValue {
+type ContextValue = {
   form: RevisionForm;
   setForm: React.Dispatch<React.SetStateAction<RevisionForm>>;
   saveNow: () => void;
   finish: () => void;
-}
+};
 
 export const RevisionFormContext = createContext<ContextValue>(null!);
 
@@ -29,44 +98,76 @@ export function RevisionFormProvider({
   children: ReactNode;
 }) {
   const [form, setForm] = useState<RevisionForm>({
+    evidencni: "",
+    objekt: "",
+    adresa: "",
+    objednatel: "",
+    typRevize: "",
+    sit: "",
+    voltage: "",
+    date_start: "",
+    date_end: "",
+    date_created: "",
+    documentation: "",
+    environment: "",
+    extraNotes: "",
+
+    protection_basic: [],
+    protection_fault: [],
+    protection_additional: [],
+
+    norms: [],
+    customNorm1: "",
+    customNorm2: "",
+    customNorm3: "",
+
+    boards: [],
+    rooms: [],
+
     defects: [],
-    conclusion: { text: "", safety: "", validUntil: "" },
+
+    conclusion: {
+      text: "",
+      safety: "",
+      validUntil: "",
+    },
   });
 
-  // autosave s debounce 800ms
+  useEffect(() => {
+    axios
+      .get<{ data_json?: string }>(`/revisions/${revId}`)
+      .then((res) => {
+        if (res.data.data_json) {
+          try {
+            setForm(JSON.parse(res.data.data_json));
+          } catch {
+            console.warn("data_json není validní JSON");
+          }
+        }
+      })
+      .catch(() => {
+        console.warn("Nelze načíst revizi (neexistuje nebo síť).");
+      });
+  }, [revId]);
+
   useEffect(() => {
     const h = setTimeout(() => {
-      axios.patch(`/revisions/${revId}`, {
-        defects: form.defects.join("\n"),
-        conclusion_text: form.conclusion.text,
-        conclusion_safety: form.conclusion.safety,
-        conclusion_valid_until: form.conclusion.validUntil,
-      });
+      axios
+        .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
+        .catch(() => console.warn("Autosave selhal"));
     }, 800);
     return () => clearTimeout(h);
   }, [form, revId]);
 
-  const saveNow = () => {
-    axios.patch(`/revisions/${revId}`, {
-      defects: form.defects.join("\n"),
-      conclusion_text: form.conclusion.text,
-      conclusion_safety: form.conclusion.safety,
-      conclusion_valid_until: form.conclusion.validUntil,
-    });
-  };
+  const saveNow = useCallback(() => {
+    axios.patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) });
+  }, [form, revId]);
 
-  const finish = () => {
+  const finish = useCallback(() => {
     axios
-      .patch(`/revisions/${revId}`, {
-        defects: form.defects.join("\n"),
-        conclusion_text: form.conclusion.text,
-        conclusion_safety: form.conclusion.safety,
-        conclusion_valid_until: form.conclusion.validUntil,
-      })
-      .then(() => {
-        // např. redirect nebo změnit status revize na "dokončená"
-      });
-  };
+      .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
+      .then(() => console.log("Revision marked as finished"));
+  }, [form, revId]);
 
   return (
     <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>

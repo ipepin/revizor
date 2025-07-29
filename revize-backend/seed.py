@@ -1,63 +1,57 @@
-from database import SessionLocal, engine
-from models import Base, User, Project, Revision
-from models import project_user_link  # import spojovací tabulky
-from datetime import datetime, timedelta
+import sqlite3
+import json
 import random
+import os
+from datetime import datetime
 
-# 🧹 Drop + create all
-Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
+DB_PATH = "projects.db"
 
-db = SessionLocal()
+conn = sqlite3.connect(DB_PATH)
+cur = conn.cursor()
 
-# 🔐 Vytvoříme uživatele
-users = [
-    User(name="Petr Revizní", email="petr@example.com", password_hash="hashed1"),
-    User(name="Jana Technická", email="jana@example.com", password_hash="hashed2"),
-    User(name="Karel Pomocný", email="karel@example.com", password_hash="hashed3"),
-]
-for u in users:
-    db.add(u)
-db.commit()
+# 1. Smaž prázdné revize
+cur.execute("DELETE FROM revisions WHERE data_json IS NULL OR TRIM(data_json) = ''")
+conn.commit()
 
-# 🔄 Mapujeme uživatele
-u1, u2, u3 = users
+# 2. Smaž všechny projekty
+cur.execute("DELETE FROM projects")
+conn.commit()
 
-# 📁 Projekty
-projects = [
-    Project(address="U Lesa 12, Praha", client="Novák", owner=u1),
-    Project(address="Na Výsluní 45, Brno", client="Svoboda", owner=u1),
-    Project(address="Zahradní 8, Ostrava", client="Dvořák", owner=u2),
-    Project(address="Dlouhá 33, Plzeň", client="Beneš", owner=u3),
-]
+# 3. Vytvoř nový projekt
+address = f"Testovací objekt č. {random.randint(100,999)}, Ulice {random.randint(1, 50)}"
+client = "Ukázkový klient"
+owner_id = 1  # uprav podle potřeby
 
-# 🧑‍🤝‍🧑 Sdílení: projekt[0] u1 ↔ u2, projekt[2] u2 ↔ u3
-projects[0].shared_with_users.append(u2)
-projects[2].shared_with_users.append(u3)
+cur.execute(
+    "INSERT INTO projects (address, client, owner_id) VALUES (?, ?, ?)",
+    (address, client, owner_id)
+)
+project_id = cur.lastrowid
+conn.commit()
 
-for p in projects:
-    db.add(p)
-db.commit()
+print(f"Projekt vytvořen (id: {project_id}, adresa: {address})")
 
-# 📄 Revize
-rev_id_counter = 1000  # pro unikátní evidenční čísla
+# 4. Načti JSON revize
+REVIZE_DIR = "sample_revisions"
+rev_files = [f for f in os.listdir(REVIZE_DIR) if f.endswith(".json")]
 
-for project in projects:
-    for _ in range(random.randint(1, 3)):
-        done = datetime.now() - timedelta(days=random.randint(30, 365))
-        valid = done + timedelta(days=365*4)
-        rev = Revision(
-            number=f"RZ-{rev_id_counter}",
-            type=random.choice(["Elektroinstalace", "FVE", "Spotřebič", "Stroj"]),
-            date_done=done.strftime("%Y-%m-%d"),
-            valid_until=valid.strftime("%Y-%m-%d"),
-            status=random.choice(["Hotová", "Rozpracovaná"]),
-            data_json='{"poznámka": "Seedová revize"}',
-            project_id=project.id
-        )
-        rev_id_counter += 1
-        db.add(rev)
+if not rev_files:
+    print("❌ Ve složce 'samples' nejsou žádné JSON soubory.")
+    exit()
 
-db.commit()
-db.close()
-print("✅ Seed hotov. Vytvořeni uživatelé, projekty a revize.")
+# 5. Přidej revize
+for file in rev_files:
+    with open(os.path.join(REVIZE_DIR, file), "r", encoding="utf-8") as f:
+        data_json = f.read()
+
+    number = f"REV-{random.randint(1000,9999)}"
+
+    cur.execute(
+        "INSERT INTO revisions (project_id, number, data_json) VALUES (?, ?, ?)",
+        (project_id, number, data_json)
+    )
+
+conn.commit()
+conn.close()
+
+print(f"✅ Do projektu ID {project_id} bylo vloženo {len(rev_files)} revizí.")
