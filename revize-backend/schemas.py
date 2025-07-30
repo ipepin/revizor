@@ -1,6 +1,7 @@
 # revize-backend/schemas.py
 
-from typing import List, Optional
+from typing import List, Optional,Any,Dict
+from datetime import date
 from pydantic import BaseModel, ConfigDict
 
 # --- Users ---
@@ -50,8 +51,16 @@ class RevisionBase(BaseModel):
     conclusion_safety:      Optional[str] = None
     conclusion_valid_until: Optional[str] = None
 
-class RevisionCreate(RevisionBase):
+class RevisionCreate(BaseModel):
     project_id: int
+    type: str
+    date_done: date
+    valid_until: date
+    status: str
+    data_json: Dict[str, Any]
+
+    class Config:
+        orm_mode = True
 
 class RevisionRead(RevisionBase):
     id:         int
@@ -77,18 +86,17 @@ class RevisionUpdate(BaseModel):
 
 # --- Component Catalog ---
 
-class ComponentModelBase(BaseModel):
+class ComponentTypeRead(BaseModel):
+    id: int
     name: str
 
-class ComponentModelCreate(ComponentModelBase):
-    manufacturer_id: int
+class ManufacturerRead(BaseModel):
+    id: int
+    name: str
 
-class ComponentModelRead(ComponentModelBase):
-    id:              int
-    manufacturer_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
+class ComponentModelRead(BaseModel):
+    id: int
+    name: str
 
 class ManufacturerBase(BaseModel):
     name: str

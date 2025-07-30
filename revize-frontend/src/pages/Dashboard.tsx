@@ -1,3 +1,5 @@
+// src/pages/Dashboard.tsx
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -40,7 +42,7 @@ export default function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProjectData),
       });
-      if (!res.ok) throw new Error("Chyba při ukládání");
+      if (!res.ok) throw new Error("Chyba při ukládání projektu");
       setShowNewProjectDialog(false);
       setNewProjectData({ address: "", client: "" });
       fetchProjects();
@@ -54,7 +56,7 @@ export default function Dashboard() {
       const res = await fetch(`http://localhost:8000/projects/${projectId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Chyba při mazání");
+      if (!res.ok) throw new Error("Chyba při mazání projektu");
       alert("✅ Projekt byl úspěšně smazán");
       fetchProjects();
     } catch (err) {
@@ -69,6 +71,14 @@ export default function Dashboard() {
     const query = search.toLowerCase();
     return address.includes(query) || client.includes(query);
   });
+
+  const revisionTypes = [
+    "Elektroinstalace",
+    "Spotřebič",
+    "FVE",
+    "Odběrné místo",
+    "Stroj",
+  ];
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
@@ -88,6 +98,7 @@ export default function Dashboard() {
         <table className="w-full bg-white border rounded shadow text-sm">
           <thead className="bg-blue-100 text-blue-900">
             <tr>
+              <th className="p-2 text-left">#</th>
               <th className="p-2 text-left">🏠 Adresa</th>
               <th className="p-2 text-left">🧾 Objednatel</th>
               <th className="p-2 text-left">📆 Platnost</th>
@@ -106,10 +117,9 @@ export default function Dashboard() {
                 <React.Fragment key={proj.id}>
                   <tr
                     className={`cursor-pointer border-t hover:bg-blue-50 ${isSelected ? "bg-blue-100" : ""}`}
-                    onClick={() =>
-                      setExpandedProjectId(isSelected ? null : proj.id)
-                    }
+                    onClick={() => setExpandedProjectId(isSelected ? null : proj.id)}
                   >
+                    <td className="p-2 font-mono">{proj.id}</td>
                     <td className="p-2">{proj.address}</td>
                     <td className="p-2">{proj.client}</td>
                     <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
@@ -120,7 +130,7 @@ export default function Dashboard() {
 
                   {isSelected && (
                     <tr>
-                      <td colSpan={4} className="bg-blue-50 p-2">
+                      <td colSpan={5} className="bg-blue-50 p-2">
                         <div className="text-right mb-2 flex justify-between">
                           <button
                             className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
@@ -160,18 +170,14 @@ export default function Dashboard() {
                                 <td className="p-2">{rev.date_done}</td>
                                 <td
                                   className={`p-2 ${
-                                    isExpired(rev.valid_until)
-                                      ? "text-red-600 font-semibold"
-                                      : ""
+                                    isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""
                                   }`}
                                 >
                                   {rev.valid_until}
                                 </td>
                                 <td
                                   className={`p-2 ${
-                                    rev.status === "Hotová"
-                                      ? "text-green-600"
-                                      : "text-blue-600"
+                                    rev.status === "Hotová" ? "text-green-600" : "text-blue-600"
                                   }`}
                                 >
                                   {rev.status}
@@ -186,14 +192,17 @@ export default function Dashboard() {
                                   <button
                                     className="text-red-600 hover:underline"
                                     onClick={async () => {
-                                      const confirm = window.confirm("Opravdu chceš smazat tuto revizi?");
-                                      if (!confirm) return;
+                                      const confirmDelete = window.confirm(
+                                        "Opravdu chceš smazat tuto revizi?"
+                                      );
+                                      if (!confirmDelete) return;
                                       try {
-                                        const res = await fetch(`http://localhost:8000/revisions/${rev.id}`, {
-                                          method: "DELETE",
-                                        });
+                                        const res = await fetch(
+                                          `http://localhost:8000/revisions/${rev.id}`,
+                                          { method: "DELETE" }
+                                        );
                                         if (!res.ok) throw new Error("Mazání selhalo");
-                                        fetchProjects(); // refresh
+                                        fetchProjects();
                                       } catch (err) {
                                         console.error("❌ Chyba při mazání revize:", err);
                                       }
@@ -206,6 +215,72 @@ export default function Dashboard() {
                             ))}
                           </tbody>
                         </table>
+
+                        {/* Dialog pro typ revize */}
+                        {showDialog && selectedProjectId === proj.id && (
+                          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded shadow w-80">
+                              <h2 className="text-lg font-semibold mb-4">
+                                Vyber typ revize
+                              </h2>
+                              <ul>
+                                {revisionTypes.map((type) => (
+                                  <li
+                                    key={type}
+                                    className="p-2 hover:bg-gray-100 cursor-pointer border-b"
+                                    onClick={async () => {
+                                      setShowDialog(false);
+                                      const newRevision = {
+                                        project_id: proj.id,
+                                        type,
+                                        date_done: new Date()
+                                          .toISOString()
+                                          .split("T")[0],
+                                        valid_until: new Date(
+                                          new Date().setFullYear(
+                                            new Date().getFullYear() + 4
+                                          )
+                                        )
+                                          .toISOString()
+                                          .split("T")[0],
+                                        status: "Rozpracovaná",
+                                        data_json: { poznámka: "zatím prázdné" },
+                                      };
+                                      try {
+                                        const response = await fetch(
+                                          "http://localhost:8000/revisions",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type": "application/json",
+                                            },
+                                            body: JSON.stringify(newRevision),
+                                          }
+                                        );
+                                        if (!response.ok)
+                                          throw new Error("Server error");
+                                        fetchProjects();
+                                      } catch (error) {
+                                        console.error(
+                                          "❌ Chyba při ukládání revize:",
+                                          error
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    {type}
+                                  </li>
+                                ))}
+                              </ul>
+                              <button
+                                className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
+                                onClick={() => setShowDialog(false)}
+                              >
+                                Zrušit
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
@@ -226,76 +301,39 @@ export default function Dashboard() {
               className="w-full p-2 mb-2 border rounded"
               placeholder="Adresa"
               value={newProjectData.address}
-              onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })}
+              onChange={(e) =>
+                setNewProjectData({
+                  ...newProjectData,
+                  address: e.target.value,
+                })
+              }
             />
             <input
               type="text"
               className="w-full p-2 mb-4 border rounded"
               placeholder="Objednatel"
               value={newProjectData.client}
-              onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
+              onChange={(e) =>
+                setNewProjectData({
+                  ...newProjectData,
+                  client: e.target.value,
+                })
+              }
             />
             <div className="flex justify-end gap-2">
-              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
+              <button
+                className="px-4 py-2 bg-gray-300 rounded"
+                onClick={() => setShowNewProjectDialog(false)}
+              >
                 Zrušit
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject}>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={handleSaveNewProject}
+              >
                 Uložit
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dialog pro typ revize */}
-      {showDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-80">
-            <h2 className="text-lg font-semibold mb-4">Vyber typ revize</h2>
-            <ul>
-              {["Elektroinstalace", "Spotřebič", "FVE", "Odběrné místo", "Stroj"].map((type) => (
-                <li
-                  key={type}
-                  className="p-2 hover:bg-gray-100 cursor-pointer border-b"
-                  onClick={async () => {
-                    if (!selectedProjectId) return;
-
-                    const newRevision = {
-                      project_id: selectedProjectId,
-                      type,
-                      number: `RZ-${Math.floor(Math.random() * 1000)}`,
-                      date_done: new Date().toISOString().split("T")[0],
-                      valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 4)).toISOString().split("T")[0],
-                      status: "Rozpracovaná",
-                      data_json: JSON.stringify({ poznámka: "zatím prázdné" }),
-                    };
-
-                    try {
-                      const response = await fetch("http://localhost:8000/revisions", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(newRevision),
-                      });
-
-                      if (!response.ok) throw new Error("Server error");
-                      fetchProjects();
-                    } catch (error) {
-                      console.error("❌ Chyba při ukládání revize:", error);
-                    }
-
-                    setShowDialog(false);
-                  }}
-                >
-                  {type}
-                </li>
-              ))}
-            </ul>
-            <button
-              className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
-              onClick={() => setShowDialog(false)}
-            >
-              Zrušit
-            </button>
           </div>
         </div>
       )}

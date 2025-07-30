@@ -11,18 +11,24 @@ import axios from "axios";
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// Typ pro jednu komponentu v rozvaděči
+// —–– Typ pro jednu komponentu
 export interface Komponenta {
   id: number;
-  nazev: string;
-  popis: string;
+  nazevId: string;    // ID přístroje z katalogu
+  nazev: string;      // text pro zobrazení
+  popisId: string;    // ID výrobce
+  popis: string;      // text výrobce
+  typId: string;      // ID modelu
+  typ: string;        // text modelu
+  poles: string;
   dimenze: string;
   riso: string;
   ochrana: string;
   poznamka: string;
 }
 
-// Typ pro jeden rozvaděč
+
+// —–– Typ pro jeden rozvaděč (board)
 export interface Board {
   id: number;
   name: string;
@@ -37,15 +43,22 @@ export interface Board {
   komponenty: Komponenta[];
 }
 
-// Typ pro jednu závadu
+// —–– Data pro jednu závadu
 export interface Defect {
   description: string;
   standard: string;
   article: string;
 }
 
-// Celkový typ formuláře
-export type RevisionForm = {
+// —–– Data pro jednu zkoušku
+export type TestData = {
+  checked: boolean;
+  note: string;
+};
+
+// —–– Celkový tvar dat formuláře
+export interface RevisionForm {
+  // Identifikační údaje
   evidencni: string;
   objekt: string;
   adresa: string;
@@ -60,35 +73,50 @@ export type RevisionForm = {
   environment: string;
   extraNotes: string;
 
+  // Ochrany
   protection_basic: string[];
   protection_fault: string[];
   protection_additional: string[];
 
+  // Normy
   norms: string[];
   customNorm1: string;
   customNorm2: string;
   customNorm3: string;
 
+  // Měření
   boards: Board[];
   rooms: any[];
 
+  // Závady
   defects: Defect[];
 
+  // Prohlídka
+  performedTasks: string[];
+  inspectionTemplate: string;
+  inspectionDescription: string;
+
+  // Zkoušky
+  tests: Record<string, TestData>;
+
+  // Závěr
   conclusion: {
     text: string;
     safety: "able" | "not_able" | "";
     validUntil: string;
   };
-};
+}
 
-type ContextValue = {
+interface ContextValue {
   form: RevisionForm;
   setForm: React.Dispatch<React.SetStateAction<RevisionForm>>;
   saveNow: () => void;
   finish: () => void;
-};
+}
 
-export const RevisionFormContext = createContext<ContextValue>(null!);
+export const RevisionFormContext = createContext<ContextValue>(
+  {} as ContextValue
+);
 
 export function RevisionFormProvider({
   revId,
@@ -111,21 +139,20 @@ export function RevisionFormProvider({
     documentation: "",
     environment: "",
     extraNotes: "",
-
     protection_basic: [],
     protection_fault: [],
     protection_additional: [],
-
     norms: [],
     customNorm1: "",
     customNorm2: "",
     customNorm3: "",
-
     boards: [],
     rooms: [],
-
     defects: [],
-
+    performedTasks: [],
+    inspectionTemplate: "",
+    inspectionDescription: "",
+    tests: {},
     conclusion: {
       text: "",
       safety: "",
@@ -133,59 +160,61 @@ export function RevisionFormProvider({
     },
   });
 
+  // Načtení existující revize
   useEffect(() => {
     axios
-      .get<{ data_json?: string }>(`/revisions/${revId}`)
+      .get(`/revisions/${revId}`)
       .then((res) => {
-        if (res.data.data_json) {
+        const data = res.data;
+        let parsedJson: Partial<RevisionForm> = {};
+        if (data.data_json) {
           try {
-            setForm(JSON.parse(res.data.data_json));
+            parsedJson = JSON.parse(data.data_json);
           } catch {
             console.warn("data_json není validní JSON");
           }
         }
+        setForm((f) => ({
+          ...f,
+          ...parsedJson,
+          evidencni: data.number ?? f.evidencni,
+        }));
       })
-      .catch(() => {
-        console.warn("Nelze načíst revizi (neexistuje nebo síť).");
+      .catch((err) => {
+        console.warn("Nelze načíst revizi:", err);
       });
   }, [revId]);
 
-  useEffect(() => {
-    const h = setTimeout(() => {
-      axios
-        .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
-        .catch(() => console.warn("Autosave selhal"));
-    }, 800);
-    return () => clearTimeout(h);
-  }, [form, revId]);
-
+  // Funkce pro okamžité uložení
   const saveNow = useCallback(() => {
-    axios.patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) });
+    axios
+      .patch(`/revisions/${revId}`, {
+        data_json: JSON.stringify(form),
+      })
+      .catch((err) => console.warn("Uložení revize selhalo:", err));
   }, [form, revId]);
 
+  // Autosave s 800ms debouncingem
+  useEffect(() => {
+    const timeout = setTimeout(saveNow, 800);
+    return () => clearTimeout(timeout);
+  }, [form, saveNow]);
+
+  // Označit dokončení revize
   const finish = useCallback(() => {
-    axios
-      .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
-      .then(() => console.log("Revision marked as finished"));
-  }, [form, revId]);
+    saveNow();
+    console.log("Revision marked as finished");
+  }, [saveNow]);
 
   return (
-    <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>
+    <RevisionFormContext.Provider
+      value={{ form, setForm, saveNow, finish }}
+    >
       {children}
-      <div className="fixed bottom-4 right-4 flex gap-2">
-        <button
-          onClick={saveNow}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
-        >
-          Uložit
-        </button>
-        <button
-          onClick={finish}
-          className="bg-green-600 text-white px-4 py-2 rounded text-sm"
-        >
-          Dokončit
-        </button>
-      </div>
     </RevisionFormContext.Provider>
   );
+}
+
+export function useRevisionForm() {
+  return React.useContext(RevisionFormContext);
 }

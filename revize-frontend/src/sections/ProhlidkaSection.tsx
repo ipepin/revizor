@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+// src/sections/ProhlidkaSection.tsx
+
+import React, { useContext, ChangeEvent } from "react";
+import { RevisionFormContext } from "../context/RevisionFormContext";
 
 const inspectionTasks = [
   "Způsob ochrany před úrazem elektrickým proudem (IEC 60364-4-41)",
@@ -24,32 +27,50 @@ const predefinedDescriptions: Record<string, string> = {
 };
 
 export default function ProhlidkaSection() {
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [description, setDescription] = useState("");
+  const { form, setForm } = useContext(RevisionFormContext);
 
+  // Přepínání checkboxů úkonů
   const toggleTask = (task: string) => {
-    setSelectedTasks((prev) =>
-      prev.includes(task) ? prev.filter((t) => t !== task) : [...prev, task]
-    );
+    setForm((f) => {
+      const current = f.performedTasks;
+      const updated = current.includes(task)
+        ? current.filter((t) => t !== task)
+        : [...current, task];
+      return { ...f, performedTasks: updated };
+    });
   };
 
+  // Výběr šablony popisu
   const handleTemplateSelect = (template: string) => {
-    setSelectedTemplate(template);
-    setDescription(predefinedDescriptions[template] || "");
+    const desc = predefinedDescriptions[template] || "";
+    setForm((f) => ({
+      ...f,
+      inspectionTemplate: template,
+      inspectionDescription: desc,
+    }));
+  };
+
+  // Ruční změna popisu
+  const onDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setForm((f) => ({ ...f, inspectionDescription: val }));
   };
 
   return (
     <div className="space-y-6 text-sm text-gray-800">
+      {/* Provedené úkony */}
       <div>
-        <h2 className="text-xl font-bold text-blue-800 mb-2">✅ Provedené úkony</h2>
+        <h2 className="text-xl font-bold text-blue-800 mb-2">
+          ✅ Provedené úkony
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {inspectionTasks.map((task) => (
             <label key={task} className="flex gap-2 items-start">
               <input
                 type="checkbox"
-                checked={selectedTasks.includes(task)}
+                checked={form.performedTasks.includes(task)}
                 onChange={() => toggleTask(task)}
+                className="accent-blue-600"
               />
               <span>{task}</span>
             </label>
@@ -57,25 +78,34 @@ export default function ProhlidkaSection() {
         </div>
       </div>
 
+      {/* Popis revidovaného objektu */}
       <div>
-        <h2 className="text-xl font-bold text-blue-800 mb-2">🏠 Popis revidovaného objektu</h2>
+        <h2 className="text-xl font-bold text-blue-800 mb-2">
+          🏠 Popis revidovaného objektu
+        </h2>
+
         <div className="mb-2">
           <label className="font-medium block mb-1">Vyber vzorový text:</label>
           <select
-            value={selectedTemplate}
+            value={form.inspectionTemplate}
             onChange={(e) => handleTemplateSelect(e.target.value)}
-            className="border p-2 rounded w-full"
+            className="border p-2 rounded w-full text-sm"
           >
             <option value="">-- Vyberte možnost --</option>
             {Object.keys(predefinedDescriptions).map((key) => (
-              <option key={key} value={key}>{key}</option>
+              <option key={key} value={key}>
+                {key}
+              </option>
             ))}
           </select>
         </div>
+
         <textarea
-          className="w-full border rounded p-2 min-h-[140px]"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          rows={6}
+          className="w-full border rounded p-2 text-sm"
+          value={form.inspectionDescription}
+          onChange={onDescriptionChange}
+          placeholder="Popis revidovaného objektu..."
         />
       </div>
     </div>
