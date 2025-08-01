@@ -14,13 +14,16 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
+  // používáme proměnnou prostředí pro URL API
+  const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
     try {
-      const res = await fetch("http://localhost:8000/projects");
+      const res = await fetch(`${API}/projects`);
       const data = await res.json();
       setProjects(data);
     } catch (err) {
@@ -37,7 +40,7 @@ export default function Dashboard() {
 
   const handleSaveNewProject = async () => {
     try {
-      const res = await fetch("http://localhost:8000/projects", {
+      const res = await fetch(`${API}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProjectData),
@@ -53,7 +56,7 @@ export default function Dashboard() {
 
   const handleDeleteProject = async (projectId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/projects/${projectId}`, {
+      const res = await fetch(`${API}/projects/${projectId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Chyba při mazání projektu");
@@ -164,7 +167,7 @@ export default function Dashboard() {
                           </thead>
                           <tbody>
                             {sortedRevisions.map((rev) => (
-                              <tr key={rev.id} className="border-t">
+                              <tr key={rev.id} className="border-t">  
                                 <td className="p-2">{rev.number}</td>
                                 <td className="p-2">{rev.type}</td>
                                 <td className="p-2">{rev.date_done}</td>
@@ -198,7 +201,7 @@ export default function Dashboard() {
                                       if (!confirmDelete) return;
                                       try {
                                         const res = await fetch(
-                                          `http://localhost:8000/revisions/${rev.id}`,
+                                          `${API}/revisions/${rev.id}`,
                                           { method: "DELETE" }
                                         );
                                         if (!res.ok) throw new Error("Mazání selhalo");
@@ -220,9 +223,7 @@ export default function Dashboard() {
                         {showDialog && selectedProjectId === proj.id && (
                           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                             <div className="bg-white p-6 rounded shadow w-80">
-                              <h2 className="text-lg font-semibold mb-4">
-                                Vyber typ revize
-                              </h2>
+                              <h2 className="text-lg font-semibold mb-4">Vyber typ revize</h2>
                               <ul>
                                 {revisionTypes.map((type) => (
                                   <li
@@ -233,13 +234,9 @@ export default function Dashboard() {
                                       const newRevision = {
                                         project_id: proj.id,
                                         type,
-                                        date_done: new Date()
-                                          .toISOString()
-                                          .split("T")[0],
+                                        date_done: new Date().toISOString().split("T")[0],
                                         valid_until: new Date(
-                                          new Date().setFullYear(
-                                            new Date().getFullYear() + 4
-                                          )
+                                          new Date().setFullYear(new Date().getFullYear() + 4)
                                         )
                                           .toISOString()
                                           .split("T")[0],
@@ -247,24 +244,15 @@ export default function Dashboard() {
                                         data_json: { poznámka: "zatím prázdné" },
                                       };
                                       try {
-                                        const response = await fetch(
-                                          "http://localhost:8000/revisions",
-                                          {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify(newRevision),
-                                          }
-                                        );
-                                        if (!response.ok)
-                                          throw new Error("Server error");
+                                        const response = await fetch(`${API}/revisions`, {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify(newRevision),
+                                        });
+                                        if (!response.ok) throw new Error("Server error");
                                         fetchProjects();
                                       } catch (error) {
-                                        console.error(
-                                          "❌ Chyba při ukládání revize:",
-                                          error
-                                        );
+                                        console.error("❌ Chyba při ukládání revize:", error);
                                       }
                                     }}
                                   >
@@ -302,10 +290,7 @@ export default function Dashboard() {
               placeholder="Adresa"
               value={newProjectData.address}
               onChange={(e) =>
-                setNewProjectData({
-                  ...newProjectData,
-                  address: e.target.value,
-                })
+                setNewProjectData({ ...newProjectData, address: e.target.value })
               }
             />
             <input
@@ -314,10 +299,7 @@ export default function Dashboard() {
               placeholder="Objednatel"
               value={newProjectData.client}
               onChange={(e) =>
-                setNewProjectData({
-                  ...newProjectData,
-                  client: e.target.value,
-                })
+                setNewProjectData({ ...newProjectData, client: e.target.value })
               }
             />
             <div className="flex justify-end gap-2">
