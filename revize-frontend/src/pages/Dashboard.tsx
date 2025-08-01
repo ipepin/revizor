@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
-  // používáme proměnnou prostředí pro URL API
+  // URL backendu z env, fallback na localhost
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Chyba při ukládání projektu");
       setShowNewProjectDialog(false);
       setNewProjectData({ address: "", client: "" });
-      fetchProjects();
+      await fetchProjects();
     } catch (err) {
       console.error("Chyba při uložení projektu:", err);
     }
@@ -61,7 +61,7 @@ export default function Dashboard() {
       });
       if (!res.ok) throw new Error("Chyba při mazání projektu");
       alert("✅ Projekt byl úspěšně smazán");
-      fetchProjects();
+      await fetchProjects();
     } catch (err) {
       console.error("Chyba při mazání projektu:", err);
       alert("❌ Nepodařilo se projekt smazat");
@@ -167,7 +167,7 @@ export default function Dashboard() {
                           </thead>
                           <tbody>
                             {sortedRevisions.map((rev) => (
-                              <tr key={rev.id} className="border-t">  
+                              <tr key={rev.id} className="border-t">
                                 <td className="p-2">{rev.number}</td>
                                 <td className="p-2">{rev.type}</td>
                                 <td className="p-2">{rev.date_done}</td>

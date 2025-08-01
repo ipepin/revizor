@@ -9,7 +9,7 @@ app = FastAPI()
 # Povolit CORS pro všechna volání z Vašeho frontendu (nebo specifické originy)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # nebo ["*"] pro vývoj
+    allow_origins=["http://localhost:5173","https://revizor-3.onrender.com"],  # nebo ["*"] pro vývoj
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
