@@ -1,6 +1,6 @@
 // src/pages/EditRevision.tsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { RevisionFormProvider } from "../context/RevisionFormContext";
@@ -11,13 +11,17 @@ import ZkouskySection from "../sections/ZkouskySection";
 import MereniSection from "../sections/MereniSection";
 import DefectsRecommendationsSection from "../sections/DefectsRecommendationsSection";
 import ZaverSection from "../sections/ConclusionSection";
+import { apiGet } from "../api/http";
 
 export default function EditRevision() {
   const { revId } = useParams();
   const [activeSection, setActiveSection] = useState("identifikace");
 
-  if (!revId) return <div className="p-6">❌ Chybí ID revize v URL.</div>;
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  // map sekcí – beze změny
   const sectionMap: Record<string, React.ReactNode> = {
     identifikace: <IdentifikaceSection />,
     prohlidka: <ProhlidkaSection />,
@@ -27,8 +31,60 @@ export default function EditRevision() {
     zaver: <ZaverSection />,
   };
 
+  // validace parametru
+  if (!revId) return <div className="p-6">❌ Chybí ID revize v URL.</div>;
+
+  // Přednahrání detailu revize přes API (s JWT)
+  useEffect(() => {
+    const ctrl = new AbortController();
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await apiGet(`/revisions/${revId}`, { signal: ctrl.signal });
+        if (!res.ok) {
+          setErr(`${res.status} ${res.statusText}`);
+          return;
+        }
+        // Pokud bys tady potřeboval data, můžeš si je uložit do state.
+        // const data = await res.json();
+        await res.json(); // jen „spotřebujeme“ stream
+      } catch (e: any) {
+        if (e?.name !== "AbortError") setErr("Network error");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => ctrl.abort();
+  }, [revId, refreshKey]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
+        <div className="loading loading-spinner loading-lg text-blue-700" />
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-100 to-blue-50">
+        <div className="bg-white p-6 rounded shadow text-center">
+          <p className="text-red-600 font-semibold mb-2">Nepodařilo se načíst revizi</p>
+          <p className="text-sm opacity-80 mb-4">{err}</p>
+          <button
+            className="btn btn-primary"
+            onClick={() => setRefreshKey((n) => n + 1)}
+          >
+            Zkusit znovu
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <RevisionFormProvider revId={parseInt(revId)}>
+    <RevisionFormProvider revId={parseInt(revId, 10)}>
       <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
         <Sidebar
           mode="edit"

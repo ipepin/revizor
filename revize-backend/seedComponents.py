@@ -6,7 +6,7 @@ from models import Base, ComponentType, Manufacturer, ComponentModel
 
 engine = create_engine("sqlite:///./projects.db")  # nebo vaše URL
 Session = sessionmaker(bind=engine)
-cd
+
 with open("komponenty.json", encoding="utf-8") as f:
     data = json.load(f)
 

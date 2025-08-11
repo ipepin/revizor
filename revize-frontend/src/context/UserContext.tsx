@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User, getCurrentUser } from "../api/auth";
+import { getCurrentUser } from "../api/auth";
+// ⬇️ User je jen typ
+import type { User } from "../api/auth";
+
+// ⬇️ getCurrentUser je runtime export
+// ⬇️ User je jen typ
+
 
 type UserContextType = {
   user: User | null;

@@ -1,0 +1,1941 @@
+[
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Obecné",
+    "typ": "Obecná zásuvka 230V",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Obecné",
+    "typ": "Obecná zásuvka 230V s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Obecné",
+    "typ": "Obecné svítidlo E27 (plast)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Obecné",
+    "typ": "Obecné svítidlo E27 (kovové tělo)",
+    "trida_ochrany": "I",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Obecné",
+    "typ": "Obecné svítidlo E27 venkovní",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Tango – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Tango – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Tango – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Tango – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Levit – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Levit – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Levit – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Levit – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Swing – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Swing – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Swing – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Swing – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Time – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Time – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Time – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Time – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "E2 – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "E2 – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "E2 – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "E2 – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "A500 – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "A500 – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "A500 – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "A500 – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Siemens",
+    "typ": "Delta – jednonásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Siemens",
+    "typ": "Delta – dvojnásobná s kolíkem",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Siemens",
+    "typ": "Delta – s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Siemens",
+    "typ": "Delta – s USB (A/C)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Tango – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Tango – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Tango – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Tango – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Tango – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Tango – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Levit – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Levit – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Levit – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Levit – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Levit – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Levit – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Swing – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Swing – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Swing – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Swing – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Swing – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Swing – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Time – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Time – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Time – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "ABB",
+    "typ": "Time – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Time – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "ABB",
+    "typ": "Time – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "E2 – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "E2 – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "E2 – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "E2 – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Gira",
+    "typ": "E2 – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Gira",
+    "typ": "E2 – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "JUNG",
+    "typ": "A500 – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – jednopólový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – schodišťový (č.6)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – křížový (č.7)",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Vypínač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – žaluziový ovladač",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – otočný",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Stmívač",
+    "vyrobce": "Siemens",
+    "typ": "Delta – tlačítkový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Tango – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Tango – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Levit – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Levit – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Swing – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Swing – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Time – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "ABB",
+    "typ": "Time – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Gira",
+    "typ": "E2 – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Gira",
+    "typ": "E2 – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "JUNG",
+    "typ": "A500 – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "JUNG",
+    "typ": "A500 – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Siemens",
+    "typ": "Delta – RJ45 Cat.6",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka datová",
+    "vyrobce": "Siemens",
+    "typ": "Delta – RJ45 Cat.6A",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "ABB",
+    "typ": "Busch-Wächter 180 – nástěnný",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "ABB",
+    "typ": "Busch-Wächter 180 – stropní",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life Senzor – nástěnný",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life Senzor – stropní",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica Senzor pohybu – nástěnný",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica Senzor pohybu – stropní",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Gira",
+    "typ": "System 55 Senzor – nástěnný",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "Gira",
+    "typ": "System 55 Senzor – stropní",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "JUNG",
+    "typ": "Mini Universal – nástěnný",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Snímač pohybu",
+    "vyrobce": "JUNG",
+    "typ": "Mini Universal – stropní",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Philips",
+    "typ": "CoreLine Panel 600x600",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Philips",
+    "typ": "CoreLine Downlight",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Philips",
+    "typ": "GreenSpace Downlight",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "LEDVANCE",
+    "typ": "Damp Proof",
+    "trida_ochrany": "I",
+    "kryti": "IP65"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "LEDVANCE",
+    "typ": "High Bay",
+    "trida_ochrany": "I",
+    "kryti": "IP65"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "LEDVANCE",
+    "typ": "Floodlight",
+    "trida_ochrany": "I",
+    "kryti": "IP65"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Eglo",
+    "typ": "Stropní LED",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Eglo",
+    "typ": "Venkovní nástěnné",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Kanlux",
+    "typ": "Downlight LED",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Kanlux",
+    "typ": "Panel LED 600x600",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Zumtobel",
+    "typ": "PANOS downlight",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Zumtobel",
+    "typ": "ONLITE nouzové",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Svítidlo",
+    "vyrobce": "Hager",
+    "typ": "Nouzové svítidlo",
+    "trida_ochrany": "II",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Termostat",
+    "vyrobce": "ABB",
+    "typ": "Time – pokojový 230V",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Termostat",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – pokojový 230V",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Termostat",
+    "vyrobce": "Schneider Electric",
+    "typ": "Regulátor 24V (SELV)",
+    "trida_ochrany": "III",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Termostat",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – pokojový",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zvonek",
+    "vyrobce": "Legrand",
+    "typ": "Bticino – domovní gong",
+    "trida_ochrany": "II",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zvonek",
+    "vyrobce": "ABB",
+    "typ": "Zvonek 8V AC",
+    "trida_ochrany": "III",
+    "kryti": "IP20"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Mennekes",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "ABB",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Schneider Electric",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "PCE",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Scame",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 16A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 16A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 16A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 16A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP44"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 32A 400V 4kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 32A 400V 5kolík – nástěnná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 32A 400V 4kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka průmyslová",
+    "vyrobce": "Legrand",
+    "typ": "CEE 32A 400V 5kolík – vestavná",
+    "trida_ochrany": "I",
+    "kryti": "IP67"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Tango – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Levit – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Swing – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "ABB",
+    "typ": "Time – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Unica – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Sedna – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Schneider Electric",
+    "typ": "Asfora – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Valena Life – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Niloe Step – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Legrand",
+    "typ": "Mosaic – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "E2 – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Gira",
+    "typ": "Standard 55 – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "LS990 – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "JUNG",
+    "typ": "A500 – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  },
+  {
+    "druh_pristroje": "Zásuvka",
+    "vyrobce": "Siemens",
+    "typ": "Delta – venkovní s krytem",
+    "trida_ochrany": "II",
+    "kryti": "IP55"
+  }
+]

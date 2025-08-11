@@ -1,10 +1,10 @@
 // src/components/Sidebar.tsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 
 type Props = {
-  mode: "dashboard" | "edit";
+  mode: "dashboard" | "edit" | "catalog" | "summary";
   active?: string;
   onSelect?: (sectionKey: string) => void;
   onNewProject?: () => void;
@@ -12,6 +12,7 @@ type Props = {
 
 export default function Sidebar({ mode, active, onSelect, onNewProject }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showSettings, setShowSettings] = useState(false);
   const { logout } = useUser();
 
@@ -24,6 +25,13 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     { key: "zaver", label: "Závěr" },
   ];
 
+  const go = (path: string) => {
+    setShowSettings(false);
+    navigate(path);
+  };
+
+  const isCatalog = mode === "catalog" || location.pathname.startsWith("/katalog");
+
   return (
     <aside className="w-64 bg-white shadow-lg p-4 flex flex-col justify-between sticky top-0 h-screen overflow-y-auto">
       <div>
@@ -35,6 +43,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           <div className="text-sm text-gray-600">Platnost: 12/2026</div>
         </div>
 
+        {/* Režim EDIT – přepínače sekcí + zpět */}
         {mode === "edit" && (
           <>
             <button
@@ -62,6 +71,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           </>
         )}
 
+        {/* Režim DASHBOARD – tlačítko nový projekt */}
         {mode === "dashboard" && (
           <>
             <button
@@ -73,8 +83,19 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           </>
         )}
 
+        {/* Režim CATALOG – jen „zpět na projekty“ (žádný nový projekt) */}
+        {isCatalog && (
+          <button
+            className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
+            onClick={() => navigate("/")}
+          >
+            ⬅️ Zpět na projekty
+          </button>
+        )}
+
         <hr className="my-4 border-gray-300" />
 
+        {/* NASTAVENÍ */}
         <div className="relative">
           <button
             className="bg-gray-200 px-4 py-2 rounded w-full text-left hover:bg-gray-300 transition"
@@ -82,15 +103,24 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           >
             ⚙️ Nastavení
           </button>
+
           {showSettings && (
-            <ul className="absolute left-0 mt-2 bg-white border rounded shadow w-full z-10">
+            <ul className="absolute left-0 mt-2 bg-white border rounded shadow w-full z-10 overflow-hidden">
+              <li
+                className={`p-2 hover:bg-gray-100 cursor-pointer ${
+                  isCatalog ? "bg-blue-50 font-medium" : ""
+                }`}
+                onClick={() => go("/katalog")}
+              >
+                📚 Katalog
+              </li>
               <li className="p-2 hover:bg-gray-100 cursor-pointer">👤 Profil</li>
               <li className="p-2 hover:bg-gray-100 cursor-pointer">🖨️ Tisk</li>
               <li
                 className="p-2 hover:bg-gray-100 cursor-pointer"
                 onClick={() => {
                   logout();
-                  navigate("/login");
+                  go("/login");
                 }}
               >
                 🚪 Odhlásit se

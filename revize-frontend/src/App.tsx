@@ -3,6 +3,8 @@ import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import { UserProvider } from "./context/UserContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SummaryPage from "./pages/SummaryPage";
+import SummaryWrapper from "./pages/SummaryWrapper";
 
 function App() {
   return (
@@ -14,8 +16,7 @@ function App() {
             path="/"
             element={<ProtectedRoute><Dashboard /></ProtectedRoute>}
           />
-          {/* další routy */}
-        </Routes>
+        <Route path="/summary/:revId" element={<SummaryWrapper />} />      </Routes>
       </UserProvider>
     </BrowserRouter>
   );

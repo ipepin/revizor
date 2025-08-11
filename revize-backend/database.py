@@ -3,7 +3,8 @@ from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.engine import Engine
 import sqlite3
 
-DATABASE_URL = "sqlite:///projects.db"
+DATABASE_URL = "sqlite:///./projects.db"  # dej raději ./, ať se nevytváří jinde
+SQLALCHEMY_DATABASE_URL = DATABASE_URL    # ← přidej tento řádek
 
 # Vytvoření engine
 engine = create_engine(

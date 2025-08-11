@@ -1,25 +1,37 @@
-# src/main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from database import Base, engine
-from routers import projects, revisions, catalog, defects
-
+from routers.auth import router as auth_router, get_current_user
+from routers.catalog   import router as catalog_router
+from routers.defects   import router as defects_router
+from routers.models_router    import router as models_router
+from routers.projects  import router as projects_router
+from routers.revisions import router as revisions_router
+from routers.deps import get_current_user   
+from routers.cables import router as cables_router
+from routers.devices import router as devices_router
 app = FastAPI()
 
-# Povolit CORS pro všechna volání z Vašeho frontendu (nebo specifické originy)
+# ⭐ CORS – povol frontend na 5173
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","https://revizor-3.onrender.com"],  # nebo ["*"] pro vývoj
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
     allow_headers=["*"],
 )
 
-# Vytvoření DB tabulek
-Base.metadata.create_all(bind=engine)
+# veřejné endpointy (auth)
+app.include_router(auth_router)
 
-# Připojení routerů
-app.include_router(projects.router)
-app.include_router(revisions.router)
-app.include_router(catalog.router)
-app.include_router(defects.router)
+# chráněné endpointy
+app.include_router(catalog_router,   dependencies=[Depends(get_current_user)])
+app.include_router(defects_router,   dependencies=[Depends(get_current_user)])
+app.include_router(models_router,    dependencies=[Depends(get_current_user)])
+app.include_router(projects_router,  dependencies=[Depends(get_current_user)])
+app.include_router(revisions_router, dependencies=[Depends(get_current_user)])
+app.include_router(cables_router,   dependencies=[Depends(get_current_user)])
+app.include_router(devices_router,  dependencies=[Depends(get_current_user)])

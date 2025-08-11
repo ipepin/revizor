@@ -7,19 +7,17 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import axios from "axios";
-
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import api from "../api/axios";
 
 // —–– Typ pro jednu komponentu
 export interface Komponenta {
   id: number;
-  nazevId: string;    // ID přístroje z katalogu
-  nazev: string;      // text pro zobrazení
-  popisId: string;    // ID výrobce
-  popis: string;      // text výrobce
-  typId: string;      // ID modelu
-  typ: string;        // text modelu
+  nazevId: string; // ID přístroje z katalogu
+  nazev: string; // text pro zobrazení
+  popisId: string; // ID výrobce
+  popis: string; // text výrobce
+  typId: string; // ID modelu
+  typ: string; // text modelu
   poles: string;
   dimenze: string;
   riso: string;
@@ -27,6 +25,22 @@ export interface Komponenta {
   poznamka: string;
 }
 
+export interface Device {
+  id: number;
+  pocet: number;
+  typ: string;
+  dimenze: string;
+  ochrana: string;
+  riso: string;
+  podrobnosti: string;
+}
+
+export interface Room {
+  id: number;
+  name: string;
+  details: string;
+  devices: Device[];
+}
 
 // —–– Typ pro jeden rozvaděč (board)
 export interface Board {
@@ -86,7 +100,7 @@ export interface RevisionForm {
 
   // Měření
   boards: Board[];
-  rooms: any[];
+  rooms: Room[];
 
   // Závady
   defects: Defect[];
@@ -114,9 +128,29 @@ interface ContextValue {
   finish: () => void;
 }
 
-export const RevisionFormContext = createContext<ContextValue>(
-  {} as ContextValue
-);
+export const RevisionFormContext = createContext<ContextValue>({} as ContextValue);
+
+// Bezpečné načtení JSONu (řeší i dvakrát serializované hodnoty typu "\"{...}\"")
+function safeParseDataJson(raw: unknown): Partial<RevisionForm> {
+  if (!raw) return {};
+  try {
+    if (typeof raw === "object") return raw as Partial<RevisionForm>;
+    if (typeof raw === "string") {
+      const once = JSON.parse(raw);
+      if (typeof once === "string") {
+        try {
+          return JSON.parse(once);
+        } catch {
+          return {};
+        }
+      }
+      if (typeof once === "object" && once) return once as Partial<RevisionForm>;
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
 
 export function RevisionFormProvider({
   revId,
@@ -160,37 +194,33 @@ export function RevisionFormProvider({
     },
   });
 
-  // Načtení existující revize
+  // Načtení existující revize (s JWT přes api klient)
   useEffect(() => {
-    axios
-      .get(`/revisions/${revId}`)
-      .then((res) => {
+    const ctrl = new AbortController();
+    (async () => {
+      try {
+        const res = await api.get(`/revisions/${revId}`, { signal: ctrl.signal });
         const data = res.data;
-        let parsedJson: Partial<RevisionForm> = {};
-        if (data.data_json) {
-          try {
-            parsedJson = JSON.parse(data.data_json);
-          } catch {
-            console.warn("data_json není validní JSON");
-          }
-        }
+        const parsed = safeParseDataJson(data?.data_json);
+
         setForm((f) => ({
           ...f,
-          ...parsedJson,
-          evidencni: data.number ?? f.evidencni,
+          ...parsed,
+          evidencni: data?.number ?? f.evidencni,
         }));
-      })
-      .catch((err) => {
-        console.warn("Nelze načíst revizi:", err);
-      });
+      } catch (err) {
+        if ((err as any)?.name !== "CanceledError") {
+          console.warn("Nelze načíst revizi:", err);
+        }
+      }
+    })();
+    return () => ctrl.abort();
   }, [revId]);
 
-  // Funkce pro okamžité uložení
+  // Funkce pro okamžité uložení (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
-    axios
-      .patch(`/revisions/${revId}`, {
-        data_json: JSON.stringify(form),
-      })
+    api
+      .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
       .catch((err) => console.warn("Uložení revize selhalo:", err));
   }, [form, revId]);
 
@@ -200,16 +230,14 @@ export function RevisionFormProvider({
     return () => clearTimeout(timeout);
   }, [form, saveNow]);
 
-  // Označit dokončení revize
+  // Označit dokončení revize (zachováno – případně sem můžeš přidat PATCH statusu)
   const finish = useCallback(() => {
     saveNow();
     console.log("Revision marked as finished");
   }, [saveNow]);
 
   return (
-    <RevisionFormContext.Provider
-      value={{ form, setForm, saveNow, finish }}
-    >
+    <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>
       {children}
     </RevisionFormContext.Provider>
   );

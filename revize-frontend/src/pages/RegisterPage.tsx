@@ -1,0 +1,108 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import type { RegisterPayload } from "../api/auth";
+import { UserPlus } from "lucide-react";
+
+const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { register } = useAuth();
+
+  const [form, setForm] = useState<RegisterPayload>({ name: "", email: "", password: "" });
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.password !== confirm) {
+      setError("Hesla se neshodují");
+      return;
+    }
+    try {
+      setLoading(true);
+      await register(form);
+      navigate("/login", { replace: true });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary to-secondary text-base-content px-4">
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-8 select-none">
+        <UserPlus className="w-9 h-9 text-accent" />
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+          Revizor <span className="text-accent-content">0.1</span>
+          <span className="text-sm font-normal ml-2">by JB</span>
+        </h1>
+      </div>
+
+      {/* Glass card */}
+      <div className="card w-full max-w-md backdrop-blur-md bg-base-100/70 shadow-2xl border border-base-200">
+        <div className="card-body p-8 sm:p-10">
+          <h2 className="card-title justify-center mb-6 text-2xl font-semibold">Registrace</h2>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <input
+              required
+              name="name"
+              placeholder="Jméno"
+              className="input input-bordered w-full input-primary"
+              value={form.name}
+              onChange={handleChange}
+            />
+
+            <input
+              required
+              type="email"
+              name="email"
+              placeholder="E-mail"
+              className="input input-bordered w-full input-primary"
+              value={form.email}
+              onChange={handleChange}
+            />
+
+            <input
+              required
+              type="password"
+              name="password"
+              placeholder="Heslo"
+              className="input input-bordered w-full input-primary"
+              value={form.password}
+              onChange={handleChange}
+            />
+
+            <input
+              required
+              type="password"
+              placeholder="Potvrdit heslo"
+              className="input input-bordered w-full input-primary"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+
+            {error && <p className="text-error text-sm -mt-2">{error}</p>}
+
+            <button type="submit" className="btn btn-accent w-full" disabled={loading}>
+              {loading ? "Registruji…" : "Registrovat"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-center">
+            Už máte účet? <Link to="/login" className="link link-secondary">Přihlásit se</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterPage;

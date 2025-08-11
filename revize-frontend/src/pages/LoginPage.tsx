@@ -1,60 +1,80 @@
-// src/pages/LoginPage.tsx
+import { useState } from "react";
+import { useNavigate, Link, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { LucideBolt } from "lucide-react";
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { loginUser } from "../api/auth";
-import { useUser } from "../context/UserContext";
+const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { login, token } = useAuth();
 
-export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { user, login } = useUser();
-  const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // ✅ Pokud už je uživatel přihlášený, rovnou přesměruj na dashboard
-  useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
-  }, [user]);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = await loginUser(email, password);
-      login(data); // uloží uživatele do contextu i localStorage
-      navigate("/");
+      setLoading(true);
+      await login(email, password);
+      navigate("/", { replace: true });
     } catch (err) {
-      setError("Přihlášení selhalo");
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-100">
-      <form className="bg-white p-6 rounded shadow w-80" onSubmit={handleSubmit}>
-        <h2 className="text-lg font-semibold mb-4 text-center">Přihlášení</h2>
-        {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 border rounded mb-2"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Heslo"
-          className="w-full p-2 border rounded mb-4"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
-          Přihlásit se
-        </button>
-      </form>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary to-secondary text-base-content px-4">
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-8 select-none">
+        <LucideBolt className="w-10 h-10 text-accent" />
+        <h1 className="text-4xl font-extrabold tracking-tight">
+          Revizor <span className="text-accent-content">0.1</span>
+          <span className="text-sm font-normal ml-2">by JB</span>
+        </h1>
+      </div>
+
+      {/* Glass card */}
+      <div className="card w-full max-w-md backdrop-blur-md bg-base-100/70 shadow-2xl border border-base-200">
+        <div className="card-body p-8 sm:p-10">
+          <h2 className="card-title justify-center mb-6 text-2xl font-semibold">Přihlášení</h2>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <input
+              required
+              type="email"
+              placeholder="E-mail"
+              className="input input-bordered w-full input-primary"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+              required
+              type="password"
+              placeholder="Heslo"
+              className="input input-bordered w-full input-primary"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            {error && <p className="text-error text-sm -mt-2">{error}</p>}
+
+            <button type="submit" className="btn btn-accent w-full" disabled={loading}>
+              {loading ? "Přihlašuji…" : "Přihlásit se"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-sm text-center">
+            Nemáte účet? <Link to="/register" className="link link-secondary">Registrace</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default LoginPage;

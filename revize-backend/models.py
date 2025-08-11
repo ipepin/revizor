@@ -1,10 +1,20 @@
-# revize-backend/models.py
+# === Backend Models (complete) ===
+# Full SQLAlchemy models.py with User, Project, Revision, Defect, Component hierarchy.
+# -----------------------------------------------------------------------------
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Table
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    ForeignKey,
+    Table,
+    Boolean,
+)
 from sqlalchemy.orm import relationship
 from database import Base
 
-# 🧩 Spojovací tabulka pro sdílení projektů mezi více uživateli
+# 📎 Many‑to‑many table: shared projects ↔ users
 project_user_link = Table(
     "project_user_link",
     Base.metadata,
@@ -12,39 +22,44 @@ project_user_link = Table(
     Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE")),
 )
 
-# 👤 Uživatelský model (zatím základní, rozšiřitelný)
+# 👤 User
 class User(Base):
     __tablename__ = "users"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    name          = Column(String, nullable=False)
-    email         = Column(String, unique=True, index=True)
-    password_hash = Column(String, nullable=False)
+    id                = Column(Integer, primary_key=True, index=True)
+    name              = Column(String, nullable=False)
+    email             = Column(String, unique=True, index=True, nullable=False)
+    password_hash     = Column(String, nullable=False)
+    is_verified       = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True)
 
-    projects        = relationship("Project", back_populates="owner")
+    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
     shared_projects = relationship(
         "Project",
         secondary=project_user_link,
         back_populates="shared_with_users",
     )
 
-# 🏠 Projekt
+# 🏗️  Project
 class Project(Base):
     __tablename__ = "projects"
 
-    id          = Column(Integer, primary_key=True, index=True)
-    address     = Column(String, nullable=False)
-    client      = Column(String, nullable=False)
-    owner_id    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
-    owner       = relationship("User", back_populates="projects")
+    id       = Column(Integer, primary_key=True, index=True)
+    address  = Column(String, nullable=False)
+    client   = Column(String, nullable=False)
+
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    owner    = relationship("User", back_populates="projects")
+
     shared_with_users = relationship(
         "User",
         secondary=project_user_link,
         back_populates="shared_projects",
     )
-    revisions   = relationship("Revision", back_populates="project", cascade="all, delete")
 
-# 📄 Revizní zpráva
+    revisions = relationship("Revision", back_populates="project", cascade="all, delete-orphan")
+
+# 📄 Revision report
 class Revision(Base):
     __tablename__ = "revisions"
 
@@ -55,7 +70,7 @@ class Revision(Base):
     valid_until            = Column(String)
     status                 = Column(String)
     data_json              = Column(Text)
-    defects                = Column(Text, default="")   # každý řádek jedna závada
+    defects                = Column(Text, default="")
     conclusion_text        = Column(Text, default="")
     conclusion_safety      = Column(String, default="")
     conclusion_valid_until = Column(String, default="")
@@ -63,7 +78,7 @@ class Revision(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     project    = relationship("Project", back_populates="revisions")
 
-# 🔧 Model pro katalog závad
+# 🔧 Defect catalog
 class Defect(Base):
     __tablename__ = "defects"
 
@@ -72,24 +87,59 @@ class Defect(Base):
     standard    = Column(String, nullable=False)
     article     = Column(String, nullable=False)
 
-# 🛠️ Katalog komponent
+# 🛠️  Component hierarchy
 class ComponentType(Base):
     __tablename__ = "component_types"
+
     id            = Column(Integer, primary_key=True, index=True)
     name          = Column(String, unique=True, nullable=False)
-    manufacturers = relationship("Manufacturer", back_populates="type")
+    manufacturers = relationship("Manufacturer", back_populates="type", cascade="all, delete-orphan")
 
 class Manufacturer(Base):
     __tablename__ = "manufacturers"
-    id             = Column(Integer, primary_key=True, index=True)
-    name           = Column(String, nullable=False)
-    type_id        = Column(Integer, ForeignKey("component_types.id"))
-    type           = relationship("ComponentType", back_populates="manufacturers")
-    models         = relationship("ComponentModel", back_populates="manufacturer")
+
+    id      = Column(Integer, primary_key=True, index=True)
+    name    = Column(String, nullable=False)
+
+    type_id = Column(Integer, ForeignKey("component_types.id", ondelete="CASCADE"))
+    type    = relationship("ComponentType", back_populates="manufacturers")
+
+    models  = relationship("ComponentModel", back_populates="manufacturer", cascade="all, delete-orphan")
 
 class ComponentModel(Base):
     __tablename__ = "component_models"
-    id               = Column(Integer, primary_key=True, index=True)
-    name             = Column(String, nullable=False)
-    manufacturer_id  = Column(Integer, ForeignKey("manufacturers.id"))
-    manufacturer     = relationship("Manufacturer", back_populates="models")
+
+    id              = Column(Integer, primary_key=True, index=True)
+    name            = Column(String, nullable=False)
+
+    manufacturer_id = Column(Integer, ForeignKey("manufacturers.id", ondelete="CASCADE"))
+    manufacturer    = relationship("Manufacturer", back_populates="models")
+
+
+class Cable(Base):
+    __tablename__ = "cables"
+    id         = Column(Integer, primary_key=True, index=True)
+    family     = Column(String, nullable=False)     # CYKY | AYKY | CYA | …
+    spec       = Column(String, nullable=False)     # např. "3×2,5"
+    label      = Column(String, unique=True)        # např. "CYKY 3×2,5"
+    material   = Column(String, default="Cu")
+    voltage    = Column(String, default="")
+    standard   = Column(String, default="")
+    resistance = Column(String, default="")
+    diameter   = Column(String, default="")
+    weight     = Column(String, default="")
+    note       = Column(Text, default="")
+
+
+
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    name         = Column(String, nullable=False)   # např. "Svítidlo", "Zásuvka", ...
+    manufacturer = Column(String, nullable=True)    # volitelně
+    model        = Column(String, nullable=True)    # volitelně
+    trida        = Column(String, nullable=True)    # volitelně (tř. ochrany)
+    ip           = Column(String, nullable=True)    # volitelně (IP krytí)
+    note         = Column(Text, nullable=True)      # volitelná poznámka

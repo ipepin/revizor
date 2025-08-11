@@ -1,11 +1,12 @@
-// src/pages/Dashboard.tsx
-
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import { useAuth } from "../context/AuthContext";
+import { authHeader } from "../api/auth";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
+  const { token } = useAuth();
   const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -13,23 +14,43 @@ export default function Dashboard() {
   const [newProjectData, setNewProjectData] = useState({ address: "", client: "" });
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  // URL backendu z env, fallback na localhost
+  // URL backendu z env, fallback na localhost (sjednoceno)
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
+  // Načti projekty pouze pokud máme token a vždy s Authorization
+  const fetchProjects = async (signal?: AbortSignal) => {
+    if (!token) return;
     try {
-      const res = await fetch(`${API}/projects`);
+      const res = await fetch(`${API}/projects`, {
+        headers: { ...authHeader(token) },
+        signal,
+      });
+      if (!res.ok) {
+        setErr(`${res.status} ${res.statusText}`);
+        setProjects([]); // ať .filter nespadne
+        return;
+      }
       const data = await res.json();
-      setProjects(data);
-    } catch (err) {
-      console.error("Chyba při načítání projektů:", err);
+      setProjects(Array.isArray(data) ? data : []);
+      setErr(null);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        setErr("Network error");
+        setProjects([]);
+      }
     }
   };
+
+  useEffect(() => {
+    if (!token) return; // počkej na přihlášení
+    const ctrl = new AbortController();
+    setLoading(true);
+    fetchProjects(ctrl.signal).finally(() => setLoading(false));
+    return () => ctrl.abort();
+  }, [token]);
 
   const isExpired = (date: string) => new Date(date) < new Date();
 
@@ -42,7 +63,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API}/projects`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader(token!) },
         body: JSON.stringify(newProjectData),
       });
       if (!res.ok) throw new Error("Chyba při ukládání projektu");
@@ -58,6 +79,7 @@ export default function Dashboard() {
     try {
       const res = await fetch(`${API}/projects/${projectId}`, {
         method: "DELETE",
+        headers: { ...authHeader(token!) },
       });
       if (!res.ok) throw new Error("Chyba při mazání projektu");
       alert("✅ Projekt byl úspěšně smazán");
@@ -68,7 +90,7 @@ export default function Dashboard() {
     }
   };
 
-  const filteredProjects = projects.filter((project) => {
+  const filteredProjects = (projects || []).filter((project: any) => {
     const address = project.address?.toLowerCase() || "";
     const client = project.client?.toLowerCase() || "";
     const query = search.toLowerCase();
@@ -109,12 +131,14 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {filteredProjects.map((proj) => {
+            {filteredProjects.map((proj: any) => {
               const expired = proj.revisions?.some((r: any) => isExpired(r.valid_until));
               const isSelected = expandedProjectId === proj.id;
-              const sortedRevisions = [...(proj.revisions || [])].sort(
-                (a, b) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime()
-              );
+              const sortedRevisions = Array.isArray(proj.revisions)
+                ? [...proj.revisions].sort(
+                    (a: any, b: any) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime()
+                  )
+                : [];
 
               return (
                 <React.Fragment key={proj.id}>
@@ -144,9 +168,7 @@ export default function Dashboard() {
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                             onClick={() => {
-                              if (
-                                window.confirm("Opravdu chcete smazat tento projekt včetně všech revizí?")
-                              ) {
+                              if (window.confirm("Opravdu chcete smazat tento projekt včetně všech revizí?")) {
                                 handleDeleteProject(proj.id);
                               }
                             }}
@@ -166,23 +188,15 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {sortedRevisions.map((rev) => (
+                            {sortedRevisions.map((rev: any) => (
                               <tr key={rev.id} className="border-t">
                                 <td className="p-2">{rev.number}</td>
                                 <td className="p-2">{rev.type}</td>
                                 <td className="p-2">{rev.date_done}</td>
-                                <td
-                                  className={`p-2 ${
-                                    isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""
-                                  }`}
-                                >
+                                <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
                                   {rev.valid_until}
                                 </td>
-                                <td
-                                  className={`p-2 ${
-                                    rev.status === "Hotová" ? "text-green-600" : "text-blue-600"
-                                  }`}
-                                >
+                                <td className={`p-2 ${rev.status === "Hotová" ? "text-green-600" : "text-blue-600"}`}>
                                   {rev.status}
                                 </td>
                                 <td className="p-2 space-x-2">
@@ -195,15 +209,13 @@ export default function Dashboard() {
                                   <button
                                     className="text-red-600 hover:underline"
                                     onClick={async () => {
-                                      const confirmDelete = window.confirm(
-                                        "Opravdu chceš smazat tuto revizi?"
-                                      );
+                                      const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
                                       if (!confirmDelete) return;
                                       try {
-                                        const res = await fetch(
-                                          `${API}/revisions/${rev.id}`,
-                                          { method: "DELETE" }
-                                        );
+                                        const res = await fetch(`${API}/revisions/${rev.id}`, {
+                                          method: "DELETE",
+                                          headers: { ...authHeader(token!) },
+                                        });
                                         if (!res.ok) throw new Error("Mazání selhalo");
                                         fetchProjects();
                                       } catch (err) {
@@ -212,6 +224,12 @@ export default function Dashboard() {
                                     }}
                                   >
                                     Smazat
+                                  </button>
+                                  <button
+                                    onClick={() => navigate(`/summary/${rev.id}`)}
+                                    className="text-green-600 hover:underline"
+                                  >
+                                    Souhrn
                                   </button>
                                 </td>
                               </tr>
@@ -235,9 +253,7 @@ export default function Dashboard() {
                                         project_id: proj.id,
                                         type,
                                         date_done: new Date().toISOString().split("T")[0],
-                                        valid_until: new Date(
-                                          new Date().setFullYear(new Date().getFullYear() + 4)
-                                        )
+                                        valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 4))
                                           .toISOString()
                                           .split("T")[0],
                                         status: "Rozpracovaná",
@@ -246,7 +262,7 @@ export default function Dashboard() {
                                       try {
                                         const response = await fetch(`${API}/revisions`, {
                                           method: "POST",
-                                          headers: { "Content-Type": "application/json" },
+                                          headers: { "Content-Type": "application/json", ...authHeader(token!) },
                                           body: JSON.stringify(newRevision),
                                         });
                                         if (!response.ok) throw new Error("Server error");
@@ -260,10 +276,7 @@ export default function Dashboard() {
                                   </li>
                                 ))}
                               </ul>
-                              <button
-                                className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
-                                onClick={() => setShowDialog(false)}
-                              >
+                              <button className="mt-4 px-4 py-2 bg-gray-300 rounded w-full" onClick={() => setShowDialog(false)}>
                                 Zrušit
                               </button>
                             </div>
@@ -289,30 +302,20 @@ export default function Dashboard() {
               className="w-full p-2 mb-2 border rounded"
               placeholder="Adresa"
               value={newProjectData.address}
-              onChange={(e) =>
-                setNewProjectData({ ...newProjectData, address: e.target.value })
-              }
+              onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })}
             />
             <input
               type="text"
               className="w-full p-2 mb-4 border rounded"
               placeholder="Objednatel"
               value={newProjectData.client}
-              onChange={(e) =>
-                setNewProjectData({ ...newProjectData, client: e.target.value })
-              }
+              onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
             />
             <div className="flex justify-end gap-2">
-              <button
-                className="px-4 py-2 bg-gray-300 rounded"
-                onClick={() => setShowNewProjectDialog(false)}
-              >
+              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
                 Zrušit
               </button>
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                onClick={handleSaveNewProject}
-              >
+              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject}>
                 Uložit
               </button>
             </div>

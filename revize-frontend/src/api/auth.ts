@@ -1,31 +1,91 @@
+// src/api/auth.ts
+// Jednoduchá API vrstva pro autentizaci + uživatele (FastAPI + JWT)
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// --- typy ---
+export type LoginResponse = {
+  access_token: string;
+  token_type: "bearer" | string;
+};
+
+export type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+};
+
 export type User = {
   id: number;
   name: string;
+  email: string;
 };
 
-export async function loginUser(email: string, _password?: string) {
-  const user = { id: 1, name: email };
-  localStorage.setItem("user-session", JSON.stringify({ user, timestamp: Date.now() }));
-  return user;
-}
+// --- helpers ---
+export const authHeader = (token?: string): HeadersInit =>
+  token ? { Authorization: `Bearer ${token}` } : {};
 
-export function logout() {
-  console.log("Odhlášení...");
-  localStorage.removeItem("session");  // místo "user"
-}
-
-export function getCurrentUser(): User | null {
-  const session = localStorage.getItem("user-session");
-  if (!session) return null;
-  try {
-    const { user, timestamp } = JSON.parse(session);
-    if (Date.now() - timestamp > 30 * 60 * 1000) {
-      localStorage.removeItem("user-session");
-      return null;
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = (data && (data.detail || data.message)) ?? "";
+    } catch {
+      // ignore json parse error
     }
-    return user;
-  } catch (e) {
-    console.warn("Neplatná session v localStorage");
-    return null;
+    throw new Error(detail || `${res.status} ${res.statusText}`);
   }
 }
+
+// --- API volání ---
+
+/** Přihlášení – FastAPI OAuth2 očekává username+password (form-urlencoded). */
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<LoginResponse> {
+  const body = new URLSearchParams();
+  body.set("username", email);
+  body.set("password", password);
+
+  const res = await fetch(`${API}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as LoginResponse;
+}
+
+/** Registrace – JSON payload (name, email, password). */
+export async function registerUser(data: RegisterPayload) {
+  const res = await fetch(`${API}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  await throwIfNotOk(res);
+  return await res.json();
+}
+
+/** Detail přihlášeného uživatele (JWT v Authorization). */
+export async function getCurrentUser(token: string): Promise<User> {
+  const res = await fetch(`${API}/auth/me`, {
+    headers: { ...authHeader(token) },
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as User;
+}
+
+/** (Volitelné) Ověření e-mailu tokenem. */
+export async function verifyEmail(token: string) {
+  const url = new URL(`${API}/auth/verify`);
+  url.searchParams.set("token", token);
+  const res = await fetch(url.toString());
+  await throwIfNotOk(res);
+  return await res.json();
+}
+
+// Exportuj i base URL, kdyby se hodilo jinde
+export { API as API_URL };
