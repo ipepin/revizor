@@ -31,7 +31,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
   };
 
   const isCatalog = mode === "catalog" || location.pathname.startsWith("/katalog");
-
+  const isSummary = mode ==="summary";
   return (
     <aside className="w-64 bg-white shadow-lg p-4 flex flex-col justify-between sticky top-0 h-screen overflow-y-auto">
       <div>
@@ -85,6 +85,15 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
 
         {/* Režim CATALOG – jen „zpět na projekty“ (žádný nový projekt) */}
         {isCatalog && (
+          <button
+            className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
+            onClick={() => navigate("/")}
+          >
+            ⬅️ Zpět na projekty
+          </button>
+        )}
+
+        {isSummary && (
           <button
             className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
             onClick={() => navigate("/")}

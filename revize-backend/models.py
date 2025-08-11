@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Table,
     Boolean,
+    UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from database import Base
@@ -116,19 +117,20 @@ class ComponentModel(Base):
     manufacturer    = relationship("Manufacturer", back_populates="models")
 
 
+class CableFamily(Base):
+    __tablename__ = "cable_families"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    cables = relationship("Cable", back_populates="family", cascade="all,delete")
+
 class Cable(Base):
     __tablename__ = "cables"
-    id         = Column(Integer, primary_key=True, index=True)
-    family     = Column(String, nullable=False)     # CYKY | AYKY | CYA | …
-    spec       = Column(String, nullable=False)     # např. "3×2,5"
-    label      = Column(String, unique=True)        # např. "CYKY 3×2,5"
-    material   = Column(String, default="Cu")
-    voltage    = Column(String, default="")
-    standard   = Column(String, default="")
-    resistance = Column(String, default="")
-    diameter   = Column(String, default="")
-    weight     = Column(String, default="")
-    note       = Column(Text, default="")
+    id = Column(Integer, primary_key=True)
+    family_id = Column(Integer, ForeignKey("cable_families.id"), nullable=False)
+    spec = Column(String, nullable=False)  # dimenze (např. 3x2,5)
+    family = relationship("CableFamily", back_populates="cables")
+
+    __table_args__ = (UniqueConstraint("family_id", "spec", name="uq_cables_family_spec"),)
 
 
 

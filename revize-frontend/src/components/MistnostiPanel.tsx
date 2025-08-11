@@ -280,6 +280,7 @@ export default function MistnostiPanel() {
   }
 
   function deleteDevice(roomId: number, devId: number) {
+    if (!confirm("Opravdu smazat tento přístroj?")) return;
     setForm((f) => ({
       ...f,
       rooms: (f.rooms as Room[]).map((r) =>
@@ -289,8 +290,23 @@ export default function MistnostiPanel() {
     if (editingDeviceId === devId) setEditingDeviceId(null);
   }
 
+  // KOPIE – duplikuj přístroj v místnosti (nové id, jinak stejné hodnoty)
+  function copyDevice(roomId: number, dev: RoomDevice) {
+    const clone: RoomDevice = {
+      ...dev,
+      id: Date.now() + Math.random(),
+    };
+    setForm((f) => ({
+      ...f,
+      rooms: (f.rooms as Room[]).map((r) =>
+        r.id === roomId ? { ...r, devices: [...(r.devices || []), clone] } : r
+      ),
+    }));
+  }
+
   return (
     <section className="bg-white p-4 rounded shadow mb-8">
+      {/* HLAVNÍ DVOUSLOUPCOVÝ LAYOUT (vlevo seznam místností, vpravo detail) */}
       <div className="flex gap-6">
         {/* LEVÁ STRANA: tabulka místností */}
         <aside className="w-80">
@@ -365,8 +381,14 @@ export default function MistnostiPanel() {
                 </button>
               </div>
 
-              {/* VLASTNOSTI (název + poznámky) */}
-              <div className="grid md:grid-cols-2 gap-4 mb-6">
+              {/* VLASTNOSTI (název + poznámky) – bez rámečků; ukončit editaci klikem mimo */}
+              <div
+                className="grid md:grid-cols-2 gap-4 mb-6"
+                onBlur={(e) => {
+                  const related = e.relatedTarget as Node | null;
+                  if (!e.currentTarget.contains(related)) setEditingRoomId(null);
+                }}
+              >
                 <div>
                   <label className="block text-sm font-medium mb-1">Název místnosti</label>
                   {editingRoomId === selectedRoom.id ? (
@@ -374,9 +396,10 @@ export default function MistnostiPanel() {
                       className="w-full p-2 border rounded"
                       value={selectedRoom.name}
                       onChange={(e) => updateRoomField(selectedRoom.id, "name", e.target.value)}
+                      autoFocus
                     />
                   ) : (
-                    <div className="p-2 rounded bg-gray-50 whitespace-pre-wrap">
+                    <div className="whitespace-pre-wrap">
                       {selectedRoom.name || <span className="text-gray-400">(nenastaveno)</span>}
                     </div>
                   )}
@@ -391,137 +414,11 @@ export default function MistnostiPanel() {
                       onChange={(e) => updateRoomField(selectedRoom.id, "details", e.target.value)}
                     />
                   ) : (
-                    <div className="p-2 rounded bg-gray-50 whitespace-pre-wrap">
+                    <div className="whitespace-pre-wrap">
                       {selectedRoom.details || <span className="text-gray-400">(žádné)</span>}
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* TLAČÍTKO PŘIDAT PŘÍSTROJ */}
-              <div className="flex justify-end mb-3">
-                <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
-                  onClick={() => setShowAddDialog(true)}
-                >
-                  ➕ Přidat přístroj
-                </button>
-              </div>
-
-              {/* TABULKA PŘÍSTROJŮ */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="p-2 text-center w-20">Počet</th>
-                      <th className="p-2 text-left">Typ</th>
-                      <th className="p-2 text-left">Dimenze</th>
-                      <th className="p-2 text-left">Ochrana</th>
-                      <th className="p-2 text-left">Riso</th>
-                      <th className="p-2 text-left">Podrobnosti</th>
-                      <th className="p-2 text-center w-32">Akce</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(selectedRoom.devices || []).map((d) => {
-                      const isEd = editingDeviceId === d.id;
-                      return (
-                        <tr key={d.id} className="border-t">
-                          <td className="p-2 text-center">
-                            {isEd ? (
-                              <input
-                                type="number"
-                                min={1}
-                                className="w-20 p-1 border rounded text-center"
-                                value={d.pocet}
-                                onChange={(e) =>
-                                  updateDevice(selectedRoom.id, d.id, "pocet", Number(e.target.value || 1))
-                                }
-                              />
-                            ) : (
-                              d.pocet
-                            )}
-                          </td>
-                          <td className="p-2">{d.typ}</td>
-                          <td className="p-2">
-                            {isEd ? (
-                              <input
-                                list="dimOptions"
-                                className="w-full p-1 border rounded"
-                                value={d.dimenze}
-                                onChange={(e) => updateDevice(selectedRoom.id, d.id, "dimenze", e.target.value)}
-                                placeholder={loadingDims ? "Načítám…" : "Vyber nebo napiš…"}
-                              />
-                            ) : (
-                              d.dimenze
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {isEd ? (
-                              <input
-                                className="w-full p-1 border rounded"
-                                value={d.ochrana}
-                                onChange={(e) => updateDevice(selectedRoom.id, d.id, "ochrana", e.target.value)}
-                              />
-                            ) : (
-                              d.ochrana
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {isEd ? (
-                              <input
-                                className="w-full p-1 border rounded"
-                                value={d.riso}
-                                onChange={(e) => updateDevice(selectedRoom.id, d.id, "riso", e.target.value)}
-                              />
-                            ) : (
-                              d.riso
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {isEd ? (
-                              <input
-                                className="w-full p-1 border rounded"
-                                value={d.podrobnosti}
-                                onChange={(e) => updateDevice(selectedRoom.id, d.id, "podrobnosti", e.target.value)}
-                              />
-                            ) : (
-                              d.podrobnosti
-                            )}
-                          </td>
-                          <td className="p-2 text-center space-x-2">
-                            <button
-                              className="text-blue-600 hover:underline"
-                              onClick={() => setEditingDeviceId((p) => (p === d.id ? null : d.id))}
-                            >
-                              ✏️ {isEd ? "Uložit" : "Upravit"}
-                            </button>
-                            <button
-                              className="text-red-600 hover:underline"
-                              onClick={() => deleteDevice(selectedRoom.id, d.id)}
-                            >
-                              Smazat
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {(!selectedRoom.devices || selectedRoom.devices.length === 0) && (
-                      <tr>
-                        <td className="p-4 text-center text-gray-500" colSpan={7}>
-                          Žádné přístroje. Přidej pomocí tlačítka nahoře vpravo.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-
-                {/* datalist pro Dimenzi (sdílený) */}
-                <datalist id="dimOptions">
-                  {dimOptions.map((o) => (
-                    <option key={o} value={o} />
-                  ))}
-                </datalist>
               </div>
             </>
           ) : (
@@ -529,6 +426,157 @@ export default function MistnostiPanel() {
           )}
         </div>
       </div>
+
+      {/* TABULKA PŘÍSTROJŮ – CELÁ ŠÍŘKA */}
+      {selectedRoom && (
+        <div className="mt-6">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 text-center w-20">Počet</th>
+                  <th className="p-2 text-left">Typ</th>
+                  <th className="p-2 text-left">Dimenze</th>
+                  <th className="p-2 text-left">Ochrana</th>
+                  <th className="p-2 text-left">Riso</th>
+                  <th className="p-2 text-left">Podrobnosti</th>
+                  <th className="p-2 text-center w-28">Akce</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedRoom.devices || []).map((d) => {
+                  const isEd = editingDeviceId === d.id;
+                  return (
+                    <tr key={d.id} className="border-t">
+                      <td className="p-2 text-center">
+                        {isEd ? (
+                          <input
+                            type="number"
+                            min={1}
+                            className="w-20 p-1 border rounded text-center"
+                            value={d.pocet}
+                            onChange={(e) =>
+                              updateDevice(selectedRoom.id, d.id, "pocet", Number(e.target.value || 1))
+                            }
+                          />
+                        ) : (
+                          d.pocet
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEd ? (
+                          <input
+                            className="w-full p-1 border rounded"
+                            value={d.typ}
+                            onChange={(e) => updateDevice(selectedRoom.id, d.id, "typ", e.target.value)}
+                          />
+                        ) : (
+                          d.typ
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEd ? (
+                          <input
+                            list="dimOptions"
+                            className="w-full p-1 border rounded"
+                            value={d.dimenze}
+                            onChange={(e) => updateDevice(selectedRoom.id, d.id, "dimenze", e.target.value)}
+                            placeholder={loadingDims ? "Načítám…" : "Vyber nebo napiš…"}
+                          />
+                        ) : (
+                          d.dimenze
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEd ? (
+                          <input
+                            className="w-full p-1 border rounded"
+                            value={d.ochrana}
+                            onChange={(e) => updateDevice(selectedRoom.id, d.id, "ochrana", e.target.value)}
+                          />
+                        ) : (
+                          d.ochrana
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEd ? (
+                          <input
+                            className="w-full p-1 border rounded"
+                            value={d.riso}
+                            onChange={(e) => updateDevice(selectedRoom.id, d.id, "riso", e.target.value)}
+                          />
+                        ) : (
+                          d.riso
+                        )}
+                      </td>
+                      <td className="p-2">
+                        {isEd ? (
+                          <input
+                            className="w-full p-1 border rounded"
+                            value={d.podrobnosti}
+                            onChange={(e) => updateDevice(selectedRoom.id, d.id, "podrobnosti", e.target.value)}
+                          />
+                        ) : (
+                          d.podrobnosti
+                        )}
+                      </td>
+                      <td className="p-2 text-center">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            className="p-1 rounded hover:bg-blue-50"
+                            title={isEd ? "Ukončit úpravu" : "Upravit"}
+                            onClick={() => setEditingDeviceId((p) => (p === d.id ? null : d.id))}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="p-1 rounded hover:bg-yellow-50"
+                            title="Kopírovat"
+                            onClick={() => copyDevice(selectedRoom.id!, d)}
+                          >
+                            📄
+                          </button>
+                          <button
+                            className="p-1 rounded hover:bg-red-50"
+                            title="Smazat"
+                            onClick={() => deleteDevice(selectedRoom.id!, d.id)}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(!selectedRoom.devices || selectedRoom.devices.length === 0) && (
+                  <tr>
+                    <td className="p-4 text-center text-gray-500" colSpan={7}>
+                      Žádné přístroje. Přidej níže vpravo.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* datalist pro Dimenzi (sdílený) */}
+            <datalist id="dimOptions">
+              {dimOptions.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+          </div>
+
+          {/* TLAČÍTKO PŘIDAT PŘÍSTROJ – POD TABULKOU, VPRAVO */}
+          <div className="flex justify-end mt-2">
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
+              onClick={() => setShowAddDialog(true)}
+            >
+              ➕ Přidat přístroj
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* DIALOG: Přidat přístroj */}
       {showAddDialog && selectedRoom && (
