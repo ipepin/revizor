@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
+import { useRevisionForm } from "../context/RevisionFormContext";
 
 type Props = {
   mode: "dashboard" | "edit" | "catalog" | "summary";
@@ -14,7 +15,19 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
   const navigate = useNavigate();
   const location = useLocation();
   const [showSettings, setShowSettings] = useState(false);
-  const { logout } = useUser();
+
+  // User context (nově: profil technika + firma)
+  const { logout, profile, company, loading } = useUser();
+
+  // dostupné jen pokud jsme uvnitř RevisionEdit provideru
+  const { finish } = (() => {
+    try {
+      return useRevisionForm();
+    } catch {
+      // mimo provider – vrátíme dummy
+      return { finish: () => Promise.resolve() } as any;
+    }
+  })();
 
   const editSections = [
     { key: "identifikace", label: "Identifikace" },
@@ -31,19 +44,39 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
   };
 
   const isCatalog = mode === "catalog" || location.pathname.startsWith("/katalog");
-  const isSummary = mode ==="summary";
+  const isSummary = mode === "summary";
+
+  const initial = (profile?.name?.[0] || "T").toUpperCase();
+
   return (
     <aside className="w-64 bg-white shadow-lg p-4 flex flex-col justify-between sticky top-0 h-screen overflow-y-auto">
       <div>
+        {/* Hlavicka se jménem technika, číslem osvědčení a aktivním subjektem */}
         <div className="text-center mb-6">
-          <div className="w-20 h-20 rounded-full bg-blue-400 mx-auto mb-2 shadow-inner" />
-          <div className="font-bold text-blue-900">Ing. Petr Revizní</div>
-          <div className="text-sm text-gray-600">Oprávnění: 123456</div>
-          <div className="text-sm text-gray-600">Osvědčení: 7891011</div>
-          <div className="text-sm text-gray-600">Platnost: 12/2026</div>
+          <div className="w-20 h-20 rounded-full bg-blue-500/20 text-blue-900 mx-auto mb-2 shadow-inner flex items-center justify-center text-2xl font-semibold">
+            {initial}
+          </div>
+
+          <div className="font-bold text-blue-900">
+            {profile?.name ?? (loading ? "Načítám…" : "—")}
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Osvědčení:{" "}
+            <span className="font-medium">
+              {profile?.certificate_number || (loading ? "…" : "—")}
+            </span>
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Aktivní subjekt:{" "}
+            <span className="font-medium" title={company?.name}>
+              {company?.name || (loading ? "…" : "—")}
+            </span>
+          </div>
         </div>
 
-        {/* Režim EDIT – přepínače sekcí + zpět */}
+        {/* Režim EDIT – přepínače sekcí + akce */}
         {mode === "edit" && (
           <>
             <button
@@ -68,6 +101,15 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 </button>
               ))}
             </nav>
+
+            {/* Dokončit revizi */}
+            <button
+              className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
+              onClick={finish}
+              title="Označit revizi jako dokončenou"
+            >
+              ✅ Dokončit
+            </button>
           </>
         )}
 
@@ -83,7 +125,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           </>
         )}
 
-        {/* Režim CATALOG – jen „zpět na projekty“ (žádný nový projekt) */}
+        {/* Režim CATALOG – jen „zpět na projekty“ */}
         {isCatalog && (
           <button
             className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
@@ -93,6 +135,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           </button>
         )}
 
+        {/* Režim SUMMARY – jen „zpět na projekty“ */}
         {isSummary && (
           <button
             className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
@@ -123,7 +166,9 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
               >
                 📚 Katalog
               </li>
-              <li className="p-2 hover:bg-gray-100 cursor-pointer">👤 Profil</li>
+              <li className="p-2 hover:bg-gray-100 cursor-pointer" onClick={() => go("/profil")}>
+                👤 Profil
+              </li>
               <li className="p-2 hover:bg-gray-100 cursor-pointer">🖨️ Tisk</li>
               <li
                 className="p-2 hover:bg-gray-100 cursor-pointer"

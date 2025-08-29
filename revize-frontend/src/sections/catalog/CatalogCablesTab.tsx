@@ -2,222 +2,388 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 
-type Cable = { id: number; family: string; dimension: string };
+type Family = { id: number; name: string };
+type CableRow = {
+  id: number;
+  family_id: number;
+  family?: string | null;
+  spec: string;
+  label?: string | null;
+};
 
-function toMsg(err: any) {
-  const d = err?.response?.data;
-  if (!d) return err?.message || "Neznámá chyba";
-  if (typeof d === "string") return d;
-  if (d?.detail) return typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
-  try { return JSON.stringify(d); } catch { return "Chyba"; }
-}
+type Draft = {
+  family_id: number | "";
+  spec: string;
+};
 
 export default function CatalogCablesTab() {
-  const [rows, setRows] = useState<Cable[]>([]);
-  const [families, setFamilies] = useState<string[]>([]);
-  const [dims, setDims] = useState<string[]>([]);
-  const [q, setQ] = useState("");
-  const [filterFamily, setFilterFamily] = useState<string>("");
+  const [rows, setRows] = useState<CableRow[]>([]);
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [edit, setEdit] = useState<Partial<Cable>>({});
+  // filtr
+  const [q, setQ] = useState<string>("");
 
-  const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<Partial<Cable>>({ family: "", dimension: "" });
+  // inline edit
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<Draft>({ family_id: "", spec: "" });
+
+  // přidání přes našeptávání (zobrazení formuláře)
+  const [adding, setAdding] = useState<boolean>(false);
+  const [addFamilyName, setAddFamilyName] = useState<string>("");
+  const [addSpec, setAddSpec] = useState<string>("");
 
   useEffect(() => {
-    load();
+    void reload();
   }, []);
-  useEffect(() => {
-    loadFamilies();
-  }, []);
-  useEffect(() => {
-    if (creating) {
-      // načti návrhy dimenzí pro vybranou rodinu v create
-      fetchDims(createForm.family || "");
-    }
-  }, [creating, createForm.family]);
-  useEffect(() => {
-    if (expandedId && edit.family) {
-      fetchDims(edit.family);
-    }
-  }, [expandedId, edit.family]);
 
-  async function load() {
-    const res = await api.get<Cable[]>("/cables", { params: { offset: 0, limit: 5000 } });
-    setRows(res.data);
-  }
-  async function loadFamilies() {
-    const res = await api.get<string[]>("/cables/families");
-    setFamilies(res.data);
-  }
-  async function fetchDims(fam: string) {
-    const res = await api.get<string[]>("/cables/dimensions", { params: fam ? { family: fam } : {} });
-    setDims(res.data);
+  async function reload() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const [famRes, cabRes] = await Promise.all([
+        api.get<Family[]>("/cables/families"),
+        api.get<CableRow[]>("/cables", { params: { offset: 0, limit: 5000 } }),
+      ]);
+      setFamilies(Array.isArray(famRes.data) ? famRes.data : []);
+      setRows(Array.isArray(cabRes.data) ? cabRes.data : []);
+    } catch (e: any) {
+      console.warn("Cables load failed:", e?.response?.data || e);
+      setErr("Nepodařilo se načíst katalog kabelů.");
+    } finally {
+      setLoading(false);
+    }
   }
 
+  function computedLabel(row: { family?: string | null; spec?: string | null; label?: string | null }) {
+    return (row.label ?? `${row.family ?? ""} ${row.spec ?? ""}`.trim()) || "";
+  }
+
+  // --- vyhledávání (klientské) ---
   const filtered = useMemo(() => {
-    const needle = q.toLowerCase();
-    return rows.filter(r => {
-      if (filterFamily && r.family.toLowerCase() !== filterFamily.toLowerCase()) return false;
-      if (!needle) return true;
-      return r.family.toLowerCase().includes(needle) || r.dimension.toLowerCase().includes(needle);
-    }).sort((a,b) => a.family.localeCompare(b.family) || a.dimension.localeCompare(b.dimension));
-  }, [rows, q, filterFamily]);
+    const term = q.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((r) => {
+      const fam = (r.family || "").toLowerCase();
+      const spec = (r.spec || "").toLowerCase();
+      const lbl = (computedLabel(r) || "").toLowerCase();
+      return fam.includes(term) || spec.includes(term) || lbl.includes(term);
+    });
+  }, [rows, q]);
 
-  function openCreate() { setCreating(true); setCreateForm({ family: "", dimension: "" }); }
-  function cancelCreate() { setCreating(false); setCreateForm({ family: "", dimension: "" }); }
+  // --- přidání (text + našeptávání) ---
+  const familyNameToId = (name: string): number | null => {
+    const n = name.trim().toLowerCase();
+    if (!n) return null;
+    const found = families.find((f) => f.name.trim().toLowerCase() === n);
+    return found ? found.id : null;
+  };
 
-  async function saveCreate() {
+  const specSuggestions = useMemo(() => {
+    const n = addFamilyName.trim().toLowerCase();
+    const pool = n
+      ? rows.filter((r) => (r.family || "").trim().toLowerCase() === n).map((r) => r.spec)
+      : rows.map((r) => r.spec);
+    return Array.from(new Set(pool.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "cs"));
+  }, [rows, addFamilyName]);
+
+  async function handleAdd() {
+    const famName = addFamilyName.trim();
+    const spec = addSpec.trim();
+    if (!famName || !spec) return;
+
+    // zjisti family_id nebo vytvoř rodinu
+    let famId = familyNameToId(famName);
+    if (!famId) {
+      try {
+        const res = await api.post<Family>("/cables/families", { name: famName });
+        famId = res.data.id;
+        setFamilies((prev) => [...prev, res.data]);
+      } catch (e: any) {
+        await reload(); // fallback – kdyby vznikl race a rodina už existuje
+        famId = familyNameToId(famName);
+        if (!famId) {
+          console.warn("Create family failed:", e?.response?.data || e);
+          alert("Vytvoření rodiny se nepodařilo.");
+          return;
+        }
+      }
+    }
+
+    // vytvoř kabel
     try {
-      const payload = { family: (createForm.family || "").trim(), dimension: (createForm.dimension || "").trim() };
-      if (!payload.family || !payload.dimension) { alert("Vyplň rodinu i dimenzi."); return; }
-      const res = await api.post<Cable>("/cables", payload);
-      setRows(r => [res.data, ...r]); cancelCreate();
-      if (!families.includes(res.data.family)) loadFamilies();
-    } catch (e:any) { alert(toMsg(e)); }
+      const res = await api.post<CableRow>("/cables", { family_id: famId, spec });
+      setRows((prev) => [res.data, ...prev]);
+      setAddFamilyName(famName); // nech zvolenou rodinu pro rychlé další přidání
+      setAddSpec("");
+      setAdding(false);
+    } catch (e: any) {
+      console.warn("Create cable failed:", e?.response?.data || e);
+      if (e?.response?.status === 409) {
+        alert("Tato kombinace rodiny a specifikace už existuje.");
+      } else {
+        alert("Vytvoření kabelu se nepodařilo.");
+      }
+    }
   }
 
-  function startEdit(r: Cable) {
-    setExpandedId(r.id);
-    setEdit({ id: r.id, family: r.family, dimension: r.dimension });
+  function onAddKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void handleAdd();
+    } else if (e.key === "Escape") {
+      setAdding(false);
+      setAddFamilyName("");
+      setAddSpec("");
+    }
   }
-  async function saveEdit() {
+
+  // --- edit řádek ---
+  function startEdit(row: CableRow) {
+    setEditingId(row.id);
+    setDraft({ family_id: row.family_id ?? "", spec: row.spec ?? "" });
+  }
+  function cancelEdit() {
+    setEditingId(null);
+    setDraft({ family_id: "", spec: "" });
+  }
+  async function saveEdit(id: number) {
+    if (!draft.spec.trim() || draft.family_id === "" || Number.isNaN(Number(draft.family_id))) return;
     try {
-      if (!edit.id) return;
-      const res = await api.patch<Cable>(`/cables/${edit.id}`, {
-        family: edit.family, dimension: edit.dimension
-      });
-      setRows(list => list.map(x => x.id === res.data.id ? res.data : x));
-      setExpandedId(null); setEdit({});
-      if (!families.includes(res.data.family)) loadFamilies();
-    } catch (e:any) { alert(toMsg(e)); }
+      const payload: Partial<CableRow> = {
+        family_id: Number(draft.family_id),
+        spec: draft.spec.trim(),
+      };
+      const res = await api.patch<CableRow>(`/cables/${id}`, payload);
+      setRows((prev) => prev.map((r) => (r.id === id ? res.data : r)));
+      setEditingId(null);
+      setDraft({ family_id: "", spec: "" });
+    } catch (e: any) {
+      console.warn("Save cable failed:", e?.response?.data || e);
+      alert("Uložení se nepodařilo.");
+    }
   }
-  async function del(id: number) {
+
+  // --- smazat řádek ---
+  async function removeRow(id: number) {
     if (!confirm("Opravdu smazat kabel?")) return;
-    await api.delete(`/cables/${id}`);
-    setRows(list => list.filter(x => x.id !== id));
+    try {
+      await api.delete(`/cables/${id}`);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } catch (e: any) {
+      console.warn("Delete cable failed:", e?.response?.data || e);
+      alert("Smazání se nepodařilo.");
+    }
   }
+
+  const famById = useMemo(() => {
+    const map = new Map<number, string>();
+    families.forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [families]);
 
   return (
-    <div className="bg-white rounded shadow p-4">
-      <div className="mb-3 flex flex-col md:flex-row md:items-end gap-2">
-        <div className="flex-1 flex gap-2">
-          <input className="p-2 border rounded w-64" placeholder="Hledat (rodina, dimenze)…" value={q} onChange={e=>setQ(e.target.value)} />
-          <select className="p-2 border rounded" value={filterFamily} onChange={e=>setFilterFamily(e.target.value)}>
-            <option value="">Všechny rodiny</option>
-            {families.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
+    <section className="bg-white p-4 rounded shadow">
+      {/* hlavička: filtr vlevo, akce vpravo */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+        <div className="flex-1">
+          <input
+            className="w-full p-2 border rounded"
+            placeholder="Hledat… (rodina, spec, label)"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
         </div>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={openCreate}>+ Přidat kabel</button>
+        <div className="flex items-center gap-2 self-end md:self-auto">
+          <button className="px-3 py-2 border rounded text-sm" onClick={() => void reload()} title="Obnovit">
+            ↻
+          </button>
+          {!adding ? (
+            <button
+              className="px-3 py-2 bg-blue-600 text-white rounded text-sm"
+              onClick={() => setAdding(true)}
+              title="Přidat kabel"
+            >
+              ➕ Přidat kabel
+            </button>
+          ) : (
+            <button
+              className="px-3 py-2 bg-gray-300 rounded text-sm"
+              onClick={() => {
+                setAdding(false);
+                setAddFamilyName("");
+                setAddSpec("");
+              }}
+              title="Zrušit přidání"
+            >
+              ✖️
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* create row */}
-      {creating && (
-        <div className="mb-3 border rounded overflow-hidden">
-          <table className="w-full text-sm">
-            <tbody>
-              <tr className="bg-blue-50">
-                <td className="p-0" colSpan={3}>
-                  <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-600">Rodina</label>
-                      <input
-                        list="families"
-                        className="w-full p-2 border rounded"
-                        value={createForm.family || ""}
-                        onChange={e=>setCreateForm(f=>({...f, family: e.target.value}))}
-                        onBlur={()=>fetchDims(createForm.family || "")}
-                      />
-                      <datalist id="families">
-                        {families.map(f => <option key={f} value={f} />)}
-                      </datalist>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-600">Dimenze</label>
-                      <input
-                        list="dims"
-                        className="w-full p-2 border rounded"
-                        value={createForm.dimension || ""}
-                        onChange={e=>setCreateForm(f=>({...f, dimension: e.target.value}))}
-                      />
-                      <datalist id="dims">
-                        {dims.map(d => <option key={d} value={d} />)}
-                      </datalist>
-                    </div>
-                    <div className="flex items-end justify-end gap-2">
-                      <button className="px-4 py-2 bg-gray-200 rounded" onClick={cancelCreate}>Zavřít</button>
-                      <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={saveCreate}>Uložit</button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      {/* přidání – kolonky s našeptáváním (zobrazit jen při adding) */}
+      {adding && (
+        <div className="grid md:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Rodina</label>
+            <input
+              list="familiesOptions"
+              className="w-full p-2 border rounded"
+              placeholder="např. CYKY"
+              value={addFamilyName}
+              onChange={(e) => setAddFamilyName(e.target.value)}
+              onKeyDown={onAddKeyDown}
+            />
+            <datalist id="familiesOptions">
+              {families.map((f) => (
+                <option key={f.id} value={f.name} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Spec (dimenze)</label>
+            <input
+              list="specOptions"
+              className="w-full p-2 border rounded"
+              placeholder="např. 3×2,5"
+              value={addSpec}
+              onChange={(e) => setAddSpec(e.target.value)}
+              onKeyDown={onAddKeyDown}
+            />
+            <datalist id="specOptions">
+              {specSuggestions.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
+          <div className="flex items-end">
+            <button
+              className="w-full md:w-auto px-4 py-2 bg-blue-600 text-white rounded"
+              onClick={() => void handleAdd()}
+              disabled={!addFamilyName.trim() || !addSpec.trim()}
+              title="Uložit nový kabel"
+            >
+              💾 Uložit
+            </button>
+          </div>
         </div>
       )}
+
+      {err && <div className="mb-3 text-red-700 bg-red-50 border border-red-200 p-2 rounded">{err}</div>}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border">
           <thead className="bg-gray-100">
             <tr>
-              <th className="p-2 text-left w-14">#</th>
-              <th className="p-2 text-left">Rodina</th>
-              <th className="p-2 text-left">Dimenze</th>
-              <th className="p-2 text-left w-28">Akce</th>
+              <th className="p-2 text-left w-56">Rodina</th>
+              <th className="p-2 text-left w-40">Spec (dimenze)</th>
+              <th className="p-2 text-left">Label</th>
+              <th className="p-2 text-center w-28">Akce</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(r => (
-              <React.Fragment key={r.id}>
-                <tr className={`border-t ${expandedId===r.id ? "bg-blue-50" : "hover:bg-blue-50"}`}>
-                  <td className="p-2">{r.id}</td>
-                  <td className="p-2">{r.family}</td>
-                  <td className="p-2">{r.dimension}</td>
-                  <td className="p-2 space-x-2">
-                    <button className="text-blue-600 hover:underline" onClick={()=>startEdit(r)}>Upravit</button>
-                    <button className="text-red-600 hover:underline" onClick={()=>del(r.id)}>Smazat</button>
+            {filtered.map((r) => {
+              const isEd = editingId === r.id;
+              return (
+                <tr key={r.id} className="border-t">
+                  <td className="p-2">
+                    {isEd ? (
+                      <select
+                        className="w-full p-2 border rounded"
+                        value={draft.family_id}
+                        onChange={(e) =>
+                          setDraft((s) => ({ ...s, family_id: e.target.value ? Number(e.target.value) : "" }))
+                        }
+                      >
+                        <option value="">— vyber rodinu —</option>
+                        {families.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      r.family || <span className="text-gray-400">(bez rodiny)</span>
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {isEd ? (
+                      <input
+                        className="w-full p-2 border rounded"
+                        value={draft.spec}
+                        onChange={(e) => setDraft((s) => ({ ...s, spec: e.target.value }))}
+                      />
+                    ) : (
+                      r.spec
+                    )}
+                  </td>
+                  <td className="p-2">
+                    {isEd ? (
+                      <div className="text-gray-600">
+                        {computedLabel({
+                          family:
+                            draft.family_id !== "" ? famById.get(Number(draft.family_id)) : r.family ?? "",
+                          spec: draft.spec,
+                          label: null,
+                        })}
+                      </div>
+                    ) : (
+                      computedLabel(r)
+                    )}
+                  </td>
+                  <td className="p-2 text-center space-x-2">
+                    {!isEd ? (
+                      <>
+                        <button className="px-2 py-1 border rounded" onClick={() => startEdit(r)} title="Upravit">
+                          ✏️
+                        </button>
+                        <button
+                          className="px-2 py-1 bg-red-600 text-white rounded"
+                          onClick={() => void removeRow(r.id)}
+                          title="Smazat"
+                        >
+                          🗑️
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="px-2 py-1 bg-blue-600 text-white rounded"
+                          onClick={() => void saveEdit(r.id)}
+                          disabled={draft.family_id === "" || !draft.spec.trim()}
+                          title="Uložit"
+                        >
+                          💾
+                        </button>
+                        <button className="px-2 py-1 bg-gray-300 rounded" onClick={cancelEdit} title="Zrušit">
+                          ✖️
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
-                {expandedId===r.id && (
-                  <tr className="bg-blue-50 border-t">
-                    <td className="p-0" colSpan={4}>
-                      <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="text-xs text-gray-600">Rodina</label>
-                          <input
-                            list="families"
-                            className="w-full p-2 border rounded"
-                            value={edit.family || ""}
-                            onChange={e=>setEdit(s=>({...s, family: e.target.value}))}
-                            onBlur={()=>fetchDims(edit.family || "")}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-600">Dimenze</label>
-                          <input
-                            list="dims"
-                            className="w-full p-2 border rounded"
-                            value={edit.dimension || ""}
-                            onChange={e=>setEdit(s=>({...s, dimension: e.target.value}))}
-                          />
-                        </div>
-                        <div className="flex items-end justify-end gap-2">
-                          <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>{setExpandedId(null); setEdit({});}}>Zavřít</button>
-                          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={saveEdit}>Uložit</button>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-            {filtered.length===0 && (
-              <tr><td className="p-4 text-center text-gray-500" colSpan={4}>Žádné záznamy.</td></tr>
+              );
+            })}
+
+            {!loading && filtered.length === 0 && (
+              <tr>
+                <td className="p-4 text-center text-gray-500" colSpan={4}>
+                  Nic nenalezeno.
+                </td>
+              </tr>
+            )}
+            {loading && (
+              <tr>
+                <td className="p-4 text-center text-gray-500" colSpan={4}>
+                  Načítám…
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
   );
 }

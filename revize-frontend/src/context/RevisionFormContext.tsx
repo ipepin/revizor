@@ -125,18 +125,19 @@ interface ContextValue {
   form: RevisionForm;
   setForm: React.Dispatch<React.SetStateAction<RevisionForm>>;
   saveNow: () => void;
-  finish: () => void;
+  finish: () => Promise<void>;
 }
 
 export const RevisionFormContext = createContext<ContextValue>({} as ContextValue);
 
-// Bezpečné načtení JSONu (řeší i dvakrát serializované hodnoty typu "\"{...}\"")
+// Bezpečné načtení JSONu (umí objekt i historicky uložený string)
 function safeParseDataJson(raw: unknown): Partial<RevisionForm> {
-  if (!raw) return {};
-  try {
-    if (typeof raw === "object") return raw as Partial<RevisionForm>;
-    if (typeof raw === "string") {
+  if (raw == null) return {};
+  if (typeof raw === "object") return raw as Partial<RevisionForm>;
+  if (typeof raw === "string") {
+    try {
       const once = JSON.parse(raw);
+      if (typeof once === "object" && once) return once as Partial<RevisionForm>;
       if (typeof once === "string") {
         try {
           return JSON.parse(once);
@@ -144,10 +145,9 @@ function safeParseDataJson(raw: unknown): Partial<RevisionForm> {
           return {};
         }
       }
-      if (typeof once === "object" && once) return once as Partial<RevisionForm>;
+    } catch {
+      return {};
     }
-  } catch {
-    // ignore
   }
   return {};
 }
@@ -202,15 +202,14 @@ export function RevisionFormProvider({
         const res = await api.get(`/revisions/${revId}`, { signal: ctrl.signal });
         const data = res.data;
         const parsed = safeParseDataJson(data?.data_json);
-
         setForm((f) => ({
           ...f,
           ...parsed,
           evidencni: data?.number ?? f.evidencni,
         }));
-      } catch (err) {
-        if ((err as any)?.name !== "CanceledError") {
-          console.warn("Nelze načíst revizi:", err);
+      } catch (err: any) {
+        if (err?.name !== "CanceledError") {
+          console.warn("Nelze načíst revizi:", err?.response?.data || err);
         }
       }
     })();
@@ -219,9 +218,10 @@ export function RevisionFormProvider({
 
   // Funkce pro okamžité uložení (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
+    // backend čeká objekt (dict), ne string
     api
-      .patch(`/revisions/${revId}`, { data_json: JSON.stringify(form) })
-      .catch((err) => console.warn("Uložení revize selhalo:", err));
+      .patch(`/revisions/${revId}`, { data_json: form })
+      .catch((err) => console.warn("Uložení revize selhalo:", err?.response?.data || err));
   }, [form, revId]);
 
   // Autosave s 800ms debouncingem
@@ -230,11 +230,26 @@ export function RevisionFormProvider({
     return () => clearTimeout(timeout);
   }, [form, saveNow]);
 
-  // Označit dokončení revize (zachováno – případně sem můžeš přidat PATCH statusu)
-  const finish = useCallback(() => {
-    saveNow();
-    console.log("Revision marked as finished");
-  }, [saveNow]);
+  // Označit dokončení revize: zkusíme jeden PATCH (data_json + status).
+  // Když backend status ignoruje, fallback na dvojitý PATCH.
+  const finish = useCallback(async () => {
+    try {
+      await api.patch(`/revisions/${revId}`, {
+        data_json: form,
+        status: "Dokončená",
+      });
+      console.log("Revize označena jako 'Dokončená'");
+    } catch (err1: any) {
+      console.warn("PATCH combined selhal, zkouším sekvenčně:", err1?.response?.data || err1);
+      try {
+        await api.patch(`/revisions/${revId}`, { data_json: form });
+        await api.patch(`/revisions/${revId}`, { status: "Dokončená" });
+        console.log("Revize označena jako 'Dokončená' (sekvenčně).");
+      } catch (err2) {
+        console.warn("Dokončení revize selhalo:", (err2 as any)?.response?.data || err2);
+      }
+    }
+  }, [form, revId]);
 
   return (
     <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>

@@ -1,7 +1,8 @@
 // src/sections/catalog/CatalogPristrojeTab.tsx
 // Kompletní tab s in‑row editorem (rozbalí se ihned pod kliknutým řádkem),
 // vyhledáváním, řazením, klientským stránkováním a možností přidání nového záznamu.
-// Počítá s axios instancí v `src/api/axios.ts` (baseURL + auth interceptor).
+// Přidán našeptávač (datalist) pro: Přístroj, Výrobce, Typ, IP – plněno
+// z aktuálně načtených záznamů (není potřeba měnit backend).
 
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
@@ -41,17 +42,30 @@ function toMsg(err: any): string {
   }
 }
 
-// --- Inline editor komponenta ---
+function uniqueSorted(values: (string | null | undefined)[]) {
+  return Array.from(new Set(values.filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+}
+
+// --- Inline editor komponenta s našeptávačem ---
 function EditorRow({
   value,
   onChange,
   onSave,
   onClose,
+  suggestions,
+  idPrefix,
 }: {
   value: Partial<Device> & { id?: number };
   onChange: (field: keyof Device, val: string) => void;
   onSave: () => void;
   onClose: () => void;
+  suggestions: {
+    names: string[];
+    manufacturers: string[];
+    models: string[];
+    ips: string[];
+  };
+  idPrefix: string; // pro unikátní id datalistů
 }) {
   return (
     <tr className="bg-blue-50 border-t">
@@ -60,26 +74,44 @@ function EditorRow({
           <div>
             <label className="text-xs text-gray-600">Přístroj</label>
             <input
+              list={`${idPrefix}-names`}
               className="w-full p-2 border rounded"
               value={value.name ?? ""}
               onChange={(e) => onChange("name", e.target.value)}
             />
+            <datalist id={`${idPrefix}-names`}>
+              {suggestions.names.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-gray-600">Výrobce</label>
             <input
+              list={`${idPrefix}-mans`}
               className="w-full p-2 border rounded"
               value={value.manufacturer ?? ""}
               onChange={(e) => onChange("manufacturer", e.target.value)}
             />
+            <datalist id={`${idPrefix}-mans`}>
+              {suggestions.manufacturers.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-gray-600">Typ</label>
             <input
+              list={`${idPrefix}-models`}
               className="w-full p-2 border rounded"
               value={value.model ?? ""}
               onChange={(e) => onChange("model", e.target.value)}
             />
+            <datalist id={`${idPrefix}-models`}>
+              {suggestions.models.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label className="text-xs text-gray-600">Třída</label>
@@ -92,10 +124,16 @@ function EditorRow({
           <div>
             <label className="text-xs text-gray-600">IP</label>
             <input
+              list={`${idPrefix}-ips`}
               className="w-full p-2 border rounded"
               value={value.ip ?? ""}
               onChange={(e) => onChange("ip", e.target.value)}
             />
+            <datalist id={`${idPrefix}-ips`}>
+              {suggestions.ips.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
           </div>
           <div className="md:col-span-3">
             <label className="text-xs text-gray-600">Poznámka</label>
@@ -171,7 +209,7 @@ export default function CatalogPristrojeTab() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [edit, setEdit] = useState<Partial<Device>>({});
 
-  // nový záznam (inline editor nad tabulkou)
+  // nový záznam (inline nad tabulkou)
   const [isCreating, setIsCreating] = useState(false);
   const [createForm, setCreateForm] = useState<Partial<Device>>({
     name: "",
@@ -204,6 +242,16 @@ export default function CatalogPristrojeTab() {
       mounted = false;
     };
   }, []);
+
+  // --- Našeptávač: hodnoty z DB (aktuálně načtené) ---
+  const suggestions = useMemo(() => {
+    return {
+      names: uniqueSorted(rows.map((r) => r.name)),
+      manufacturers: uniqueSorted(rows.map((r) => r.manufacturer)),
+      models: uniqueSorted(rows.map((r) => r.model)),
+      ips: uniqueSorted(rows.map((r) => r.ip ?? "")),
+    };
+  }, [rows]);
 
   // --- Filtrování + řazení ---
   const filteredSorted = useMemo(() => {
@@ -352,6 +400,8 @@ export default function CatalogPristrojeTab() {
                 onChange={onCreateChange}
                 onSave={onCreateSave}
                 onClose={cancelCreate}
+                suggestions={suggestions}
+                idPrefix="create"
               />
             </tbody>
           </table>
@@ -397,7 +447,17 @@ export default function CatalogPristrojeTab() {
                   </td>
                 </tr>
                 {expandedId === d.id && (
-                  <EditorRow value={edit} onChange={onEditChange} onSave={onSaveEdit} onClose={() => { setExpandedId(null); setEdit({}); }} />
+                  <EditorRow
+                    value={edit}
+                    onChange={onEditChange}
+                    onSave={onSaveEdit}
+                    onClose={() => {
+                      setExpandedId(null);
+                      setEdit({});
+                    }}
+                    suggestions={suggestions}
+                    idPrefix={`edit-${d.id}`}
+                  />
                 )}
               </React.Fragment>
             ))}

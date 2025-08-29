@@ -1,3 +1,4 @@
+// src/pages/Dashboard.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -17,6 +18,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // unlock modal (heslo pro dokončenou revizi)
+  const [unlockFor, setUnlockFor] = useState<{ projectId: number | null; revId: number | null }>({
+    projectId: null,
+    revId: null,
+  });
+  const [unlockPwd, setUnlockPwd] = useState("");
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockErr, setUnlockErr] = useState<string | null>(null);
+
   // URL backendu z env, fallback na localhost (sjednoceno)
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -30,7 +40,7 @@ export default function Dashboard() {
       });
       if (!res.ok) {
         setErr(`${res.status} ${res.statusText}`);
-        setProjects([]); // ať .filter nespadne
+        setProjects([]);
         return;
       }
       const data = await res.json();
@@ -45,7 +55,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (!token) return; // počkej na přihlášení
+    if (!token) return;
     const ctrl = new AbortController();
     setLoading(true);
     fetchProjects(ctrl.signal).finally(() => setLoading(false));
@@ -97,13 +107,57 @@ export default function Dashboard() {
     return address.includes(query) || client.includes(query);
   });
 
-  const revisionTypes = [
-    "Elektroinstalace",
-    "Spotřebič",
-    "FVE",
-    "Odběrné místo",
-    "Stroj",
-  ];
+  const revisionTypes = ["Elektroinstalace", "Spotřebič", "FVE", "Odběrné místo", "Stroj"];
+
+  // otevření revize: pokud dokončená → vyžádej heslo (unlock), jinak rovnou navigate
+  const openRevision = (projectId: number, rev: any) => {
+    if ((rev.status || "").toLowerCase() === "dokončená") {
+      setUnlockFor({ projectId, revId: rev.id });
+      setUnlockPwd("");
+      setUnlockErr(null);
+    } else {
+      navigate(`/revize/${rev.id}`);
+    }
+  };
+
+  // odeslání hesla pro odemčení (backend revizi přepne na "Rozpracovaná")
+  const submitUnlock = async () => {
+    if (!unlockFor.revId || !token) return;
+    setUnlockBusy(true);
+    setUnlockErr(null);
+    try {
+      const res = await fetch(`${API}/revisions/${unlockFor.revId}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token) },
+        body: JSON.stringify({ password: unlockPwd }),
+      });
+      if (!res.ok) throw new Error("Unlock failed");
+      const data = await res.json(); // { status: "Rozpracovaná" }
+
+      // přepiš status v lokálním seznamu (aby zmizelo zelené podbarvení)
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id !== unlockFor.projectId
+            ? p
+            : {
+                ...p,
+                revisions: (p.revisions || []).map((r: any) =>
+                  r.id === unlockFor.revId ? { ...r, status: data.status } : r
+                ),
+              }
+        )
+      );
+
+      const idToOpen = unlockFor.revId;
+      setUnlockFor({ projectId: null, revId: null });
+      setUnlockPwd("");
+      navigate(`/revize/${idToOpen}`);
+    } catch (e) {
+      setUnlockErr("Neplatné heslo.");
+    } finally {
+      setUnlockBusy(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
@@ -176,6 +230,7 @@ export default function Dashboard() {
                             🗑️ Smazat projekt
                           </button>
                         </div>
+
                         <table className="w-full text-sm bg-white border rounded">
                           <thead className="bg-gray-100">
                             <tr>
@@ -188,52 +243,56 @@ export default function Dashboard() {
                             </tr>
                           </thead>
                           <tbody>
-                            {sortedRevisions.map((rev: any) => (
-                              <tr key={rev.id} className="border-t">
-                                <td className="p-2">{rev.number}</td>
-                                <td className="p-2">{rev.type}</td>
-                                <td className="p-2">{rev.date_done}</td>
-                                <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
-                                  {rev.valid_until}
-                                </td>
-                                <td className={`p-2 ${rev.status === "Hotová" ? "text-green-600" : "text-blue-600"}`}>
-                                  {rev.status}
-                                </td>
-                                <td className="p-2 space-x-2">
-                                  <button
-                                    className="text-blue-600 hover:underline"
-                                    onClick={() => navigate(`/revize/${rev.id}`)}
-                                  >
-                                    Otevřít
-                                  </button>
-                                  <button
-                                    className="text-red-600 hover:underline"
-                                    onClick={async () => {
-                                      const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
-                                      if (!confirmDelete) return;
-                                      try {
-                                        const res = await fetch(`${API}/revisions/${rev.id}`, {
-                                          method: "DELETE",
-                                          headers: { ...authHeader(token!) },
-                                        });
-                                        if (!res.ok) throw new Error("Mazání selhalo");
-                                        fetchProjects();
-                                      } catch (err) {
-                                        console.error("❌ Chyba při mazání revize:", err);
-                                      }
-                                    }}
-                                  >
-                                    Smazat
-                                  </button>
-                                  <button
-                                    onClick={() => navigate(`/summary/${rev.id}`)}
-                                    className="text-green-600 hover:underline"
-                                  >
-                                    Souhrn
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                            {sortedRevisions.map((rev: any) => {
+                              const isDone = (rev.status || "").toLowerCase() === "dokončená";
+                              return (
+                                <tr key={rev.id} className={`border-t ${isDone ? "bg-green-50" : ""}`}>
+                                  <td className="p-2">{rev.number}</td>
+                                  <td className="p-2">{rev.type}</td>
+                                  <td className="p-2">{rev.date_done}</td>
+                                  <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
+                                    {rev.valid_until}
+                                  </td>
+                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
+                                    {rev.status}
+                                  </td>
+                                  <td className="p-2 space-x-2">
+                                    <button
+                                      className="text-blue-600 hover:underline"
+                                      onClick={() => openRevision(proj.id, rev)}
+                                      title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
+                                    >
+                                      Otevřít
+                                    </button>
+                                    <button
+                                      className="text-red-600 hover:underline"
+                                      onClick={async () => {
+                                        const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
+                                        if (!confirmDelete) return;
+                                        try {
+                                          const res = await fetch(`${API}/revisions/${rev.id}`, {
+                                            method: "DELETE",
+                                            headers: { ...authHeader(token!) },
+                                          });
+                                          if (!res.ok) throw new Error("Mazání selhalo");
+                                          fetchProjects();
+                                        } catch (err) {
+                                          console.error("❌ Chyba při mazání revize:", err);
+                                        }
+                                      }}
+                                    >
+                                      Smazat
+                                    </button>
+                                    <button
+                                      onClick={() => navigate(`/summary/${rev.id}`)}
+                                      className="text-green-600 hover:underline"
+                                    >
+                                      Souhrn
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
 
@@ -276,7 +335,10 @@ export default function Dashboard() {
                                   </li>
                                 ))}
                               </ul>
-                              <button className="mt-4 px-4 py-2 bg-gray-300 rounded w-full" onClick={() => setShowDialog(false)}>
+                              <button
+                                className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
+                                onClick={() => setShowDialog(false)}
+                              >
                                 Zrušit
                               </button>
                             </div>
@@ -317,6 +379,34 @@ export default function Dashboard() {
               </button>
               <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject}>
                 Uložit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock modal – heslo pro dokončenou revizi */}
+      {unlockFor.revId !== null && (
+        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setUnlockFor({ projectId: null, revId: null })}>
+          <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold mb-2">Revize je dokončená</h3>
+            <p className="text-sm text-gray-600 mb-3">Pro otevření zadej své heslo.</p>
+            <input
+              type="password"
+              className="w-full p-2 border rounded mb-2"
+              placeholder="Heslo"
+              value={unlockPwd}
+              onChange={(e) => setUnlockPwd(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitUnlock()}
+              autoFocus
+            />
+            {unlockErr && <div className="text-red-600 text-sm mb-2">{unlockErr}</div>}
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setUnlockFor({ projectId: null, revId: null })} disabled={unlockBusy}>
+                Zrušit
+              </button>
+              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitUnlock} disabled={unlockBusy || !unlockPwd}>
+                Odemknout
               </button>
             </div>
           </div>

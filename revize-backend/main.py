@@ -9,6 +9,8 @@ from routers.revisions import router as revisions_router
 from routers.deps import get_current_user   
 from routers.cables import router as cables_router
 from routers.devices import router as devices_router
+from routers.users import router as users_router
+from routers.companies import router as companies_router
 app = FastAPI()
 
 # ⭐ CORS – povol frontend na 5173
@@ -34,5 +36,7 @@ app.include_router(defects_router,   dependencies=[Depends(get_current_user)])
 app.include_router(models_router,    dependencies=[Depends(get_current_user)])
 app.include_router(projects_router,  dependencies=[Depends(get_current_user)])
 app.include_router(revisions_router, dependencies=[Depends(get_current_user)])
-app.include_router(cables_router,   dependencies=[Depends(get_current_user)])
+app.include_router(cables_router, dependencies=[Depends(get_current_user)])
+app.include_router(users_router, dependencies=[Depends(get_current_user)]) 
+app.include_router(companies_router, dependencies=[Depends(get_current_user)]) 
 app.include_router(devices_router,  dependencies=[Depends(get_current_user)])

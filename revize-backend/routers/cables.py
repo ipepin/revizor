@@ -1,218 +1,168 @@
 # routers/cables.py
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
-from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from typing import List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+
 from database import get_db
 from models import Cable, CableFamily
 
 router = APIRouter(prefix="/cables", tags=["cables"])
 
-class CableOut(BaseModel):
+# ---------- Schemas ----------
+
+class CableFamilyRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
-    family: str
-    dimension: str
-    class Config: from_attributes = True
+    name: str
 
-class CableCreate(BaseModel):
-    family: str
-    dimension: str
+class CableFamilyCreate(BaseModel):
+    name: str
 
-class CableUpdate(BaseModel):
-    family: str | None = None
-    dimension: str | None = None
+class CableFamilyUpdate(BaseModel):
+    name: Optional[str] = None
 
-def _get_or_create_family(db: Session, name: str) -> CableFamily:
-    name = name.strip()
-    fam = db.execute(select(CableFamily).where(func.lower(CableFamily.name) == name.lower())).scalar_one_or_none()
-    if not fam:
-        fam = CableFamily(name=name)
-        db.add(fam)
-        db.flush()
-    return fam
-
-@router.get("", response_model=list[CableOut])
-def list_cables(
-    db: Session = Depends(get_db),
-    q: str | None = Query(None),
-    family: str | None = Query(None),
-    offset: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=10000),
-):
-    stmt = select(Cable, CableFamily.name).join(CableFamily, Cable.family_id == CableFamily.id)
-    if family:
-        stmt = stmt.where(func.lower(CableFamily.name) == family.lower().strip())
-    if q:
-        like = f"%{q.lower()}%"
-        stmt = stmt.where(func.lower(Cable.spec).like(like) | func.lower(CableFamily.name).like(like))
-    stmt = stmt.order_by(CableFamily.name.asc(), Cable.spec.asc()).offset(offset).limit(limit)
-    rows = db.execute(stmt).all()
-    return [{"id": c.id, "family": fam_name, "dimension": c.spec} for (c, fam_name) in rows]
-
-@router.post("", response_model=CableOut, status_code=201)
-def create_cable(body: CableCreate, db: Session = Depends(get_db)):
-    fam = _get_or_create_family(db, body.family)
-    spec = body.dimension.strip()
-    # unikátnost
-    exists = db.execute(
-        select(Cable.id).where(Cable.family_id == fam.id, func.lower(Cable.spec) == spec.lower())
-    ).scalar_one_or_none()
-    if exists:
-        raise HTTPException(409, "Tato kombinace rodiny a dimenze už existuje.")
-    c = Cable(family_id=fam.id, spec=spec)
-    db.add(c)
-    db.commit()
-    db.refresh(c)
-    return {"id": c.id, "family": fam.name, "dimension": c.spec}
-
-@router.patch("/{cable_id}", response_model=CableOut)
-def update_cable(cable_id: int, body: CableUpdate, db: Session = Depends(get_db)):
-    c = db.get(Cable, cable_id)
-    if not c: raise HTTPException(404, "Nenalezeno")
-    fam = db.get(CableFamily, c.family_id)
-    if body.family and body.family.strip():
-        fam = _get_or_create_family(db, body.family)
-        c.family_id = fam.id
-    if body.dimension and body.dimension.strip():
-        c.spec = body.dimension.strip()
-    # kontrola unikátnosti
-    exists = db.execute(
-        select(Cable.id).where(Cable.id != c.id, Cable.family_id == c.family_id, func.lower(Cable.spec) == c.spec.lower())
-    ).scalar_one_or_none()
-    if exists:
-        raise HTTPException(409, "Tato kombinace rodiny a dimenze už existuje.")
-    db.commit()
-    db.refresh(c)
-    fam = db.get(CableFamily, c.family_id)
-    return {"id": c.id, "family": fam.name, "dimension": c.spec}
-
-@router.delete("/{cable_id}", status_code=204)
-def delete_cable(cable_id: int, db: Session = Depends(get_db)):
-    c = db.get(Cable, cable_id)
-    if not c: raise HTTPException(404, "Nenalezeno")
-    db.delete(c)
-    db.commit()
-    return
-
-# --- Našeptávače ---
-@router.get("/families", response_model=list[str])
-def families(db: Session = Depends(get_db)):
-    rows = db.execute(select(CableFamily.name).order_by(CableFamily.name.asc())).scalars().all()
-    return rows
-
-@router.get("/dimensions", response_model=list[str])
-def dimensions(family: str | None = None, db: Session = Depends(get_db)):
-    stmt = select(func.distinct(Cable.spec)).join(CableFamily)
-    if family:
-        stmt = stmt.where(func.lower(CableFamily.name) == family.lower().strip())
-    stmt = stmt.order_by(Cable.spec.asc())
-    return db.execute(stmt).scalars().all()
-# routers/cables.py
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import select, func
-from pydantic import BaseModel
-from database import get_db
-from models import Cable, CableFamily
-
-router = APIRouter(prefix="/cables", tags=["cables"])
 
 class CableOut(BaseModel):
+    # Vracený tvar pro FE (počítaný label)
     id: int
-    family: str
-    dimension: str
-    class Config: from_attributes = True
+    family_id: int
+    family: Optional[str] = None
+    spec: str
+    label: Optional[str] = None
 
 class CableCreate(BaseModel):
-    family: str
-    dimension: str
+    family_id: int
+    spec: str
+    # FE může poslat label, ale ignorujeme ho (počítáme z family+spec)
+    label: Optional[str] = None
 
 class CableUpdate(BaseModel):
-    family: str | None = None
-    dimension: str | None = None
+    family_id: Optional[int] = None
+    spec: Optional[str] = None
+    label: Optional[str] = None  # ignorujeme, jen kvůli kompatibilitě
 
-def _get_or_create_family(db: Session, name: str) -> CableFamily:
-    name = name.strip()
-    fam = db.execute(select(CableFamily).where(func.lower(CableFamily.name) == name.lower())).scalar_one_or_none()
-    if not fam:
-        fam = CableFamily(name=name)
-        db.add(fam)
-        db.flush()
+
+# ---------- Helpers ----------
+
+def _to_out(c: Cable) -> CableOut:
+    fam_name = c.family.name if c.family else None
+    label = f"{fam_name or ''} {c.spec or ''}".strip() or None
+    return CableOut(id=c.id, family_id=c.family_id, family=fam_name, spec=c.spec, label=label)
+
+
+# ---------- Families ----------
+
+@router.get("/families", response_model=List[CableFamilyRead])
+def list_families(db: Session = Depends(get_db)):
+    return db.query(CableFamily).order_by(CableFamily.name.asc()).all()
+
+@router.post("/families", response_model=CableFamilyRead, status_code=status.HTTP_201_CREATED)
+def create_family(payload: CableFamilyCreate, db: Session = Depends(get_db)):
+    fam = CableFamily(name=payload.name)
+    db.add(fam)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Family with this name already exists.")
+    db.refresh(fam)
     return fam
 
-@router.get("", response_model=list[CableOut])
-def list_cables(
-    db: Session = Depends(get_db),
-    q: str | None = Query(None),
-    family: str | None = Query(None),
-    offset: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=10000),
-):
-    stmt = select(Cable, CableFamily.name).join(CableFamily, Cable.family_id == CableFamily.id)
-    if family:
-        stmt = stmt.where(func.lower(CableFamily.name) == family.lower().strip())
-    if q:
-        like = f"%{q.lower()}%"
-        stmt = stmt.where(func.lower(Cable.spec).like(like) | func.lower(CableFamily.name).like(like))
-    stmt = stmt.order_by(CableFamily.name.asc(), Cable.spec.asc()).offset(offset).limit(limit)
-    rows = db.execute(stmt).all()
-    return [{"id": c.id, "family": fam_name, "dimension": c.spec} for (c, fam_name) in rows]
+@router.patch("/families/{family_id}", response_model=CableFamilyRead)
+def update_family(family_id: int, payload: CableFamilyUpdate, db: Session = Depends(get_db)):
+    fam = db.get(CableFamily, family_id)
+    if not fam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Family not found")
+    if payload.name is not None:
+        fam.name = payload.name
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status.HTTP_409_CONFLICT, detail="Family with this name already exists.")
+        db.refresh(fam)
+    return fam
 
-@router.post("", response_model=CableOut, status_code=201)
-def create_cable(body: CableCreate, db: Session = Depends(get_db)):
-    fam = _get_or_create_family(db, body.family)
-    spec = body.dimension.strip()
-    # unikátnost
-    exists = db.execute(
-        select(Cable.id).where(Cable.family_id == fam.id, func.lower(Cable.spec) == spec.lower())
-    ).scalar_one_or_none()
-    if exists:
-        raise HTTPException(409, "Tato kombinace rodiny a dimenze už existuje.")
-    c = Cable(family_id=fam.id, spec=spec)
-    db.add(c)
+@router.delete("/families/{family_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_family(family_id: int, db: Session = Depends(get_db)):
+    fam = db.get(CableFamily, family_id)
+    if not fam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Family not found")
+    # bezpečně: nenech smazat, pokud má kabely
+    has_cables = db.query(Cable).filter(Cable.family_id == family_id).first() is not None
+    if has_cables:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Family has cables, delete or move them first.")
+    db.delete(fam)
     db.commit()
-    db.refresh(c)
-    return {"id": c.id, "family": fam.name, "dimension": c.spec}
+    return None
+
+
+# ---------- Cables ----------
+
+@router.get("/", response_model=List[CableOut])
+def list_cables(offset: int = 0, limit: int = 5000, db: Session = Depends(get_db)):
+    rows = (
+        db.query(Cable)
+          .order_by(Cable.id.asc())
+          .offset(offset)
+          .limit(limit)
+          .all()
+    )
+    return [_to_out(c) for c in rows]
+
+@router.get("/{cable_id}", response_model=CableOut)
+def get_cable(cable_id: int, db: Session = Depends(get_db)):
+    c = db.get(Cable, cable_id)
+    if not c:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cable not found")
+    return _to_out(c)
+
+@router.post("/", response_model=CableOut, status_code=status.HTTP_201_CREATED)
+def create_cable(payload: CableCreate, db: Session = Depends(get_db)):
+    fam = db.get(CableFamily, payload.family_id)
+    if not fam:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Family not found")
+    cab = Cable(family_id=payload.family_id, spec=payload.spec)
+    db.add(cab)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        # unikátní omezení (family_id, spec)
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Cable with this spec already exists in the family.")
+    db.refresh(cab)
+    return _to_out(cab)
 
 @router.patch("/{cable_id}", response_model=CableOut)
-def update_cable(cable_id: int, body: CableUpdate, db: Session = Depends(get_db)):
-    c = db.get(Cable, cable_id)
-    if not c: raise HTTPException(404, "Nenalezeno")
-    fam = db.get(CableFamily, c.family_id)
-    if body.family and body.family.strip():
-        fam = _get_or_create_family(db, body.family)
-        c.family_id = fam.id
-    if body.dimension and body.dimension.strip():
-        c.spec = body.dimension.strip()
-    # kontrola unikátnosti
-    exists = db.execute(
-        select(Cable.id).where(Cable.id != c.id, Cable.family_id == c.family_id, func.lower(Cable.spec) == c.spec.lower())
-    ).scalar_one_or_none()
-    if exists:
-        raise HTTPException(409, "Tato kombinace rodiny a dimenze už existuje.")
-    db.commit()
-    db.refresh(c)
-    fam = db.get(CableFamily, c.family_id)
-    return {"id": c.id, "family": fam.name, "dimension": c.spec}
+def update_cable(cable_id: int, payload: CableUpdate, db: Session = Depends(get_db)):
+    cab = db.get(Cable, cable_id)
+    if not cab:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cable not found")
 
-@router.delete("/{cable_id}", status_code=204)
+    if payload.family_id is not None:
+        fam = db.get(CableFamily, payload.family_id)
+        if not fam:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Family not found")
+        cab.family_id = payload.family_id
+
+    if payload.spec is not None:
+        cab.spec = payload.spec
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Cable with this spec already exists in the family.")
+    db.refresh(cab)
+    return _to_out(cab)
+
+@router.delete("/{cable_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_cable(cable_id: int, db: Session = Depends(get_db)):
-    c = db.get(Cable, cable_id)
-    if not c: raise HTTPException(404, "Nenalezeno")
-    db.delete(c)
+    cab = db.get(Cable, cable_id)
+    if not cab:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cable not found")
+    db.delete(cab)
     db.commit()
-    return
-
-# --- Našeptávače ---
-@router.get("/families", response_model=list[str])
-def families(db: Session = Depends(get_db)):
-    rows = db.execute(select(CableFamily.name).order_by(CableFamily.name.asc())).scalars().all()
-    return rows
-
-@router.get("/dimensions", response_model=list[str])
-def dimensions(family: str | None = None, db: Session = Depends(get_db)):
-    stmt = select(func.distinct(Cable.spec)).join(CableFamily)
-    if family:
-        stmt = stmt.where(func.lower(CableFamily.name) == family.lower().strip())
-    stmt = stmt.order_by(Cable.spec.asc())
-    return db.execute(stmt).scalars().all()
+    return None

@@ -13,6 +13,7 @@ import EditRevision from "./pages/EditRevision";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProfilePage from "./pages/ProfilPage";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -47,6 +48,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             {/* Summary lze nechat veřejný, nebo také chránit */}
             <Route path="/summary/:revId" element={<SummaryWrapper />} />
             <Route path="/katalog" element={<ProtectedRoute><CatalogPage/></ProtectedRoute>} />
+            <Route path="/profil" element={<ProtectedRoute><ProfilePage/></ProtectedRoute>} />
           </Routes>
         </BrowserRouter>
       </UserProvider>
