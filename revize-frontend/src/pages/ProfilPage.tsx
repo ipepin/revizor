@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
+import { useUser } from "../context/UserContext";
 import { authHeader } from "../api/auth";
 
 type Company = {
@@ -19,6 +20,10 @@ type Company = {
 export default function ProfilePage() {
   const { token } = useAuth();
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  // ⬇️ z UserContextu bereme setActiveCompany + refreshUser,
+  // aby se po změnách ihned propsal Sidebar a zbytek aplikace
+  const { setActiveCompany, refreshUser } = useUser();
 
   // --- Profil uživatele ---
   const [form, setForm] = useState({
@@ -81,7 +86,7 @@ export default function ProfilePage() {
         setLoading(false);
       }
     })();
-  }, [token]);
+  }, [token, API]);
 
   async function saveProfile() {
     if (!token) return;
@@ -98,6 +103,8 @@ export default function ProfilePage() {
       const data = await res.json();
       setForm((f) => ({ ...f, ...data }));
       setOk("Uloženo.");
+      // ⬇️ dotáhni čerstvá data i do UserContextu (Sidebar)
+      await refreshUser();
     } catch {
       setErr("Uložení profilu selhalo.");
     } finally {
@@ -158,12 +165,20 @@ export default function ProfilePage() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      // refresh
+
+      // refresh seznamu firem
+      setLoadingCompanies(true);
       const cRes = await fetch(`${API}/users/companies`, { headers: { ...authHeader(token) } });
       const cData = await cRes.json();
       setCompanies(Array.isArray(cData) ? cData : []);
+      setLoadingCompanies(false);
+
       cancelEdit();
+
+      // ⬇️ ať se případné změny propsnou i do UserContextu
+      await refreshUser();
     } catch {
+      setLoadingCompanies(false);
       alert("Uložení firmy selhalo.");
     }
   }
@@ -177,29 +192,28 @@ export default function ProfilePage() {
         headers: { ...authHeader(token) },
       });
       if (!res.ok) throw new Error(await res.text());
-      // refresh
+
+      // refresh seznamu
       const cRes = await fetch(`${API}/users/companies`, { headers: { ...authHeader(token) } });
       const cData = await cRes.json();
       setCompanies(Array.isArray(cData) ? cData : []);
-      // aktualizuj profil (active_company_id se na BE může změnit)
+
+      // přenačti profil i UserContext (active_company_id se mohl změnit)
       const uRes = await fetch(`${API}/users/me`, { headers: { ...authHeader(token) } });
       const uData = await uRes.json();
       setForm((f) => ({ ...f, ...uData }));
+
+      await refreshUser();
     } catch {
       alert("Mazání selhalo.");
     }
   }
 
-  async function activateCompany(id: number) {
-    if (!token) return;
+  // ⬇️ PŘEPÍNÁNÍ AKTIVNÍ FIRMY – používáme UserContext.setActiveCompany
+  async function onActivateCompany(id: number) {
     try {
-      const res = await fetch(`${API}/users/companies/${id}/activate`, {
-        method: "POST",
-        headers: { ...authHeader(token) },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const user = await res.json();
-      setForm((f) => ({ ...f, active_company_id: user.active_company_id }));
+      await setActiveCompany(id);   // PATCH /api/users/me + refreshUser()
+      setForm((f) => ({ ...f, active_company_id: id })); // lokální sync pro „zelený řádek“
     } catch {
       alert("Nepodařilo se přepnout aktivní firmu.");
     }
@@ -295,7 +309,9 @@ export default function ProfilePage() {
                   <div>Adresa: {activeCompany.address || "-"}</div>
                   <div>IČO: {activeCompany.ico || "-"}</div>
                   <div>DIČ: {activeCompany.dic || "-"}</div>
-                  <div>Kontakt: {[activeCompany.email, activeCompany.phone].filter(Boolean).join(" • ") || "-"}</div>
+                  <div>
+                    Kontakt: {[activeCompany.email, activeCompany.phone].filter(Boolean).join(" • ") || "-"}
+                  </div>
                   {activeCompany.note && <div className="md:col-span-2">Pozn.: {activeCompany.note}</div>}
                 </div>
               )}
@@ -414,7 +430,7 @@ export default function ProfilePage() {
                             {/* Aktivovat */}
                             <button
                               title={isActive ? "Aktivní" : "Nastavit jako aktivní"}
-                              onClick={() => !isActive && activateCompany(c.id)}
+                              onClick={() => !isActive && onActivateCompany(c.id)}
                               className={`p-1 rounded ${isActive ? "text-green-700" : "text-gray-600 hover:bg-gray-100"}`}
                             >
                               {isActive ? "★" : "☆"}

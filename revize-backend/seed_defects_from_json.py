@@ -1,50 +1,61 @@
-# scripts/seed_defects_from_json.py
-
-import os
-import json
+# scripts/seed_defects.py
+import json, sys
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine, Base
-from models import Defect
+from sqlalchemy import and_
+from database import SessionLocal
+from models import Defect, DefectVisibility, ModerationStatus
 
-# 1) Path to your JSON file (adjust if you place it elsewhere)
-HERE = os.path.dirname(__file__)
-JSON_PATH = os.path.join(HERE, "defects.json")
+def main(path: str = "defects.json") -> None:
+    with open(path, "r", encoding="utf-8") as f:
+        items = json.load(f)
 
-def load_defects(path: str):
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
-def seed_defects(db: Session, defects: list[dict]):
-    for d in defects:
-        # Skip if identical entry already exists
-        exists = (
-            db.query(Defect)
-            .filter_by(
-                description=d["description"],
-                standard=d["standard"],
-                article=d["article"],
-            )
-            .first()
-        )
-        if not exists:
-            db.add(
-                Defect(
-                    description=d["description"],
-                    standard=d["standard"],
-                    article=d["article"],
-                )
-            )
-    db.commit()
-
-if __name__ == "__main__":
-    # 2) Make sure tables are created
-    Base.metadata.create_all(bind=engine)
-
-    # 3) Load JSON and seed
-    defects_list = load_defects(JSON_PATH)
-    db = SessionLocal()
+    db: Session = SessionLocal()
+    inserted = updated = skipped = 0
     try:
-        seed_defects(db, defects_list)
-        print(f"✅ Seeded {len(defects_list)} defects (duplicates skipped).")
+        for it in items:
+            desc = (it.get("description") or "").strip()
+            std  = (it.get("standard") or "").strip() or None
+            art  = (it.get("article") or "").strip() or None
+            if not desc:
+                skipped += 1
+                continue
+
+            existing = (
+                db.query(Defect)
+                  .filter(
+                      Defect.description == desc,
+                      Defect.standard == std,
+                      Defect.article == art,
+                  )
+                  .one_or_none()
+            )
+
+            if existing:
+                changed = False
+                if existing.visibility != DefectVisibility.global_:
+                    existing.visibility = DefectVisibility.global_
+                    changed = True
+                if existing.moderation_status != ModerationStatus.none:
+                    existing.moderation_status = ModerationStatus.none
+                    changed = True
+                if changed:
+                    updated += 1
+                else:
+                    skipped += 1
+            else:
+                db.add(Defect(
+                    description=desc,
+                    standard=std,
+                    article=art,
+                    visibility=DefectVisibility.global_,
+                    moderation_status=ModerationStatus.none,
+                ))
+                inserted += 1
+
+        db.commit()
+        print(f"✅ Inserted: {inserted}, Updated: {updated}, Skipped: {skipped}")
     finally:
         db.close()
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "defects.json")

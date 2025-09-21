@@ -137,7 +137,7 @@ def create_revision(
     seq = existing_count + 1
 
     # datumy (date_done většinou vyžadujeme)
-    d_done = _ensure_date(getattr(payload, "date_done", None))
+    d_done = _ensure_date(getattr(payload, "date_done", None))  
     v_until = _ensure_date(getattr(payload, "valid_until", None))
     if not d_done:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="date_done is required")
@@ -163,7 +163,7 @@ def create_revision(
             conclusion_text=getattr(payload, "conclusion_text", None),
             conclusion_safety=getattr(payload, "conclusion_safety", None),
             conclusion_valid_until=_ensure_date(getattr(payload, "conclusion_valid_until", None)),
-            locked=getattr(payload, "locked", None),
+
         )
         db.add(rev)
         db.flush()     # vyžádá INSERT, získá ID (kdyby něco chybělo, hodí to error tady)

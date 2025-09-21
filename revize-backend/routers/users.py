@@ -9,8 +9,12 @@ from routers.auth import get_current_user
 from models import User, CompanyProfile
 from schemas import (
     UserProfileRead, UserProfileUpdate,
-    CompanyProfileRead, CompanyProfileCreate, CompanyProfileUpdate,
+    CompanyProfileRead, CompanyProfileCreate, CompanyProfileUpdate,InstrumentCreate, InstrumentUpdate, InstrumentOut
 )
+import json
+from fastapi import Path
+from uuid import uuid4  
+from models import User
 
 # -------------------------
 # Router: /users
@@ -128,3 +132,64 @@ def get_company(cid: int, db: Session = Depends(get_db), user: User = Depends(ge
     if not row or row.user_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Company not found")
     return _company_to_schema(row)
+
+
+@router.get("/instruments", response_model=List[InstrumentOut])
+def list_instruments(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    row = db.query(User).filter(User.id == user.id).first()
+    data = json.loads(row.instruments_json or "[]")
+    # normalizace
+    return data
+
+@router.post("/instruments", response_model=InstrumentOut, status_code=status.HTTP_201_CREATED)
+def create_instrument(payload: InstrumentCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    row = db.query(User).filter(User.id == user.id).first()
+    data = json.loads(row.instruments_json or "[]")
+    new_item = {
+        "id": str(uuid4()),
+        "name": payload.name,
+        "measurement_text": payload.measurement_text,
+        "calibration_code": payload.calibration_code,
+        "serial": payload.serial,
+        "calibration_valid_until": payload.calibration_valid_until,
+        "note": payload.note,
+    }
+    data.append(new_item)
+    row.instruments_json = json.dumps(data, ensure_ascii=False)
+    db.commit()
+    db.refresh(row)
+    return new_item
+
+@router.patch("/instruments/{instrument_id}", response_model=InstrumentOut)
+def update_instrument(
+    instrument_id: str = Path(...),
+    payload: InstrumentUpdate = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    row = db.query(User).filter(User.id == user.id).first()
+    data: List[dict] = json.loads(row.instruments_json or "[]")
+    idx = next((i for i, it in enumerate(data) if it.get("id") == instrument_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Instrument not found")
+    item = {**data[idx], **{k: v for k, v in payload.model_dump(exclude_unset=True).items()}}
+    data[idx] = item
+    row.instruments_json = json.dumps(data, ensure_ascii=False)
+    db.commit()
+    db.refresh(row)
+    return item
+
+@router.delete("/instruments/{instrument_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_instrument(
+    instrument_id: str = Path(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    row = db.query(User).filter(User.id == user.id).first()
+    data: List[dict] = json.loads(row.instruments_json or "[]")
+    new_data = [it for it in data if it.get("id") != instrument_id]
+    if len(new_data) == len(data):
+        raise HTTPException(status_code=404, detail="Instrument not found")
+    row.instruments_json = json.dumps(new_data, ensure_ascii=False)
+    db.commit()
+    return None

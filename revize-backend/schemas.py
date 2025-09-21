@@ -1,10 +1,9 @@
 # schemas.py
 from __future__ import annotations
 
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
 from datetime import date, datetime
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic import field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 
 # ==========================
 # REVISION
@@ -14,22 +13,29 @@ class RevisionBase(BaseModel):
     status: Optional[str] = None
     date_done: Optional[date] = None
     valid_until: Optional[date] = None
-    locked: Optional[bool] = None
+    locked: Optional[bool] = None  # může existovat ve FE, BE ignoruje
 
-    # ⬇️ DOPLNĚNO – běžně ukládáš z autosavu
+    # ukládáš přes autosave
     number: Optional[str] = None
     data_json: Optional[Any] = None
     conclusion_text: Optional[str] = None
     conclusion_safety: Optional[str] = None
     conclusion_valid_until: Optional[date] = None
-    defects: Optional[str] = None  # pokud máš ten sloupec v modelu
+    defects: Optional[str] = None  # pokud sloupec používáš
 
 
 class RevisionCreate(RevisionBase):
     project_id: int
+    type: str
+    date_done: date
+    valid_until: date
+    status: str | None = None
+    data_json: dict | None = None
+
 
 class RevisionUpdate(RevisionBase):
     project_id: Optional[int] = None
+
 
 class RevisionRead(BaseModel):
     id: int
@@ -50,33 +56,39 @@ class RevisionRead(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    # ⬇️ DŮLEŽITÉ: prázdný řetězec -> None
+    # prázdný string -> None
     @field_validator("date_done", "valid_until", "conclusion_valid_until", mode="before")
     @classmethod
     def _empty_str_to_none(cls, v):
         return None if v == "" else v
 
     model_config = ConfigDict(from_attributes=True)
-    
 
 
 # ==========================
 # PROJECT
 # ==========================
+# FE/BE domluva: projekt NEMÁ 'name' → jen address + client
+class ProjectCreatePayload(BaseModel):
+    address: constr(min_length=1)
+    client:  constr(min_length=1)
+    shared_with_user_ids: List[int] = []
+    owner_id: Optional[int] = None  # volitelné – FE může poslat; BE může ignorovat
+
+    class Config:
+        extra = "ignore"  # kdyby FE náhodou poslal i name, nepadne to 422
+
+
 class ProjectBase(BaseModel):
-    # bylo: name: str
-    name: Optional[str] = None
     address: Optional[str] = None
     client: Optional[str] = None
 
 
-class ProjectCreate(ProjectBase):
-    # při vytvoření povinné
-    name: str
+# Alias kvůli případným starším importům
+ProjectCreate = ProjectCreatePayload
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
     address: Optional[str] = None
     client: Optional[str] = None
     shared_with_user_ids: Optional[List[int]] = None
@@ -84,8 +96,6 @@ class ProjectUpdate(BaseModel):
 
 class ProjectRead(BaseModel):
     id: int
-    # bylo: name: str
-    name: Optional[str] = None
     address: Optional[str] = None
     client: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -157,7 +167,7 @@ class CompanyProfileRead(BaseModel):
     name: Optional[str] = None
     ico: Optional[str] = None          # IČO
     dic: Optional[str] = None          # DIČ
-    vat_payer: Optional[bool] = None   # plátce DPH
+    vat_payer: Optional[bool] = None   # pokud v DB nemáš, zůstane None
     address: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -264,44 +274,82 @@ class DistributionBoardRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ComponentModelCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    manufacturer_id: int
+
+class ComponentModelUpdate(BaseModel):
+    name: Optional[str] = None
+    manufacturer_id: Optional[int] = None
 
 # ==========================
 # DEFECTS / ZÁVADY
 # ==========================
 class DefectBase(BaseModel):
-    code: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    norm: Optional[str] = None          # např. "ČSN 33 2000-6 ed.2"
-    severity: Optional[str] = None      # "low" | "medium" | "high"
-    location: Optional[str] = None      # popis umístění (pokoj/rozvaděč atd.)
+    description: str
+    standard: Optional[str] = None
+    article: Optional[str] = None
 
 
 class DefectCreate(DefectBase):
-    revision_id: int
+    # při běžném vytvoření jde o uživatelskou položku
+    pass
 
 
-class DefectUpdate(DefectBase):
-    revision_id: Optional[int] = None   # umožní přesun mezi revizemi
-
-
-class DefectRead(BaseModel):
-    id: int
-    revision_id: Optional[int] = None
-    room_id: Optional[int] = None
-    board_id: Optional[int] = None
-
-    code: Optional[str] = None
-    title: Optional[str] = None
+class DefectUpdate(BaseModel):
     description: Optional[str] = None
-    norm: Optional[str] = None
-    severity: Optional[str] = None
-    location: Optional[str] = None
+    standard: Optional[str] = None
+    article: Optional[str] = None
 
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
+class DefectRead(DefectBase):
+    id: int
+    visibility: Literal["global", "user"]
+    moderation_status: Literal["none", "pending", "rejected"]
+    owner_id: Optional[int] = None
+    approved_by: Optional[int] = None
+    reject_reason: Optional[str] = None
+    usage_count: Optional[int] = 0   # ⬅️ přidej
+    model_config = {"from_attributes": True}
+    
+
+class SubmitForApproval(BaseModel):
+    # volitelné: zpráva autorů/odůvodnění
+    note: Optional[str] = None
+
+
+class ModerationDecision(BaseModel):
+    reason: Optional[str] = None
+
+
+# ==========================
+# USER INSTRUMENTS
+# ==========================
+class InstrumentBase(BaseModel):
+    name: str = Field(..., min_length=2)
+    measurement_text: str = Field(..., min_length=2)  # povinné
+    calibration_code: str
+    serial: Optional[str] = None
+    calibration_valid_until: Optional[str] = None   # "YYYY-MM-DD"
+    note: Optional[str] = None
+
+
+class InstrumentCreate(InstrumentBase):
+    pass
+
+
+class InstrumentUpdate(BaseModel):
+    name: Optional[str] = None
+    measurement_text: Optional[str] = None
+    calibration_code: Optional[str] = None
+    serial: Optional[str] = None
+    calibration_valid_until: Optional[str] = None
+    note: Optional[str] = None
+
+
+class InstrumentOut(InstrumentBase):
+    # FE si drží string (stačí int taky, ale nechávám zpětnou kompatibilitu)
+    id: str
 
 
 # ==========================

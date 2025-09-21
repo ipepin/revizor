@@ -98,16 +98,14 @@ def create_project(
     Lze rovnou nasdílet dalším uživatelům.
     """
     prj = Project(
-        name=payload.name,
         address=payload.address or "",
         client=payload.client or "",
-        owner_id=user.id,
+        owner_id=user.id,     # ⬅️ nepoužívej payload.owner_id
     )
 
     if payload.shared_with_user_ids:
         users = db.query(UserModel).filter(UserModel.id.in_(payload.shared_with_user_ids)).all()
-        # přiřazení many-to-many
-        setattr(prj, "shared_with_users", users)
+        prj.shared_with_users = users
 
     db.add(prj)
     db.commit()

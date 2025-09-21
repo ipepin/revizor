@@ -14,6 +14,7 @@ import SummaryWrapper from "./pages/SummaryWrapper";
 import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProfilePage from "./pages/ProfilPage";
+import InstrumentsPage from "./pages/InstrumentsPage";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
@@ -49,6 +50,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             <Route path="/summary/:revId" element={<SummaryWrapper />} />
             <Route path="/katalog" element={<ProtectedRoute><CatalogPage/></ProtectedRoute>} />
             <Route path="/profil" element={<ProtectedRoute><ProfilePage/></ProtectedRoute>} />
+            <Route path="/instruments" element={<ProtectedRoute><InstrumentsPage /></ProtectedRoute>}
+/>
           </Routes>
         </BrowserRouter>
       </UserProvider>

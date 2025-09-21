@@ -1,16 +1,13 @@
-// src/pages/SummaryWrapper.tsx
-import React from "react";
 import { useParams } from "react-router-dom";
 import { RevisionFormProvider } from "../context/RevisionFormContext";
 import SummaryPage from "./SummaryPage";
 
-const SummaryWrapper: React.FC = () => {
-  const { revId } = useParams<{ revId: string }>();
+export default function SummaryWrapper() {
+  const { revId } = useParams();
+  const idNum = Number(revId);
   return (
-    <RevisionFormProvider revId={Number(revId)}>
+    <RevisionFormProvider revId={idNum}>
       <SummaryPage />
     </RevisionFormProvider>
   );
-};
-
-export default SummaryWrapper;
+}

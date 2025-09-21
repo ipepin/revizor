@@ -1,26 +1,33 @@
 # === Backend Models (complete) ===
 # Full SQLAlchemy models.py with User, Project, Revision, Defect, Component hierarchy.
-# -----------------------------------------------------------------------------
+
+from datetime import datetime
 
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Text,
-    ForeignKey,
-    Table,
-    Boolean,
-    UniqueConstraint,
-    Date,
-    text,
+    Column, Integer, BigInteger, String, Text, Boolean,
+    ForeignKey, Table, UniqueConstraint, Date, DateTime,
+    Enum, TIMESTAMP, func
 )
-from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import JSON  # works on both SQLite & Postgres
+from sqlalchemy.ext.mutable import MutableDict
+
 from database import Base
 
-# 📎 Many-to-many table: shared projects ↔ users
+# --- Dialect-aware helpers (Postgres vs SQLite) ---
+POSTGRES = False
+try:
+    # If Postgres dialect is present, prefer JSONB and ARRAY(Text)
+    from sqlalchemy.dialects.postgresql import JSONB, ARRAY as PG_ARRAY
+    POSTGRES = True
+except Exception:
+    JSONB = None
+    PG_ARRAY = None  # type: ignore
+
+JSONType = JSONB if POSTGRES else JSON
+
+
+# 📎 Many-to-many: shared projects ↔ users
 project_user_link = Table(
     "project_user_link",
     Base.metadata,
@@ -28,52 +35,58 @@ project_user_link = Table(
     Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE")),
 )
 
+
 # 👤 User
 class User(Base):
     __tablename__ = "users"
 
-    id                = Column(Integer, primary_key=True, index=True)
-    name              = Column(String, nullable=False)
-    email             = Column(String, unique=True, index=True, nullable=False)
-    password_hash     = Column(String, nullable=False)
-    is_verified       = Column(Boolean, default=False)
+    id                 = Column(Integer, primary_key=True, index=True)
+    name               = Column(String, nullable=False)
+    email              = Column(String, unique=True, index=True, nullable=False)
+    password_hash      = Column(String, nullable=False)
+    is_verified        = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True)
 
-    # 🆕 profilová data
+    # profilová data
     certificate_number   = Column(String, nullable=True)   # číslo osvědčení
     authorization_number = Column(String, nullable=True)   # číslo oprávnění
     address              = Column(String, nullable=True)
     ico                  = Column(String, nullable=True)
     dic                  = Column(String, nullable=True)
-    birth_date           = Column(String, nullable=True)   # pro SQLite držím jako string "YYYY-MM-DD"
+    birth_date           = Column(String, nullable=True)   # SQLite-friendly "YYYY-MM-DD"
     phone                = Column(String, nullable=True)
+
+    # (historický) JSON přístrojů uložený u uživatele – ponechán pro kompatibilitu
+    instruments_json     = Column(Text, nullable=False, server_default="[]")
 
     active_company_id = Column(Integer, ForeignKey("company_profiles.id"), nullable=True)
 
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
 
-    # ✅ musí párovat s Project.shared_with_users
+    # sdílené projekty (M2M)
     shared_projects = relationship(
         "Project",
         secondary=project_user_link,
         back_populates="shared_with_users",
     )
 
-    # ✅ vymezíme FK cestu, aby nebyla kolize s active_company
+    # firmy přiřazené uživateli (vymezení správného FK)
     companies = relationship(
         "CompanyProfile",
         back_populates="user",
         cascade="all, delete-orphan",
-        foreign_keys="CompanyProfile.user_id",   # <<< DŮLEŽITÉ
+        foreign_keys="CompanyProfile.user_id",
     )
 
+    # aktivní firma (jedna)
     active_company = relationship(
         "CompanyProfile",
         foreign_keys=[active_company_id],
         uselist=False,
     )
 
-# 🏗️  Project
+
+# 🏗️ Project
 class Project(Base):
     __tablename__ = "projects"
 
@@ -92,17 +105,17 @@ class Project(Base):
 
     revisions = relationship("Revision", back_populates="project", cascade="all, delete-orphan")
 
-# 📄 Revision report
+
+# 📄 Revision
 class Revision(Base):
     __tablename__ = "revisions"
 
-    id                     = Column(Integer, primary_key=True, index=True)
-    number                 = Column(String, unique=True, nullable=False)
-    type                   = Column(String, nullable=False)
+    id     = Column(Integer, primary_key=True, index=True)
+    number = Column(String, unique=True, nullable=False)
+    type   = Column(String, nullable=False)
 
-    # skutečná data (ne stringy)
-    date_done              = Column(Date, nullable=False)
-    valid_until            = Column(Date, nullable=True)
+    date_done   = Column(Date, nullable=False)
+    valid_until = Column(Date, nullable=True)
 
     status                 = Column(String(20), nullable=False, default="Rozpracovaná")
     defects                = Column(Text, default="")
@@ -110,49 +123,81 @@ class Revision(Base):
     conclusion_safety      = Column(String, default="")
     conclusion_valid_until = Column(String, default="")
 
-    # JSONB (PostgreSQL varianta B) — pokud používáš SQLite, nahraď za Column(JSON, default=dict)
+    # JSON (SQLite) / JSONB (Postgres) – mutable pro pohodlné PATCHe
     data_json = Column(
-        MutableDict.as_mutable(JSONB),
-        server_default=text("'{}'::jsonb"),
+        MutableDict.as_mutable(JSONType if JSONType is not None else JSON),
         nullable=False,
+        default=dict,  # ORM default (server_default řeš migracemi dle DB)
     )
 
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     project    = relationship("Project", back_populates="revisions")
 
-# 🔧 Defect catalog
+
+# 🔧 Defect catalog + workflow
+import enum as _enum
+
+class DefectVisibility(str, _enum.Enum):
+    global_ = "global"   # název atributu nesmí být "global"
+    user    = "user"
+
+class ModerationStatus(str, _enum.Enum):
+    none     = "none"
+    pending  = "pending"
+    rejected = "rejected"
+
 class Defect(Base):
     __tablename__ = "defects"
 
     id          = Column(Integer, primary_key=True, index=True)
     description = Column(String, nullable=False)
-    standard    = Column(String, nullable=False)
-    article     = Column(String, nullable=False)
+    standard    = Column(String, nullable=True)
+    article     = Column(String, nullable=True)
 
-# 🛠️  Component hierarchy
+    visibility        = Column(Enum(DefectVisibility), nullable=False, default=DefectVisibility.user)
+    moderation_status = Column(Enum(ModerationStatus),  nullable=False, default=ModerationStatus.none)
+
+    owner_id    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    owner       = relationship("User", foreign_keys=[owner_id])
+
+    approved_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    approver    = relationship("User", foreign_keys=[approved_by])
+    usage_count = Column(Integer, nullable=False, server_default="0")  # počítadlo použití
+
+    reject_reason = Column(Text, nullable=True)
+
+    created_at  = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at  = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    approved_at = Column(DateTime, nullable=True)
+
+
+# 🛠️ Component hierarchy
 class ComponentType(Base):
     __tablename__ = "component_types"
 
-    id            = Column(Integer, primary_key=True, index=True)
-    name          = Column(String, unique=True, nullable=False)
+    id   = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+
     manufacturers = relationship("Manufacturer", back_populates="type", cascade="all, delete-orphan")
+
 
 class Manufacturer(Base):
     __tablename__ = "manufacturers"
 
-    id      = Column(Integer, primary_key=True, index=True)
-    name    = Column(String, nullable=False)
+    id   = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
 
     type_id = Column(Integer, ForeignKey("component_types.id", ondelete="CASCADE"))
     type    = relationship("ComponentType", back_populates="manufacturers")
 
     models  = relationship("ComponentModel", back_populates="manufacturer", cascade="all, delete-orphan")
 
+
 class ComponentModel(Base):
     __tablename__ = "component_models"
 
-    id              = Column(Integer, primary_key=True, index=True)
-    name            = Column(String, nullable=False)
+    id   = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
 
     manufacturer_id = Column(Integer, ForeignKey("manufacturers.id", ondelete="CASCADE"))
     manufacturer    = relationship("Manufacturer", back_populates="models")
@@ -160,19 +205,23 @@ class ComponentModel(Base):
 
 class CableFamily(Base):
     __tablename__ = "cable_families"
-    id     = Column(Integer, primary_key=True)
-    name   = Column(String, unique=True, nullable=False)
-    cables = relationship("Cable", back_populates="family", cascade="all,delete")
+
+    id   = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+
+    cables = relationship("Cable", back_populates="family", cascade="all, delete-orphan")
+
 
 class Cable(Base):
     __tablename__ = "cables"
+
     id        = Column(Integer, primary_key=True)
-    family_id = Column(Integer, ForeignKey("cable_families.id"), nullable=False)
+    family_id = Column(Integer, ForeignKey("cable_families.id", ondelete="CASCADE"), nullable=False)
 
     # volitelný popisek pro FE (předpočítané "CYKY 3×2,5")
     label     = Column(String, nullable=True)
 
-    # dimenze (např. 3x2,5)
+    # dimenze (např. "3x2,5")
     spec      = Column(String, nullable=False)
 
     family    = relationship("CableFamily", back_populates="cables")
@@ -184,16 +233,17 @@ class Device(Base):
     __tablename__ = "devices"
 
     id           = Column(Integer, primary_key=True, index=True)
-    name         = Column(String, nullable=False)   # např. "Svítidlo", "Zásuvka", ...
-    manufacturer = Column(String, nullable=True)    # volitelně
-    model        = Column(String, nullable=True)    # volitelně
-    trida        = Column(String, nullable=True)    # volitelně (tř. ochrany)
-    ip           = Column(String, nullable=True)    # volitelně (IP krytí)
-    note         = Column(Text, nullable=True)      # volitelná poznámka
+    name         = Column(String, nullable=False)  # např. "Svítidlo", "Zásuvka", ...
+    manufacturer = Column(String, nullable=True)
+    model        = Column(String, nullable=True)
+    trida        = Column(String, nullable=True)   # tř. ochrany
+    ip           = Column(String, nullable=True)   # IP krytí
+    note         = Column(Text, nullable=True)
 
 
 class CompanyProfile(Base):
     __tablename__ = "company_profiles"
+
     id       = Column(Integer, primary_key=True, index=True)
     user_id  = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
@@ -206,9 +256,32 @@ class CompanyProfile(Base):
     note     = Column(String, nullable=True)
     is_default = Column(Boolean, default=False)
 
-    # ✅ zrcadlí User.companies a vymezuje FK
+    # zpětný vztah na uživatele (odpovídá User.companies)
     user = relationship(
         "User",
         back_populates="companies",
         foreign_keys=[user_id],
     )
+
+
+class UserInstrument(Base):
+    __tablename__ = "user_instruments"
+
+    id      = Column(BigInteger, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    name             = Column(Text, nullable=False)
+    calibration_code = Column(Text, nullable=False)
+
+    # seznam měření: Postgres ARRAY(Text) / jinak JSON list
+    if POSTGRES:
+        measurements = Column(PG_ARRAY(Text), nullable=False, default=list)
+    else:
+        measurements = Column(JSON, nullable=False, default=list)
+
+    serial                  = Column(Text, nullable=True)
+    calibration_valid_until = Column(Date, nullable=True)
+    note                    = Column(Text, nullable=True)
+
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())

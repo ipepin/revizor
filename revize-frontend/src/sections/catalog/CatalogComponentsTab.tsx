@@ -88,7 +88,7 @@ export default function CatalogComponentsTab() {
     if (!selMftr) return alert("Vyber výrobce");
     const name = prompt("Název modelu")?.trim();
     if (!name) return;
-    const r = await api.post("/catalog/models", { name, manufacturer_id: selMftr });
+    const r = await api.post("/catalog/models/", { name, manufacturer_id: selMftr });
     setModels([r.data, ...models]);
   }
   async function renameModel(m: Row) {

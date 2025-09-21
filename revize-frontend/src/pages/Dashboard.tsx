@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
+import { useUser } from "../context/UserContext";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
   const { token } = useAuth();
+  const { profile } = useUser(); // kvůli owner_id
   const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -29,6 +31,13 @@ export default function Dashboard() {
 
   // URL backendu z env, fallback na localhost (sjednoceno)
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  // owner_id z profilu (držím více variant názvů)
+  const owner_id =
+    (profile as any)?.id ??
+    (profile as any)?.userId ??
+    (profile as any)?.user_id ??
+    undefined;
 
   // Načti projekty pouze pokud máme token a vždy s Authorization
   const fetchProjects = async (signal?: AbortSignal) => {
@@ -70,18 +79,44 @@ export default function Dashboard() {
   };
 
   const handleSaveNewProject = async () => {
+    const address = newProjectData.address.trim();
+    const client = newProjectData.client.trim();
+    if (!address || !client) {
+      alert("Vyplň adresu i objednatele.");
+      return;
+    }
+
+    // Backend vyžaduje `name` → složíme ho automaticky (UI necháváme beze změny)
+    const name = `${address} — ${client}`;
+
+    const payload: any = {
+      name,                 // ⬅️ doplněno pro BE validaci
+      address,
+      client,
+      shared_with_user_ids: [], // defaultně nesdílíme
+    };
+    if (owner_id != null) payload.owner_id = owner_id; // ⬅️ požadavek: posílat owner_id
+
     try {
       const res = await fetch(`${API}/projects`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader(token!) },
-        body: JSON.stringify(newProjectData),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Chyba při ukládání projektu");
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const data = await res.json();
+          detail = data?.detail ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail)) : "";
+        } catch {}
+        throw new Error(`Chyba při ukládání projektu${detail ? `: ${detail}` : ""}`);
+      }
       setShowNewProjectDialog(false);
       setNewProjectData({ address: "", client: "" });
       await fetchProjects();
     } catch (err) {
       console.error("Chyba při uložení projektu:", err);
+      alert(String(err));
     }
   };
 
@@ -308,7 +343,7 @@ export default function Dashboard() {
                                     className="p-2 hover:bg-gray-100 cursor-pointer border-b"
                                     onClick={async () => {
                                       setShowDialog(false);
-                                      const newRevision = {
+                                      const newRevision: any = {
                                         project_id: proj.id,
                                         type,
                                         date_done: new Date().toISOString().split("T")[0],
@@ -318,16 +353,28 @@ export default function Dashboard() {
                                         status: "Rozpracovaná",
                                         data_json: { poznámka: "zatím prázdné" },
                                       };
+                                      if (owner_id != null) newRevision.owner_id = owner_id; // pro jistotu
+
                                       try {
                                         const response = await fetch(`${API}/revisions`, {
                                           method: "POST",
                                           headers: { "Content-Type": "application/json", ...authHeader(token!) },
                                           body: JSON.stringify(newRevision),
                                         });
-                                        if (!response.ok) throw new Error("Server error");
+                                        if (!response.ok) {
+                                          let detail = "";
+                                          try {
+                                            const data = await response.json();
+                                            detail = data?.detail
+                                              ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail))
+                                              : "";
+                                          } catch {}
+                                          throw new Error(`Server error${detail ? `: ${detail}` : ""}`);
+                                        }
                                         fetchProjects();
                                       } catch (error) {
                                         console.error("❌ Chyba při ukládání revize:", error);
+                                        alert(String(error));
                                       }
                                     }}
                                   >
@@ -377,7 +424,11 @@ export default function Dashboard() {
               <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
                 Zrušit
               </button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject}>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={handleSaveNewProject}
+                title="Uložit nový projekt"
+              >
                 Uložit
               </button>
             </div>
