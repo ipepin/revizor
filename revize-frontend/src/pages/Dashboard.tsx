@@ -6,6 +6,9 @@ import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
 import { useUser } from "../context/UserContext";
 
+// VV store (vytváření VV protokolů)
+import { useVvDocs } from "../context/VvDocsContext";
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
   const { token } = useAuth();
@@ -29,17 +32,24 @@ export default function Dashboard() {
   const [unlockBusy, setUnlockBusy] = useState(false);
   const [unlockErr, setUnlockErr] = useState<string | null>(null);
 
-  // URL backendu z env, fallback na localhost (sjednoceno)
+  // URL backendu z env, fallback na localhost
   const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-  // owner_id z profilu (držím více variant názvů)
+  // owner_id z profilu
   const owner_id =
     (profile as any)?.id ??
     (profile as any)?.userId ??
     (profile as any)?.user_id ??
     undefined;
 
-  // Načti projekty pouze pokud máme token a vždy s Authorization
+  // VV context (jen pro vytvoření záznamu; listing bereme přímo z BE)
+  const { add: addVvDoc } = useVvDocs();
+
+  // Seznam VV protokolů per projekt
+  const [vvByProject, setVvByProject] = useState<Record<number, any[]>>({});
+  const [vvLoading, setVvLoading] = useState<Record<number, boolean>>({});
+
+  // Načti projekty
   const fetchProjects = async (signal?: AbortSignal) => {
     if (!token) return;
     try {
@@ -73,9 +83,28 @@ export default function Dashboard() {
 
   const isExpired = (date: string) => new Date(date) < new Date();
 
-  const handleAddRevision = (projectId: number) => {
+  // přidání (otevře výběrový dialog)
+  const handleAdd = (projectId: number) => {
     setSelectedProjectId(projectId);
     setShowDialog(true);
+  };
+
+  // načtení VV listu pro konkrétní projekt
+  const loadVvForProject = async (projectId: number) => {
+    if (!token) return;
+    setVvLoading((m) => ({ ...m, [projectId]: true }));
+    try {
+      const res = await fetch(`${API}/vv/project/${projectId}`, {
+        headers: { ...authHeader(token) },
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const list = await res.json(); // [{ id, number, project_id, data_json, ... }]
+      setVvByProject((m) => ({ ...m, [projectId]: list }));
+    } catch (e) {
+      setVvByProject((m) => ({ ...m, [projectId]: [] }));
+    } finally {
+      setVvLoading((m) => ({ ...m, [projectId]: false }));
+    }
   };
 
   const handleSaveNewProject = async () => {
@@ -86,16 +115,14 @@ export default function Dashboard() {
       return;
     }
 
-    // Backend vyžaduje `name` → složíme ho automaticky (UI necháváme beze změny)
     const name = `${address} — ${client}`;
-
     const payload: any = {
-      name,                 // ⬅️ doplněno pro BE validaci
+      name,
       address,
       client,
-      shared_with_user_ids: [], // defaultně nesdílíme
+      shared_with_user_ids: [],
     };
-    if (owner_id != null) payload.owner_id = owner_id; // ⬅️ požadavek: posílat owner_id
+    if (owner_id != null) payload.owner_id = owner_id;
 
     try {
       const res = await fetch(`${API}/projects`, {
@@ -142,9 +169,10 @@ export default function Dashboard() {
     return address.includes(query) || client.includes(query);
   });
 
-  const revisionTypes = ["Elektroinstalace", "Spotřebič", "FVE", "Odběrné místo", "Stroj"];
+  // jen tyto typy revizí
+  const revisionTypes = ["Elektroinstalace", "FVE"];
 
-  // otevření revize: pokud dokončená → vyžádej heslo (unlock), jinak rovnou navigate
+  // otevření revize
   const openRevision = (projectId: number, rev: any) => {
     if ((rev.status || "").toLowerCase() === "dokončená") {
       setUnlockFor({ projectId, revId: rev.id });
@@ -155,7 +183,7 @@ export default function Dashboard() {
     }
   };
 
-  // odeslání hesla pro odemčení (backend revizi přepne na "Rozpracovaná")
+  // odeslání hesla (odemknutí dokončené revize)
   const submitUnlock = async () => {
     if (!unlockFor.revId || !token) return;
     setUnlockBusy(true);
@@ -169,7 +197,6 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Unlock failed");
       const data = await res.json(); // { status: "Rozpracovaná" }
 
-      // přepiš status v lokálním seznamu (aby zmizelo zelené podbarvení)
       setProjects((prev) =>
         prev.map((p) =>
           p.id !== unlockFor.projectId
@@ -233,7 +260,13 @@ export default function Dashboard() {
                 <React.Fragment key={proj.id}>
                   <tr
                     className={`cursor-pointer border-t hover:bg-blue-50 ${isSelected ? "bg-blue-100" : ""}`}
-                    onClick={() => setExpandedProjectId(isSelected ? null : proj.id)}
+                    onClick={async () => {
+                      const next = isSelected ? null : proj.id;
+                      setExpandedProjectId(next);
+                      if (!isSelected && !vvByProject[proj.id]) {
+                        await loadVvForProject(proj.id);
+                      }
+                    }}
                   >
                     <td className="p-2 font-mono">{proj.id}</td>
                     <td className="p-2">{proj.address}</td>
@@ -248,11 +281,12 @@ export default function Dashboard() {
                     <tr>
                       <td colSpan={5} className="bg-blue-50 p-2">
                         <div className="text-right mb-2 flex justify-between">
+                          {/* Přidat: revize + VV */}
                           <button
                             className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                            onClick={() => handleAddRevision(proj.id)}
+                            onClick={() => handleAdd(proj.id)}
                           >
-                            ➕ Přidat revizi
+                            ➕ Přidat
                           </button>
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
@@ -266,6 +300,7 @@ export default function Dashboard() {
                           </button>
                         </div>
 
+                        {/* Revizní zprávy */}
                         <table className="w-full text-sm bg-white border rounded">
                           <thead className="bg-gray-100">
                             <tr>
@@ -331,16 +366,110 @@ export default function Dashboard() {
                           </tbody>
                         </table>
 
-                        {/* Dialog pro typ revize */}
+                        {/* mezera */}
+                        <div className="h-4" />
+
+                        {/* VV Protokoly */}
+                        <div className="bg-white border rounded">
+                          <div className="px-2 py-2 bg-gray-100 font-semibold">Protokoly o určení vnějších vlivů</div>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr>
+                                <th className="p-2 text-left">#</th>
+                                <th className="p-2 text-left">Název / Prostor</th>
+                                <th className="p-2 text-left">Datum</th>
+                                <th className="p-2 text-left">Akce</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {vvLoading[proj.id] && (
+                                <tr><td className="p-2" colSpan={4}>Načítám VV…</td></tr>
+                              )}
+                              {!vvLoading[proj.id] && (vvByProject[proj.id]?.length ?? 0) === 0 && (
+                                <tr><td className="p-2" colSpan={4}>Žádné protokoly.</td></tr>
+                              )}
+                              {(vvByProject[proj.id] || []).map((vv: any) => {
+                                const spaceName = vv.data_json?.spaces?.[0]?.name ?? "—";
+                                const date = vv.data_json?.date ?? "—";
+                                return (
+                                  <tr key={vv.id} className="border-t">
+                                    <td className="p-2 font-mono">{vv.number ?? vv.id}</td>
+                                    <td className="p-2">
+                                      {vv.data_json?.objectName || "bez názvu"} ·{" "}
+                                      <span className="text-slate-500">{spaceName}</span>
+                                    </td>
+                                    <td className="p-2">{date}</td>
+                                    <td className="p-2 space-x-3">
+                                      <button
+                                        className="text-blue-600 hover:underline"
+                                        onClick={() => navigate(`/vv/${vv.id}`)}
+                                      >
+                                        Otevřít
+                                      </button>
+                                      <button
+                                        className="text-red-600 hover:underline"
+                                        onClick={async () => {
+                                          if (!window.confirm("Opravdu chceš smazat tento VV protokol?")) return;
+                                          try {
+                                            const res = await fetch(`${API}/vv/${vv.id}`, {
+                                              method: "DELETE",
+                                              headers: { ...authHeader(token!) },
+                                            });
+                                            if (!res.ok) throw new Error("Mazání selhalo");
+                                            loadVvForProject(proj.id);
+                                          } catch (err) {
+                                            console.error("❌ Chyba při mazání VV:", err);
+                                          }
+                                        }}
+                                      >
+                                        Smazat
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Dialog „Přidat“: VV + zúžené revize */}
                         {showDialog && selectedProjectId === proj.id && (
                           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                             <div className="bg-white p-6 rounded shadow w-80">
-                              <h2 className="text-lg font-semibold mb-4">Vyber typ revize</h2>
-                              <ul>
-                                {revisionTypes.map((type) => (
+                              <h2 className="text-lg font-semibold mb-4">Vyber, co chceš přidat</h2>
+
+                              {/* VV */}
+                              <div
+                                className="p-2 mb-2 hover:bg-gray-100 cursor-pointer border rounded"
+                                onClick={async () => {
+                                  setShowDialog(false);
+                                  try {
+                                    // vytvoření VV v DB přes context (POST /vv)
+                                    const created = await addVvDoc(proj.id, {
+                                      objectName: proj.address ? `${proj.address}` : "Objekt",
+                                      address: proj.address || "",
+                                    });
+                                    // otevři editor VV (/vv/:id)
+                                    navigate(`/vv/${created.id}`);
+                                    // refresh listu VV
+                                    loadVvForProject(proj.id);
+                                  } catch (err: any) {
+                                    console.error("❌ VV create failed:", err?.response?.data || err);
+                                    alert("Nepodařilo se založit VV protokol.");
+                                  }
+                                }}
+                              >
+                                Posouzení vnějších vlivů (VV)
+                              </div>
+
+                              {/* Revize */}
+                              <ul className="border rounded">
+                                {revisionTypes.map((type, idx) => (
                                   <li
                                     key={type}
-                                    className="p-2 hover:bg-gray-100 cursor-pointer border-b"
+                                    className={`p-2 hover:bg-gray-100 cursor-pointer ${
+                                      idx < revisionTypes.length - 1 ? "border-b" : ""
+                                    }`}
                                     onClick={async () => {
                                       setShowDialog(false);
                                       const newRevision: any = {
@@ -353,7 +482,7 @@ export default function Dashboard() {
                                         status: "Rozpracovaná",
                                         data_json: { poznámka: "zatím prázdné" },
                                       };
-                                      if (owner_id != null) newRevision.owner_id = owner_id; // pro jistotu
+                                      if (owner_id != null) newRevision.owner_id = owner_id;
 
                                       try {
                                         const response = await fetch(`${API}/revisions`, {
@@ -382,6 +511,7 @@ export default function Dashboard() {
                                   </li>
                                 ))}
                               </ul>
+
                               <button
                                 className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
                                 onClick={() => setShowDialog(false)}
@@ -438,7 +568,10 @@ export default function Dashboard() {
 
       {/* Unlock modal – heslo pro dokončenou revizi */}
       {unlockFor.revId !== null && (
-        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setUnlockFor({ projectId: null, revId: null })}>
+        <div
+          className="fixed inset-0 bg-black/40 grid place-items-center z-50"
+          onClick={() => setUnlockFor({ projectId: null, revId: null })}
+        >
           <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold mb-2">Revize je dokončená</h3>
             <p className="text-sm text-gray-600 mb-3">Pro otevření zadej své heslo.</p>
@@ -453,10 +586,18 @@ export default function Dashboard() {
             />
             {unlockErr && <div className="text-red-600 text-sm mb-2">{unlockErr}</div>}
             <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setUnlockFor({ projectId: null, revId: null })} disabled={unlockBusy}>
+              <button
+                className="px-3 py-2 bg-gray-200 rounded"
+                onClick={() => setUnlockFor({ projectId: null, revId: null })}
+                disabled={unlockBusy}
+              >
                 Zrušit
               </button>
-              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitUnlock} disabled={unlockBusy || !unlockPwd}>
+              <button
+                className="px-3 py-2 bg-blue-600 text-white rounded"
+                onClick={submitUnlock}
+                disabled={unlockBusy || !unlockPwd}
+              >
                 Odemknout
               </button>
             </div>

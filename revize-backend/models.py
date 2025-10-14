@@ -285,3 +285,21 @@ class UserInstrument(Base):
 
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class VvDoc(Base):
+    __tablename__ = "vv_docs"
+
+    # FE generuje UUID → držíme jako String(36)
+    id         = Column(String(36), primary_key=True, index=True)
+    # Evidenční číslo ve tvaru "VV-YYYY-0001" (unikátní). Vygenerujeme v routeru při POST.
+    number     = Column(String(32), unique=True, nullable=False)
+
+    # JSON protokolu (stejný přístup jako Revision.data_json)
+    data_json  = Column(MutableDict.as_mutable(JSON), nullable=False, default=dict)
+
+    # vazba na projekt (přístup se kontroluje stejně jako u revizí)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    project    = relationship("Project")
+
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -1,7 +1,7 @@
 # schemas.py
 from __future__ import annotations
 
-from typing import List, Optional, Any, Literal
+from typing import List, Optional, Any, Literal, Dict
 from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator, constr
 
@@ -351,6 +351,29 @@ class InstrumentOut(InstrumentBase):
     # FE si drží string (stačí int taky, ale nechávám zpětnou kompatibilitu)
     id: str
 
+
+class VvDocBase(BaseModel):
+    project_id: int
+    data_json: Dict[str, Any] = Field(default_factory=dict)  # ProtocolData z FE
+
+class VvDocCreate(VvDocBase):
+    id: str  # FE UUID
+
+class VvDocUpdate(BaseModel):
+    # projekt u editace stejně neměníme → necháme volitelné
+    project_id: Optional[int] = None
+    # přijmi libovolnou slovníkovou strukturu
+    data_json: dict = Field(default_factory=dict)
+
+class VvDocRead(BaseModel):
+    id: str
+    number: str
+    project_id: int
+    created_at: Any
+    updated_at: Any
+    data_json: dict
+
+    model_config = ConfigDict(from_attributes=True)
 
 # ==========================
 # (Volitelné) aliasy pro zpětnou kompatibilitu

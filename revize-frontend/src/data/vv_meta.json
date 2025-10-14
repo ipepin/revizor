@@ -1,0 +1,119 @@
+{
+  "AA1": {
+    "group": "A",
+    "name": "Teplota okolí",
+    "meaning": "-60 °C až +5 °C",
+    "normal": false,
+    "requirements": [
+      "Zařízení musí odolávat daným teplotám.",
+      "Min. IP20 pro stroje/přístroje/svítidla/rozváděče.",
+      "Rozváděče chránit proti sálavému teplu."
+    ]
+  },
+  "AA2": { "group": "A", "name": "Teplota okolí", "meaning": "-40 °C až +5 °C", "normal": false, "requirements": ["Zařízení musí odolávat daným teplotám.", "Min. IP20.", "Chránit proti sálavému teplu."] },
+  "AA3": { "group": "A", "name": "Teplota okolí", "meaning": "-25 °C až +5 °C", "normal": false, "requirements": ["Zařízení musí odolávat daným teplotám.", "Min. IP20.", "Chránit proti sálavému teplu."] },
+  "AA4": { "group": "A", "name": "Teplota okolí", "meaning": "-5 °C až +40 °C (venkovní mírné)", "normal": true, "requirements": ["Zařízení s odpovídajícím teplotním rozsahem."] },
+  "AA5": { "group": "A", "name": "Teplota okolí", "meaning": "+5 °C až +40 °C (běžné vnitřní)", "normal": true, "requirements": ["Zařízení s odpovídajícím teplotním rozsahem."] },
+  "AA6": { "group": "A", "name": "Teplota okolí", "meaning": "+5 °C až +60 °C", "normal": false, "requirements": ["Zařízení musí odolávat daným teplotám.", "Min. IP20.", "Chránit proti sálavému teplu.", "Možná zvláštní opatření (např. speciální mazání)."] },
+  "AA7": { "group": "A", "name": "Teplota okolí", "meaning": "-25 °C až +55 °C", "normal": false, "requirements": ["Zařízení musí odolávat daným teplotám.", "Min. IP20.", "Chránit proti sálavému teplu.", "Možná zvláštní opatření."] },
+  "AA8": { "group": "A", "name": "Teplota okolí", "meaning": "-50 °C až +40 °C", "normal": false, "requirements": ["Zařízení musí odolávat daným teplotám.", "Min. IP20.", "Chránit proti sálavému teplu.", "Možná zvláštní opatření."] },
+
+  "AB1": { "group": "A", "name": "Atmosférické podmínky (vlhkost)", "meaning": "T vzduchu −60…+5 °C, RH 3–100 %, abs. 0,003–7 g/m³", "normal": false, "requirements": ["Zařízení odolává vlhkosti/teplotě a případné srážející se vodě."] },
+  "AB2": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T −40…+5 °C, RH 10–100 %, abs. 0,1–7 g/m³", "normal": false, "requirements": ["Zařízení odolává vlhkosti/teplotě a srážkám."] },
+  "AB3": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T −25…+5 °C, RH 10–100 %, abs. 0,5–7 g/m³", "normal": false, "requirements": ["Zařízení odolává vlhkosti/teplotě a srážkám."] },
+  "AB4": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T −5…+40 °C, RH 5–95 %, abs. 1–29 g/m³", "normal": true, "requirements": ["Zařízení odolává vlhkosti; bez kondenzace."] },
+  "AB5": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T +5…+40 °C, RH 5–85 %, abs. 1–25 g/m³", "normal": true, "requirements": ["Chráněné prostory s regulací teploty."] },
+  "AB6": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T +5…+60 °C, RH 10–100 %, abs. 1–35 g/m³", "normal": false, "requirements": ["Kovové části s povrchovou ochranou.", "Min. IP21 u strojů/přístrojů/svítidel/rozváděčů.", "Rozváděče chránit proti kapající vodě (stříška/zapuštění).", "Kde hrozí postřik, IP dle třídy nebo dodatečná ochrana.", "Navrhnout zvláštní opatření."] },
+  "AB7": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T −25…+55 °C, RH 10–100 %, abs. 0,5–29 g/m³", "normal": false, "requirements": ["Jako AB6 (IP21 min., ochrany, povrchové úpravy).", "Zvláštní opatření."] },
+  "AB8": { "group": "A", "name": "Atmosférické podmínky", "meaning": "T −50…+40 °C, RH 15–100 %, abs. 0,04–36 g/m³", "normal": false, "requirements": ["Jako AB6 (IP21 min., ochrany, povrchové úpravy).", "Zvláštní opatření."] },
+
+  "AC1": { "group": "A", "name": "Nadmořská výška", "meaning": "≤ 2000 m n. m.", "normal": true, "requirements": ["Standardní podmínky; u některých zařízení mohou být požadavky už od ~1000 m."] },
+  "AC2": { "group": "A", "name": "Nadmořská výška", "meaning": "> 2000 m n. m.", "normal": false, "requirements": ["Derating, vyšší izolační vzdálenosti, speciální úpravy."] },
+
+  "AD1": { "group": "A", "name": "Výskyt vody", "meaning": "Zanedbatelný výskyt vody (IPX0)", "normal": true, "requirements": [] },
+  "AD2": { "group": "A", "name": "Výskyt vody", "meaning": "Volně padající kapky (IPX1/IPX2)", "normal": false, "requirements": ["Zařízení musí vodě odolávat; VN a hlavní rozváděče v AD zakázány.", "Podružné rozváděče max. v AD1.", "Kondenzaci v rozváděčích zamezit.", "Preferovat nástěnné skříně min. IP43 (nevodivý/nekorodující materiál).", "Ruční svítidla třídy III do 24 V.", "Oplachová pásma definovat; v pásmu min. IP44 nebo ochrana."] },
+  "AD3": { "group": "A", "name": "Výskyt vody", "meaning": "Vodní tříšť (IPX3)", "normal": false, "requirements": ["Jako AD2; IP dle mapy (IPX3+)."] },
+  "AD4": { "group": "A", "name": "Výskyt vody", "meaning": "Stříkající voda (IPX4)", "normal": false, "requirements": ["IPX4+", "Opatření jako v AD2."] },
+  "AD5": { "group": "A", "name": "Výskyt vody", "meaning": "Tryskající voda (IPX5)", "normal": false, "requirements": ["IPX5+", "Opatření jako v AD2."] },
+  "AD6": { "group": "A", "name": "Výskyt vody", "meaning": "Vlny (IPX6)", "normal": false, "requirements": ["IPX6+", "Opatření jako v AD2."] },
+  "AD7": { "group": "A", "name": "Výskyt vody", "meaning": "Mělké ponoření (IPX7)", "normal": false, "requirements": ["IPX7+", "Opatření jako v AD2."] },
+  "AD8": { "group": "A", "name": "Výskyt vody", "meaning": "Hluboké ponoření (IPX8)", "normal": false, "requirements": ["IPX8+", "Opatření jako v AD2."] },
+
+  "AE1": { "group": "A", "name": "Cizí pevná tělesa / prach", "meaning": "Množství/povaha prachu bez významu (IP0X – normální)", "normal": true, "requirements": [] },
+  "AE2": { "group": "A", "name": "Cizí tělesa", "meaning": "≥ 2,5 mm (IP3X)", "normal": false, "requirements": ["Min. IP3X."] },
+  "AE3": { "group": "A", "name": "Cizí tělesa", "meaning": "≥ 1 mm (IP4X)", "normal": false, "requirements": ["Min. IP4X."] },
+  "AE4": { "group": "A", "name": "Prach – pronikání neškodí", "meaning": "Lehká prašnost (IP5X)", "normal": false, "requirements": ["IP5X doporučeno."] },
+  "AE5": { "group": "A", "name": "Prach – pronikání škodí", "meaning": "Střední prašnost (IP6X)", "normal": false, "requirements": ["IP6X."] },
+  "AE6": { "group": "A", "name": "Silná prašnost (prach nesmí vnikat)", "meaning": "IP6X", "normal": false, "requirements": ["IP6X."] },
+
+  "AF1": { "group": "A", "name": "Korozivní/ znečišťující látky", "meaning": "Zanedbatelné (normální)", "normal": true, "requirements": [] },
+  "AF2": { "group": "A", "name": "Korozivní látky", "meaning": "Atmosférický/občasný", "normal": false, "requirements": ["Zařízení musí odolávat; není-li dostatečné – dodatečná ochrana (pokovení, zalití, nátěr).", "IP44 min. u strojů/přístrojů/svítidel.", "Kryty korozně odolné / povrchová úprava.", "Šrouby odolné korozi.", "Přednostně kabelové vedení; bez ostrých ohybů.", "Rozváděče jen pokud nutné – provětrání čistým vzduchem; min. IP44."] },
+  "AF3": { "group": "A", "name": "Korozivní látky", "meaning": "Střední (trvalé)", "normal": false, "requirements": ["Jako AF2 (IP44 min., materiály, povrchové úpravy), detailní opatření dle povahy látek."] },
+  "AF4": { "group": "A", "name": "Korozivní látky", "meaning": "Silné (extrémní)", "normal": false, "requirements": ["Min. IP54 pro stroje/přístroje/svítidla.", "Profukování čistým vzduchem, pokud je nutné.", "Rozváděče zásadně neumisťovat; pokud nutné, min. IP44 a provětrání.", "Vodiče měděné, konce pocínovat, spoje chránit konzervačním tukem/barvou.", "Pozor na galvanické páry – chránit styková místa."] },
+
+  "AG1": { "group": "A", "name": "Mechanické rázy", "meaning": "Mírné (normální)", "normal": true, "requirements": [] },
+  "AG2": { "group": "A", "name": "Mechanické rázy", "meaning": "Střední", "normal": false, "requirements": ["Zařízení a uložení přizpůsobit rázům; otřesuvzdorné přístroje.", "Slaněná jádra, pružné spojky, jištěné šrouby (podložky/dvojité matice).", "V důležitých případech ověřovací zkouška."] },
+  "AG3": { "group": "A", "name": "Mechanické rázy", "meaning": "Silné", "normal": false, "requirements": ["Zesílená ochrana; opatření dle AG2 + zvýšené mechanické požadavky."] },
+
+  "AH1": { "group": "A", "name": "Vibrace", "meaning": "Mírné (normální)", "normal": true, "requirements": [] },
+  "AH2": { "group": "A", "name": "Vibrace", "meaning": "Střední", "normal": false, "requirements": ["Otřesuvzdorné přístroje; slaněná jádra; pružné spojky; jištění šroubů; svítidla otřesuvzdorná."] },
+  "AH3": { "group": "A", "name": "Vibrace", "meaning": "Silné", "normal": false, "requirements": ["Stejně jako AH2, zvýšené požadavky na odolnost a uchycení."] },
+
+  "AK1": { "group": "A", "name": "Rostlinstvo/plísně", "meaning": "Bez nebezpečí (normální)", "normal": true, "requirements": [] },
+  "AK2": { "group": "A", "name": "Rostlinstvo/plísně", "meaning": "Nebezpečné", "normal": false, "requirements": ["Zabránit pronikání k živým částem.", "IP44 u zařízení (nižší IP jen se zdůvodněním).", "Vedení přednostně kabelová, hladké povrchy, přístupná kontrolám/postřikům.", "Materiály a nátěry odolné (antiplísňové)."] },
+
+  "AL1": { "group": "A", "name": "Živočichové", "meaning": "Bez nebezpečí (normální)", "normal": true, "requirements": [] },
+  "AL2": { "group": "A", "name": "Živočichové", "meaning": "Nebezpečné", "normal": false, "requirements": ["Zabránit pronikání hmyzu/hlodavců k živým částem.", "IP44 u zařízení (nižší IP jen se zdůvodněním).", "Mechanická odolnost (AG), síťky, těsnění otvorů."] },
+
+  "AN1": { "group": "A", "name": "Sluneční záření", "meaning": "≤ 500 W/m² (nízká) – normální", "normal": true, "requirements": [] },
+  "AN2": { "group": "A", "name": "Sluneční záření", "meaning": "≤ 700 W/m² (střední)", "normal": false, "requirements": ["Učinit vhodná opatření (UV stabilní materiály, clony, nátěry)."] },
+  "AN3": { "group": "A", "name": "Sluneční záření", "meaning": "≤ 1120 W/m² (vysoká)", "normal": false, "requirements": ["Učinit vhodná opatření (UV stabilní materiály, clony, nátěry)."] },
+
+  "AP1": { "group": "A", "name": "Seismické účinky", "meaning": "Zanedbatelné (≤ 30 Gal) – normální", "normal": true, "requirements": [] },
+  "AP2": { "group": "A", "name": "Seismické účinky", "meaning": "Nízké ohrožení (30–300 Gal)", "normal": false, "requirements": ["Doplňkové kotvení, konstrukční opatření."] },
+  "AP3": { "group": "A", "name": "Seismické účinky", "meaning": "Střední ohrožení (300–600 Gal)", "normal": false, "requirements": ["Zesílit kotvení, posoudit rezonance."] },
+  "AP4": { "group": "A", "name": "Seismické účinky", "meaning": "Vysoké ohrožení (> 600 Gal)", "normal": false, "requirements": ["Speciální opatření dle statiky a norem."] },
+
+  "AQ1": { "group": "A", "name": "Bouřková činnost", "meaning": "Zanedbatelná (Ng ≤ 2,5; Nk ≤ 25) – normální", "normal": true, "requirements": ["Případně výpočet nebezpečí dle ČSN 33 2000-4-443 ed.3."] },
+  "AQ2": { "group": "A", "name": "Bouřková činnost", "meaning": "Nepřímé ohrožení (Ng > 2,5; Nk > 25)", "normal": false, "requirements": ["Výpočet nebezpečí dle ČSN 33 2000-4-443 ed.3; koordinace SPD."] },
+  "AQ3": { "group": "A", "name": "Bouřková činnost", "meaning": "Přímé ohrožení (časti instalací vně budov)", "normal": false, "requirements": ["Uplatnit soubor ČSN EN 62305 (LPS), koordinované SPD."] },
+
+  "AR1": { "group": "A", "name": "Pohyb vzduchu", "meaning": "Pomalý (≤ 1 m/s) – normální", "normal": true, "requirements": [] },
+  "AR2": { "group": "A", "name": "Pohyb vzduchu", "meaning": "Střední (1–5 m/s)", "normal": false, "requirements": ["Zvláštní opatření (dohodnout s dodavatelem zařízení; zvlášť navržené provedení)."] },
+  "AR3": { "group": "A", "name": "Pohyb vzduchu", "meaning": "Silný (5–10 m/s)", "normal": false, "requirements": ["Zvláštní opatření (viz AR2)."] },
+
+  "AS1": { "group": "A", "name": "Vítr", "meaning": "Malý (≤ 20 m/s) – normální", "normal": true, "requirements": [] },
+  "AS2": { "group": "A", "name": "Vítr", "meaning": "Střední (20–30 m/s)", "normal": false, "requirements": ["Zvláštní opatření (zvlášť navržené zařízení)."] },
+  "AS3": { "group": "A", "name": "Vítr", "meaning": "Silný (30–50 m/s)", "normal": false, "requirements": ["Zvláštní opatření (zvlášť navržené zařízení)."] },
+
+  "BA1": { "group": "B", "name": "Schopnost osob", "meaning": "Neznalé osoby (laici) – normální", "normal": true, "requirements": ["Zajištění proti nebezpečnému dotyku, omezení povrchových teplot."] },
+  "BA4": { "group": "B", "name": "Schopnost osob", "meaning": "Poučené osoby", "normal": false, "requirements": ["Označení, zamykatelné rozváděče, provozní pokyny."] },
+  "BA5": { "group": "B", "name": "Schopnost osob", "meaning": "Znalé osoby (elektrotechnické pracovní prostory)", "normal": false, "requirements": ["Uzavřené výhradně pro znalé, postupy LOTO."] },
+
+  "BC1": { "group": "B", "name": "Kontakt s potenciálem země", "meaning": "Nevodivé okolí", "normal": false, "requirements": ["Třídy ochran dle ČSN EN 61140 ed.3 (I/II/III) – povolená zařízení."] },
+  "BC2": { "group": "B", "name": "Kontakt s potenciálem země", "meaning": "Obvykle bez dotyku cizích vodivých částí a bez vodivého podkladu – normální", "normal": true, "requirements": ["Třídy ochran dle ČSN EN 61140 ed.3 (I/II/III) – povolená zařízení."] },
+  "BC3": { "group": "B", "name": "Kontakt s potenciálem země", "meaning": "Obvykle dotyk cizích vodivých částí; bez vodivého podkladu", "normal": false, "requirements": ["Pospojování, RCD dle rizika, volba tříd ochran."] },
+  "BC4": { "group": "B", "name": "Kontakt s potenciálem země", "meaning": "Trvalý kontakt s vodivými částmi / ve vodě (připravuje se)", "normal": false, "requirements": [] },
+
+  "BD1": { "group": "B", "name": "Podmínky úniku", "meaning": "Malá hustota / snadný únik – normální", "normal": true, "requirements": [] },
+  "BD2": { "group": "B", "name": "Podmínky úniku", "meaning": "Malá hustota / obtížný únik (věžové budovy)", "normal": false, "requirements": [] },
+  "BD3": { "group": "B", "name": "Podmínky úniku", "meaning": "Velká hustota / snadný únik (místa pro veřejnost)", "normal": false, "requirements": [] },
+  "BD4": { "group": "B", "name": "Podmínky úniku", "meaning": "Velká hustota / obtížný únik (výškové budovy pro veřejnost)", "normal": false, "requirements": [] },
+
+  "BE1": { "group": "B", "name": "Povaha zprac./sklad. látek", "meaning": "Bez významného nebezpečí – normální", "normal": true, "requirements": [] },
+  "BE2": { "group": "B", "name": "Povaha látek – nebezpečí požáru", "meaning": "Obecně hořlavé látky/prach/kapaliny", "normal": false, "requirements": ["Materiály zpomalující šíření plamene; opatření, aby oteplení/jiskra/žhavé částice nezapálily hořlaviny."] },
+  "BE2N1": { "group": "B", "name": "Nebezpečí požáru hořlavých hmot", "meaning": "", "normal": false, "requirements": ["Zařízení umístit/provést/chránit tak, aby nemohlo zapálit přítomné hořlaviny.", "Ochranná přepážka (nehořlavá) pokud nelze zajistit vzdáleností; povrch přepážky ≤ 80 °C.", "Stroje min. IP4X (v místech s hromaděním prachu IP5X).", "Zařízení s hořlavou náplní jen když jiné provedení není vhodné.", "Občasný odborný dohled."] },
+  "BE2N2": { "group": "B", "name": "Nebezpečí požáru hořlavých prachů", "meaning": "", "normal": false, "requirements": ["Řiď se ČSN EN IEC 60079 a ČSN EN 60079-10-2."] },
+  "BE2N3": { "group": "B", "name": "Nebezpečí požáru hořlavých kapalin", "meaning": "", "normal": false, "requirements": ["Povrchové teploty zařízení ≤ 120 °C.", "Stroje/přístroje: min. IP43, nad prostorem svítidla min. IP22.", "Jiskřící zařízení chránit polohou/krytem proti polití postřiku, nebo min. IP54 / Ex d IIB T4.", "Vedení na povrchu přehledně; holá vedení jen tuhá a chráněná proti zkratu; holé ochranné vodiče trvale uzemněné.", "Holé trolejové vedení nad otevřenými lázněmi s hořlavinami zakázáno do 1,5 m; jinak zachytávače jisker/okují."] },
+  "BE3": { "group": "B", "name": "Nebezpečí výbuchu", "meaning": "", "normal": false, "requirements": ["Zónování a provedení dle řady ČSN EN 60079."] },
+  "BE3N1": { "group": "B", "name": "Výbuch hořlavých prachů", "meaning": "", "normal": false, "requirements": ["ČSN EN 60079-17, ČSN EN IEC 60079-0."] },
+  "BE3N2": { "group": "B", "name": "Výbuch hořlavých plynů a par", "meaning": "", "normal": false, "requirements": ["ČSN EN 60079-10-1, ČSN EN 60079-14."] },
+  "BE3N3": { "group": "B", "name": "Výbuch výbušnin", "meaning": "", "normal": false, "requirements": ["ČSN 33 2340."] },
+  "BE4": { "group": "B", "name": "Kontaminace", "meaning": "Nebezpečí kontaminace", "normal": false, "requirements": [] },
+
+  "CA1": { "group": "C", "name": "Stavební materiály", "meaning": "Nehořlavé – normální", "normal": true, "requirements": [] },
+  "CA2": { "group": "C", "name": "Stavební materiály", "meaning": "Hořlavé (dřevěné budovy apod.)", "normal": false, "requirements": ["ČSN 33 2312, ČSN 33 2000-4-42 – montáž na nehořlavé podložky, odstupy, kryty."] },
+
+  "CB1": { "group": "C", "name": "Konstrukce budovy", "meaning": "Zanedbatelné nebezpečí šíření – normální", "normal": true, "requirements": [] },
+  "CB2": { "group": "C", "name": "Konstrukce budovy", "meaning": "Šíření požáru (výškové budovy, komínový efekt…)", "normal": false, "requirements": ["Požární dělení, přepážky, EPS, volba materiálů zpomalujících šíření."] }
+}

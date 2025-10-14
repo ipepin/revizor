@@ -1,10 +1,10 @@
-
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
+import { VvDocsProvider } from "./context/VvDocsContext"; // ⬅️ DOPLNĚNO
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -15,45 +15,85 @@ import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
+import VvEditor from "./pages/VvEditor";
+
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     {/* Globální auth kontext */}
     <AuthProvider>
-      {/* Aplikace si zachovává existující UserContext */}
+      {/* Aplikace si zachovává existující UserContext */}
       <UserProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+        {/* ⬇️ MUSÍ obalovat Router i všechny stránky, kde voláš useVvDocs() */}
+        <VvDocsProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            <Route
-              path="/revize/:revId"
-              element={
-                <ProtectedRoute>
-                  <EditRevision />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Summary lze nechat veřejný, nebo také chránit */}
-            <Route path="/summary/:revId" element={<SummaryWrapper />} />
-            <Route path="/katalog" element={<ProtectedRoute><CatalogPage/></ProtectedRoute>} />
-            <Route path="/profil" element={<ProtectedRoute><ProfilePage/></ProtectedRoute>} />
-            <Route path="/instruments" element={<ProtectedRoute><InstrumentsPage /></ProtectedRoute>}
-/>
-          </Routes>
-        </BrowserRouter>
+              <Route
+                path="/revize/:revId"
+                element={
+                  <ProtectedRoute>
+                    <EditRevision />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Summary může být veřejný, ale klidně ho můžeš taky chránit */}
+              <Route path="/summary/:revId" element={<SummaryWrapper />} />
+
+              <Route
+                path="/katalog"
+                element={
+                  <ProtectedRoute>
+                    <CatalogPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/profil"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/instruments"
+                element={
+                  <ProtectedRoute>
+                    <InstrumentsPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/vv/:id"
+                element={
+                  <ProtectedRoute>
+                    <VvEditor />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* (volitelné) 404 fallback */}
+              {/* <Route path="*" element={<NotFoundPage />} /> */}
+            </Routes>
+          </BrowserRouter>
+        </VvDocsProvider>
       </UserProvider>
     </AuthProvider>
   </React.StrictMode>

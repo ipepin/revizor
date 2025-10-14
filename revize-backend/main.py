@@ -12,6 +12,7 @@ from routers.devices import router as devices_router
 from routers.users import router as users_router
 from routers.companies import router as companies_router
 from routers.export_pdf import router as export_router
+from routers.vv import router as vv_router
 
 app = FastAPI() 
 
@@ -43,3 +44,4 @@ app.include_router(users_router, dependencies=[Depends(get_current_user)])
 app.include_router(companies_router, dependencies=[Depends(get_current_user)]) 
 app.include_router(devices_router,  dependencies=[Depends(get_current_user)])
 app.include_router(export_router,  dependencies=[Depends(get_current_user)])
+app.include_router(vv_router, dependencies=[Depends(get_current_user)])
