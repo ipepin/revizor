@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
@@ -19,6 +19,10 @@ import VvEditor from "./pages/VvEditor";
 
 import "./index.css";
 
+// Choose router mode (browser vs hash) to avoid 404 on reload if host lacks SPA rewrites
+const routerMode = (window as any)?.__APP_CONFIG__?.routerMode || import.meta.env.VITE_ROUTER_MODE || "browser";
+const Router: any = routerMode === "hash" ? HashRouter : BrowserRouter;
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     {/* Globální auth kontext */}
@@ -27,7 +31,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <UserProvider>
         {/* ⬇️ MUSÍ obalovat Router i všechny stránky, kde voláš useVvDocs() */}
         <VvDocsProvider>
-          <BrowserRouter>
+          <Router>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -92,7 +96,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               {/* (volitelné) 404 fallback */}
               {/* <Route path="*" element={<NotFoundPage />} /> */}
             </Routes>
-          </BrowserRouter>
+          </Router>
         </VvDocsProvider>
       </UserProvider>
     </AuthProvider>

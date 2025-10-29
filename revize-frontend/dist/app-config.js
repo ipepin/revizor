@@ -7,3 +7,7 @@
 // };
 
 window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
+// Router mode:
+// - 'browser' = clean URLs, needs server rewrite to index.html
+// - 'hash' = URLs with #/, works everywhere (no server rewrites)
+window.__APP_CONFIG__.routerMode = window.__APP_CONFIG__.routerMode || 'hash';
