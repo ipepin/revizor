@@ -97,8 +97,8 @@ export default function EditRevision() {
           onSelect={(key) => setActiveSection(key)}
         />
 
-        <main className="flex-1 p-6 overflow-auto">
-          <div className="bg-white p-4 rounded shadow">
+        <main className="compact-main flex-1 overflow-auto p-4 md:p-6">
+          <div className="compact-card space-y-4">
             {sectionMap[activeSection]}
           </div>
         </main>

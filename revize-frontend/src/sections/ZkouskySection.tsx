@@ -44,8 +44,8 @@ export default function ZkouskySection() {
   };
 
   return (
-    <div className="space-y-4 bg-white p-6 rounded shadow border border-gray-200">
-      <h2 className="text-2xl font-semibold text-blue-800 mb-4">
+    <div className="space-y-4 text-sm text-gray-800">
+      <h2 className="text-xl font-semibold text-blue-800 mb-3">
         🔍 Provedené zkoušky
       </h2>
 
@@ -68,7 +68,7 @@ export default function ZkouskySection() {
               </label>
               <input
                 type="text"
-                className="flex-1 p-2 border rounded"
+                className="flex-1 rounded border px-3 py-1.5"
                 placeholder="Poznámka např. Bez závad"
                 value={data.note}
                 onChange={(e: ChangeEvent<HTMLInputElement>) =>

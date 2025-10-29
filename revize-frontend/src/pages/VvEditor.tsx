@@ -12,7 +12,7 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import Sidebar from "../components/Sidebar";
-import { apiUrl } from "../api/base";
+import { API_DISPLAY_URL, apiUrl } from "../api/base";
 import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
 
@@ -389,7 +389,7 @@ export default function VvEditor() {
   };
   const doPrint = () => window.print();
 
-  const API_DISPLAY = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_DISPLAY = API_DISPLAY_URL;
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
@@ -398,7 +398,7 @@ export default function VvEditor() {
         <Sidebar mode="summary" />
       </div>
 
-      <main className="flex-1 p-6">
+      <main className="compact-main flex-1 space-y-4 p-4 md:p-6">
         {/* PRINT CSS */}
         <style>{`
           @media print {
@@ -411,10 +411,10 @@ export default function VvEditor() {
         `}</style>
 
         {/* Toolbar */}
-        <div className="no-print mb-4 flex items-center gap-2">
+        <div className="no-print mb-3 flex items-center gap-2">
           <button
             onClick={() => navigate("/")}
-            className="rounded-xl border bg-white px-3 py-2 hover:bg-slate-50"
+            className="rounded-lg border bg-white px-3 py-1.5 hover:bg-slate-50"
             title="Zpět na projekty"
           >
             ⬅️ Zpět
@@ -422,14 +422,14 @@ export default function VvEditor() {
           <div className="ml-auto flex gap-2">
             <button
               onClick={exportJson}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border bg-white hover:shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 hover:shadow-sm"
               title="Export JSON"
             >
               <Download className="h-4 w-4" /> JSON
             </button>
             <button
               onClick={doPrint}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border bg-white hover:shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 hover:shadow-sm"
               title="Tisk do PDF"
             >
               <Printer className="h-4 w-4" /> PDF
@@ -439,24 +439,24 @@ export default function VvEditor() {
 
         {/* Chyby JSON */}
         {loadErr && (
-          <div className="no-print mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 px-4 py-3 text-sm whitespace-pre-line">
+          <div className="no-print mb-4 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 px-4 py-3 text-sm whitespace-pre-line">
             {loadErr}
           </div>
         )}
 
         {/* ===== FORM ===== */}
         {influences && (
-          <div className="no-print grid md:grid-cols-3 gap-4">
+          <div className="no-print grid gap-3 md:grid-cols-3">
             {/* Identifikace + textové bloky */}
-            <div className="md:col-span-2 bg-white rounded-2xl shadow-sm border p-4">
-              <h2 className="font-semibold text-lg mb-3">Identifikace</h2>
-              <div className="grid md:grid-cols-2 gap-3">
+            <div className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm">
+              <h2 className="mb-3 text-lg font-semibold">Identifikace</h2>
+              <div className="grid gap-3 md:grid-cols-2">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Objekt / Název</span>
                   <input
                     value={data.objectName}
                     onChange={(e) => patch({ objectName: e.target.value })}
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -464,7 +464,7 @@ export default function VvEditor() {
                   <input
                     value={data.address}
                     onChange={(e) => patch({ address: e.target.value })}
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -472,7 +472,7 @@ export default function VvEditor() {
                   <input
                     value={data.preparedBy}
                     onChange={(e) => patch({ preparedBy: e.target.value })}
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -481,15 +481,15 @@ export default function VvEditor() {
                     type="date"
                     value={data.date}
                     onChange={(e) => patch({ date: e.target.value })}
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                   />
                 </label>
               </div>
-              <div className="grid gap-3 mt-4">
+              <div className="mt-4 grid gap-3">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm font-medium">Předložená dokumentace</span>
                   <textarea
-                    className="border rounded-xl p-3 min-h-[80px]"
+                    className="min-h-[80px] rounded-lg border px-3 py-1.5"
                     value={data.submittedDocs || ""}
                     onChange={(e) => patch({ submittedDocs: e.target.value })}
                     placeholder="Projektová dokumentace, výkresy, prohlášení o shodě, seznam zařízení…"
@@ -498,7 +498,7 @@ export default function VvEditor() {
                 <label className="flex flex-col gap-1">
                   <span className="text-sm font-medium">Stručný popis objektu</span>
                   <textarea
-                    className="border rounded-xl p-3 min-h-[80px]"
+                    className="min-h-[80px] rounded-lg border px-3 py-1.5"
                     value={data.objectDescription || ""}
                     onChange={(e) => patch({ objectDescription: e.target.value })}
                     placeholder="Typ budovy, využití, technologie, specifika provozu…"
@@ -508,7 +508,7 @@ export default function VvEditor() {
             </div>
 
             {/* Komise */}
-            <div className="bg-white rounded-2xl shadow-sm border p-4">
+            <div className="rounded-lg border bg-white p-4 shadow-sm">
               <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 Komise <Info className="h-4 w-4 opacity-60" />
               </h2>
@@ -516,7 +516,7 @@ export default function VvEditor() {
                 {data.committee.map((m, i) => (
                   <div key={i} className="grid grid-cols-3 gap-2 items-center">
                     <select
-                      className="border rounded-xl px-2 py-2"
+                      className="rounded-lg border px-2 py-1.5"
                       value={m.role}
                       onChange={(e) => {
                         const next = [...data.committee];
@@ -531,7 +531,7 @@ export default function VvEditor() {
                       <option value="Člen">Člen</option>
                     </select>
                     <input
-                      className="border rounded-xl px-3 py-2 col-span-2"
+                      className="rounded-lg border px-3 py-1.5 col-span-2"
                       value={m.name}
                       onChange={(e) => {
                         const next = [...data.committee];
@@ -549,7 +549,7 @@ export default function VvEditor() {
                         committee: [...data.committee, { role: "Člen", name: "" }],
                       })
                     }
-                    className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border hover:shadow-sm"
+                    className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:shadow-sm"
                   >
                     <Plus className="h-4 w-4" />
                     Přidat člena
@@ -559,7 +559,7 @@ export default function VvEditor() {
                       onClick={() =>
                         patch({ committee: data.committee.slice(0, -1) })
                       }
-                      className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border hover:shadow-sm"
+                      className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:shadow-sm"
                     >
                       <Trash2 className="h-4 w-4" />
                       Odebrat
@@ -570,12 +570,12 @@ export default function VvEditor() {
             </div>
 
             {/* Prostory & editor */}
-            <aside className="bg-white rounded-2xl shadow-sm border p-4 h-max">
+            <aside className="rounded-lg border bg-white p-4 shadow-sm h-max">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-lg">Prostory</h2>
                 <button
                   onClick={addSpace}
-                  className="inline-flex items-center gap-2 rounded-xl px-3 py-2 border hover:shadow-sm"
+                  className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:shadow-sm"
                 >
                   <Plus className="h-4 w-4" />
                   Nový
@@ -586,7 +586,7 @@ export default function VvEditor() {
                   <button
                     key={s.id}
                     onClick={() => setActiveSpaceId(s.id)}
-                    className={`w-full text-left rounded-xl px-3 py-2 border hover:shadow-sm ${
+                    className={`w-full text-left rounded-lg border px-3 py-1.5 hover:shadow-sm ${
                       activeSpaceId === s.id ? "bg-slate-50 border-slate-300" : ""
                     }`}
                   >
@@ -602,7 +602,7 @@ export default function VvEditor() {
               {data.spaces.length > 1 && (
                 <button
                   onClick={() => removeSpace(activeSpaceId)}
-                  className="mt-3 inline-flex items-center gap-2 rounded-xl px-3 py-2 border hover:shadow-sm"
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:shadow-sm"
                 >
                   <Trash2 className="h-4 w-4" />
                   Smazat vybraný
@@ -610,7 +610,7 @@ export default function VvEditor() {
               )}
             </aside>
 
-            <section className="md:col-span-2 bg-white rounded-2xl shadow-sm border p-4">
+            <section className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm">
               {/* Legenda pro fialové „normální“ třídy */}
               <div className="text-xs text-slate-500 mb-2 flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 bg-purple-50 border-purple-200 text-purple-800">
@@ -619,11 +619,11 @@ export default function VvEditor() {
                 <span>Fialově podbarveno jsou třídy považované za normální.</span>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-3 mb-3">
+              <div className="grid gap-3 md:grid-cols-2 mb-3">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Název prostoru</span>
                   <input
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                     value={activeSpace.name}
                     onChange={(e) =>
                       updateSpace(activeSpace.id, { name: e.target.value })
@@ -633,7 +633,7 @@ export default function VvEditor() {
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Poznámka</span>
                   <input
-                    className="border rounded-xl px-3 py-2"
+                    className="rounded-lg border px-3 py-1.5"
                     value={activeSpace.note || ""}
                     onChange={(e) =>
                       updateSpace(activeSpace.id, { note: e.target.value })
@@ -648,7 +648,7 @@ export default function VvEditor() {
                   <h3 className="font-semibold mb-2 text-slate-700">
                     {groupTitle(grp)}
                   </h3>
-                  <div className="divide-y border rounded-xl">
+                  <div className="divide-y rounded-lg border">
                     {families
                       .filter((f) => f.group === grp)
                       .map((fam) => {
@@ -718,7 +718,7 @@ export default function VvEditor() {
                               </div>
 
                               {sel && selected && (
-                                <div className="rounded-xl border bg-slate-50 p-3 text-sm">
+                                <div className="rounded-lg border bg-slate-50 p-3 text-sm">
                                   <div className="grid md:grid-cols-[160px_1fr] gap-2">
                                     <div className="text-slate-600">
                                       Vybraná třída
@@ -785,7 +785,7 @@ export default function VvEditor() {
                     <Info className="h-4 w-4 opacity-60" />
                   </div>
                   <textarea
-                    className="border rounded-xl p-3 min-h-[120px]"
+                    className="min-h-[120px] rounded-lg border px-3 py-1.5"
                     value={activeSpace.measures || ""}
                     onChange={(e) =>
                       updateSpace(activeSpace.id, { measures: e.target.value })
@@ -799,7 +799,7 @@ export default function VvEditor() {
                     <Info className="h-4 w-4 opacity-60" />
                   </div>
                   <textarea
-                    className="border rounded-xl p-3 min-h-[120px]"
+                    className="min-h-[120px] rounded-lg border px-3 py-1.5"
                     value={activeSpace.intervals || ""}
                     onChange={(e) =>
                       updateSpace(activeSpace.id, { intervals: e.target.value })
@@ -817,7 +817,7 @@ export default function VvEditor() {
                 {groupedReqForActive.length ? (
                   <div className="grid md:grid-cols-2 gap-3">
                     {groupedReqForActive.map((g) => (
-                      <div key={g.category} className="rounded-xl border p-3">
+                      <div key={g.category} className="rounded-lg border p-3">
                         <div className="font-medium mb-2">{g.category}</div>
                         <ul className="list-disc ml-5 space-y-1">
                           {g.items.map((t, i) => (

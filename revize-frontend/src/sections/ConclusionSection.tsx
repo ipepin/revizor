@@ -45,13 +45,13 @@ Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.`,
   const conclusion = form.conclusion || {};
 
   return (
-    <section className="bg-white p-4 rounded shadow">
-      <h2 className="text-xl font-bold text-blue-800 mb-4">Závěr</h2>
+    <section className="space-y-4 text-sm text-gray-800">
+      <h2 className="text-lg font-semibold text-blue-800">Závěr</h2>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Vyber text</label>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">Vyber text</label>
         <select
-          className="border rounded p-2 w-full text-sm"
+          className="w-full rounded border px-3 py-1.5 text-sm"
           value={
             templates.find((t) => t.text === conclusion.text)?.id || ""
           }
@@ -66,9 +66,9 @@ Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.`,
         </select>
       </div>
 
-      <div className="mb-4">
+      <div>
         <textarea
-          className="w-full p-2 border rounded text-sm"
+          className="w-full rounded border px-3 py-1.5 text-sm"
           rows={6}
           value={conclusion.text || ""}
           onChange={(e) =>
@@ -80,8 +80,8 @@ Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.`,
         />
       </div>
 
-      <fieldset className="mb-4">
-        <legend className="font-medium text-sm mb-2">
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">
           Posouzení bezpečnosti
         </legend>
         <label className="inline-flex items-center mr-4">
@@ -116,13 +116,13 @@ Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.`,
         </label>
       </fieldset>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">
+      <div className="space-y-2">
+        <label className="block text-sm font-medium">
           Platnost revize
         </label>
         <input
           type="date"
-          className="border rounded p-2 w-full text-sm"
+          className="w-full rounded border px-3 py-1.5 text-sm"
           value={conclusion.validUntil || ""}
           onChange={(e) =>
             setForm((f) => ({

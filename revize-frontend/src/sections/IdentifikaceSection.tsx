@@ -159,11 +159,11 @@ export default function IdentifikaceSection() {
   }, [company, refreshCompanies, setForm]);
 
   return (
-    <div className="bg-white shadow-md rounded p-6 space-y-6">
-      <h2 className="text-2xl font-bold text-blue-800">🧾 Identifikace</h2>
+    <div className="space-y-5 text-sm text-gray-800">
+      <h2 className="text-xl font-semibold text-blue-800">🧾 Identifikace</h2>
 
       {/* Základní pole (bez montážní firmy – bude hned pod tabulkou přístrojů) */}
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid gap-3 md:grid-cols-2">
         <div>
           <label className="font-semibold">Evidenční číslo</label>
           <input

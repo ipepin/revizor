@@ -1,7 +1,7 @@
 // src/api/auth.ts
 // Jednoduchá API vrstva pro autentizaci + uživatele (FastAPI + JWT)
 
-import { apiUrl } from "./base";
+import { API_DISPLAY_URL, apiUrl } from "./base";
 
 // --- typy ---
 export type LoginResponse = {
@@ -80,7 +80,10 @@ export async function getCurrentUser(token: string): Promise<User> {
 
 /** (Volitelné) Ověření e-mailu tokenem. */
 export async function verifyEmail(token: string) {
-  const url = new URL(apiUrl("/auth/verify"));
+  const base =
+    API_DISPLAY_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
+  const url = new URL(apiUrl("/auth/verify"), base);
   url.searchParams.set("token", token);
   const res = await fetch(url.toString());
   await throwIfNotOk(res);
@@ -88,5 +91,4 @@ export async function verifyEmail(token: string) {
 }
 
 /** Export „base URL“ jen pro zobrazení/debug. */
-const _root = apiUrl("/"); // např. "http://localhost:8000/"
-export const API_URL = _root.endsWith("/") ? _root.slice(0, -1) : _root;
+export const API_URL = API_DISPLAY_URL;

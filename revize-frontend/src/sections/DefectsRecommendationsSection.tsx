@@ -338,26 +338,26 @@ export default function DefectsRecommendationsSection() {
   }, [catalog, sortByEditor, sortDirEditor]);
 
   return (
-    <section className="w-full bg-white p-4 rounded shadow mb-8">
-      <h2 className="text-lg font-semibold mb-2">Závady a doporučení</h2>
+    <section className="space-y-4 text-sm text-gray-800">
+      <h2 className="text-lg font-semibold">Závady a doporučení</h2>
 
       <textarea
-        className="w-full p-2 border rounded text-sm mb-4 whitespace-pre-wrap"
+        className="w-full rounded border px-3 py-1.5 text-sm whitespace-pre-wrap"
         rows={6}
         placeholder="Každá závada na samostatném řádku"
         value={defectsText}
         onChange={onChangeTextarea}
       />
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex flex-wrap gap-2">
         <button
-          className="bg-blue-600 text-white py-1 px-3 rounded text-sm"
+          className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
           onClick={() => setShowPicker(true)}
         >
           ➕ Přidat závadu
         </button>
         <button
-          className="bg-gray-600 text-white py-1 px-3 rounded text-sm"
+          className="rounded bg-gray-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-700"
           onClick={() => setShowEditor(true)}
         >
           ⚙️ Editor katalogu
@@ -367,20 +367,20 @@ export default function DefectsRecommendationsSection() {
       {/* ——— PICKER: Výběr ze seznamu závad ——— */}
       {showPicker && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-full max-w-5xl">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold">Vyberte závadu</h3>
+          <div className="compact-card w-full max-w-5xl space-y-4">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-semibold">Vyberte závadu</h3>
               <button
-                className="text-sm text-gray-600 hover:text-gray-900"
+                className="text-sm text-gray-600 transition hover:text-gray-900"
                 onClick={() => setShowPicker(false)}
               >
                 ✖ Zavřít
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2">
               <input
-                className="flex-1 min-w-[240px] border rounded p-2 text-sm"
+                className="flex-1 min-w-[240px] rounded border px-3 py-1.5 text-sm"
                 placeholder="Hledat v popisu / normě / článku…"
                 value={pickerQuery}
                 onChange={(e) => setPickerQuery(e.target.value)}
@@ -388,7 +388,7 @@ export default function DefectsRecommendationsSection() {
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-700">Řadit podle</label>
                 <select
-                  className="border rounded p-2 text-sm"
+                  className="rounded border px-3 py-1.5 text-sm"
                   value={sortByPicker}
                   onChange={(e) => setSortByPicker(e.target.value as any)}
                 >
@@ -397,7 +397,7 @@ export default function DefectsRecommendationsSection() {
                   <option value="description">Název</option>
                 </select>
                 <button
-                  className="border rounded px-2 py-1 text-sm"
+                  className="rounded border px-2 py-1 text-sm"
                   title={sortDirPicker === "asc" ? "Řadit sestupně" : "Řadit vzestupně"}
                   onClick={() => setSortDirPicker((d) => (d === "asc" ? "desc" : "asc"))}
                 >
@@ -405,28 +405,28 @@ export default function DefectsRecommendationsSection() {
                 </button>
               </div>
               <button
-                className="ml-auto px-3 py-2 bg-blue-600 text-white rounded text-sm"
+                className="ml-auto rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
                 onClick={() => setShowAddModal(true)}
               >
                 ➕ Nová položka
               </button>
             </div>
 
-            <div className="overflow-auto max-h-[60vh] mb-2 border rounded">
-              <table className="w-full text-sm">
+            <div className="max-h-[60vh] overflow-auto rounded border">
+              <table className="compact-table w-full">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="p-2 text-left">Závada</th>
-                    <th className="p-2 text-left">Norma</th>
-                    <th className="p-2 text-left">Článek</th>
-                    <th className="p-2 text-right w-24">Použití</th>
-                    <th className="p-2 text-center w-16">Akce</th>
+                    <th className="px-2 py-1 text-left">Závada</th>
+                    <th className="px-2 py-1 text-left">Norma</th>
+                    <th className="px-2 py-1 text-left">Článek</th>
+                    <th className="px-2 py-1 text-right">Použití</th>
+                    <th className="px-2 py-1 text-center">Akce</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCatalog.map((d) => (
                     <tr key={d.id ?? `${d.description}-${d.standard}-${d.article}`} className="border-t">
-                      <td className="p-2">
+                      <td className="px-2 py-1">
                         {d.description}{" "}
                         {d.visibility === "global" ? (
                           <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 rounded align-middle">🌐</span>
@@ -435,17 +435,17 @@ export default function DefectsRecommendationsSection() {
                           <span className="ml-1 text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded align-middle">⏳</span>
                         ) : null}
                       </td>
-                      <td className="p-2">{d.standard || "—"}</td>
-                      <td className="p-2">{d.article || "—"}</td>
-                      <td className="p-2 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
-                      <td className="p-2 text-center">
-                        <button className="text-green-600 px-2" onClick={() => addDefectToList(d)}>✔️</button>
+                      <td className="px-2 py-1">{d.standard || "—"}</td>
+                      <td className="px-2 py-1">{d.article || "—"}</td>
+                      <td className="px-2 py-1 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
+                      <td className="px-2 py-1 text-center">
+                        <button className="px-2 text-green-600" onClick={() => addDefectToList(d)}>✔️</button>
                       </td>
                     </tr>
                   ))}
                   {filteredCatalog.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-3 text-gray-600">
+                      <td colSpan={5} className="px-3 py-2 text-gray-600">
                         Nic nenalezeno. Přidej novou položku →
                       </td>
                     </tr>
@@ -454,9 +454,9 @@ export default function DefectsRecommendationsSection() {
               </table>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 text-sm">
               <button
-                className="bg-gray-300 py-1 px-3 rounded text-sm"
+                className="rounded bg-gray-200 px-3 py-1.5"
                 onClick={() => setShowPicker(false)}
               >
                 Zavřít
@@ -469,15 +469,15 @@ export default function DefectsRecommendationsSection() {
       {/* ——— EDITOR KATALOGU ——— */}
       {showEditor && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-full max-w-6xl overflow-auto max-h-[85vh]">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold">Editor katalogu závad</h3>
-              <button className="text-sm text-gray-600 hover:text-gray-900" onClick={() => setShowEditor(false)}>
+          <div className="compact-card w-full max-w-6xl max-h-[85vh] overflow-auto space-y-4">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-semibold">Editor katalogu závad</h3>
+              <button className="text-sm text-gray-600 transition hover:text-gray-900" onClick={() => setShowEditor(false)}>
                 ✖ Zavřít
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-gray-600">
                 Úpravy prováděj přímo v tabulce. Přidávání je přes <b>„Nová položka“</b>.
               </p>
@@ -485,7 +485,7 @@ export default function DefectsRecommendationsSection() {
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-700">Řadit podle</label>
                 <select
-                  className="border rounded p-2 text-sm"
+                  className="rounded border px-3 py-1.5 text-sm"
                   value={sortByEditor}
                   onChange={(e) => setSortByEditor(e.target.value as any)}
                 >
@@ -494,36 +494,39 @@ export default function DefectsRecommendationsSection() {
                   <option value="description">Název</option>
                 </select>
                 <button
-                  className="border rounded px-2 py-1 text-sm"
+                  className="rounded border px-2 py-1 text-sm"
                   title={sortDirEditor === "asc" ? "Řadit sestupně" : "Řadit vzestupně"}
                   onClick={() => setSortDirEditor((d) => (d === "asc" ? "desc" : "asc"))}
                 >
                   {sortDirEditor === "asc" ? "↑" : "↓"}
                 </button>
 
-                <button className="ml-2 px-3 py-2 bg-blue-600 text-white rounded text-sm" onClick={() => setShowAddModal(true)}>
+                <button
+                  className="ml-2 rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+                  onClick={() => setShowAddModal(true)}
+                >
                   ➕ Nová položka
                 </button>
               </div>
             </div>
 
-            <div className="border rounded overflow-auto max-h-[60vh]">
-              <table className="w-full text-sm">
+            <div className="max-h-[60vh] overflow-auto rounded border">
+              <table className="compact-table w-full">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="p-2 text-left">Závada</th>
-                    <th className="p-2 text-left">Norma</th>
-                    <th className="p-2 text-left">Článek</th>
-                    <th className="p-2 text-right w-24">Použití</th>
-                    <th className="p-2 text-center whitespace-nowrap w-40">Akce</th>
+                    <th className="px-2 py-1 text-left">Závada</th>
+                    <th className="px-2 py-1 text-left">Norma</th>
+                    <th className="px-2 py-1 text-left">Článek</th>
+                    <th className="px-2 py-1 text-right">Použití</th>
+                    <th className="px-2 py-1 text-center whitespace-nowrap">Akce</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedEditorCatalog.map((d, idx) => (
                     <tr key={d.id ?? `edit-${idx}`} className="border-t">
-                      <td className="p-2">
+                      <td className="px-2 py-1">
                         <input
-                          className="w-full border rounded p-1 text-sm"
+                          className="w-full rounded border px-3 py-1 text-sm"
                           value={d.description}
                           onChange={(e) => onChangeCatalog(idx, "description", e.target.value)}
                         />
@@ -533,26 +536,26 @@ export default function DefectsRecommendationsSection() {
                           {d.moderation_status === "rejected" ? `• zamítnuto (${d.reject_reason || "bez důvodu"})` : ""}
                         </div>
                       </td>
-                      <td className="p-2">
+                      <td className="px-2 py-1">
                         <input
-                          className="w-full border rounded p-1 text-sm"
+                          className="w-full rounded border px-3 py-1 text-sm"
                           value={d.standard}
                           onChange={(e) => onChangeCatalog(idx, "standard", e.target.value)}
                         />
                       </td>
-                      <td className="p-2">
+                      <td className="px-2 py-1">
                         <input
-                          className="w-full border rounded p-1 text-sm"
+                          className="w-full rounded border px-3 py-1 text-sm"
                           value={d.article}
                           onChange={(e) => onChangeCatalog(idx, "article", e.target.value)}
                         />
                       </td>
-                      <td className="p-2 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
-                      <td className="p-2 text-center whitespace-nowrap">
-                        <button className="text-green-600 px-2" onClick={() => saveCatalogItem(idx)} title="Uložit úpravy">💾</button>
+                      <td className="px-2 py-1 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
+                      <td className="px-2 py-1 text-center whitespace-nowrap">
+                        <button className="px-2 text-green-600" onClick={() => saveCatalogItem(idx)} title="Uložit úpravy">💾</button>
                         {d.visibility === "user" && d.moderation_status !== "pending" && d.id && (
                           <button
-                            className="text-blue-600 px-2"
+                            className="px-2 text-blue-600"
                             title="Navrhnout do společného závadovníku"
                             onClick={async () => {
                               try {
@@ -566,21 +569,21 @@ export default function DefectsRecommendationsSection() {
                             ⬆️
                           </button>
                         )}
-                        <button className="text-red-600 px-2" onClick={() => confirmDelete(d)} title="Smazat">🗑️</button>
+                        <button className="px-2 text-red-600" onClick={() => confirmDelete(d)} title="Smazat">🗑️</button>
                       </td>
                     </tr>
                   ))}
                   {sortedEditorCatalog.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-3 text-gray-600 text-center">Katalog je prázdný.</td>
+                      <td colSpan={5} className="px-3 py-2 text-center text-gray-600">Katalog je prázdný.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex justify-end mt-3">
-              <button className="bg-gray-300 py-1 px-3 rounded text-sm" onClick={() => setShowEditor(false)}>
+            <div className="flex justify-end text-sm">
+              <button className="rounded bg-gray-200 px-3 py-1.5" onClick={() => setShowEditor(false)}>
                 Zavřít
               </button>
             </div>
@@ -591,21 +594,25 @@ export default function DefectsRecommendationsSection() {
       {/* ——— MODAL: NOVÁ POLOŽKA ——— */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 z-50 grid place-items-center" onKeyDown={onKeyDownAddModal}>
-          <div className="bg-white w-full max-w-4xl rounded-lg shadow-lg p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between mb-4">
+          <div className="compact-card w-full max-w-4xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-semibold">Nová závada</h3>
-                <div className="text-sm text-gray-500">Vyplň popis, případně normu a článek. Uložit: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></div>
+                <h3 className="text-lg font-semibold">Nová závada</h3>
+                <div className="text-sm text-gray-500">
+                  Vyplň popis, případně normu a článek. Uložit: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>
+                </div>
               </div>
-              <button className="text-gray-600 hover:text-gray-900" onClick={() => setShowAddModal(false)}>✖</button>
+              <button className="text-gray-600 transition hover:text-gray-900" onClick={() => setShowAddModal(false)}>
+                ✖
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="md:col-span-2">
                 <label className="font-semibold text-sm">Popis závady</label>
                 <textarea
                   rows={6}
-                  className="w-full border rounded p-2"
+                  className="w-full rounded border px-3 py-1.5"
                   placeholder="Např. Ochranné pospojování - HOP…"
                   value={addForm.description}
                   onChange={(e) => setAddForm((s) => ({ ...s, description: e.target.value }))}
@@ -619,7 +626,7 @@ export default function DefectsRecommendationsSection() {
                 <div>
                   <label className="font-semibold text-sm">Norma</label>
                   <input
-                    className="w-full border rounded p-2"
+                    className="w-full rounded border px-3 py-1.5"
                     placeholder="ČSN …"
                     value={addForm.standard}
                     onChange={(e) => setAddForm((s) => ({ ...s, standard: e.target.value }))}
@@ -641,7 +648,7 @@ export default function DefectsRecommendationsSection() {
                 <div>
                   <label className="font-semibold text-sm">Článek</label>
                   <input
-                    className="w-full border rounded p-2"
+                    className="w-full rounded border px-3 py-1.5"
                     placeholder="např. 542.4"
                     value={addForm.article}
                     onChange={(e) => setAddForm((s) => ({ ...s, article: e.target.value }))}
@@ -661,19 +668,21 @@ export default function DefectsRecommendationsSection() {
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="text-sm font-semibold mb-1">Náhled zápisu</div>
-              <div className="border rounded p-3 text-sm bg-gray-50">
+            <div>
+              <div className="mb-1 text-sm font-semibold">Náhled zápisu</div>
+              <div className="rounded border bg-gray-50 px-3 py-2 text-sm">
                 {previewLine || <span className="text-gray-400">— nic k zobrazení —</span>}
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setShowAddModal(false)}>
+            <div className="flex justify-end gap-2 text-sm">
+              <button className="rounded bg-gray-200 px-3 py-1.5" onClick={() => setShowAddModal(false)}>
                 Zrušit
               </button>
               <button
-                className={`px-4 py-2 rounded text-white ${addFormValid ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"}`}
+                className={`rounded px-3 py-1.5 font-medium text-white transition ${
+                  addFormValid ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"
+                }`}
                 onClick={createCatalogItem}
                 disabled={!addFormValid}
                 title={!addFormValid ? "Vyplň alespoň popis" : "Uložit (Ctrl/⌘ + Enter)"}
@@ -688,16 +697,16 @@ export default function DefectsRecommendationsSection() {
       {/* ——— Potvrzení mazání ——— */}
       {toDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-full max-w-lg">
-            <h3 className="text-lg font-semibold mb-4">Opravdu smazat položku?</h3>
-            <p className="mb-4">
+          <div className="compact-card w-full max-w-lg space-y-3">
+            <h3 className="text-base font-semibold">Opravdu smazat položku?</h3>
+            <p>
               {toDelete.description} ({toDelete.standard || "—"}, čl. {toDelete.article || "—"})
             </p>
-            <div className="flex justify-end gap-2">
-              <button className="bg-gray-300 py-1 px-3 rounded text-sm" onClick={() => setToDelete(null)}>
+            <div className="flex justify-end gap-2 text-sm">
+              <button className="rounded bg-gray-200 px-3 py-1.5" onClick={() => setToDelete(null)}>
                 Zrušit
               </button>
-              <button className="bg-red-600 text-white py-1 px-3 rounded text-sm" onClick={deleteCatalogItem}>
+              <button className="rounded bg-red-600 px-3 py-1.5 text-white" onClick={deleteCatalogItem}>
                 Smazat
               </button>
             </div>

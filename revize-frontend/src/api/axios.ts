@@ -1,10 +1,11 @@
 // src/api/axios.ts
 import axios from "axios";
+import { API_ORIGIN } from "./base";
 
-export const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+export const API = API_ORIGIN;
 
 const api = axios.create({
-  baseURL: API,
+  baseURL: API_ORIGIN || undefined,
 });
 
 // Každý request -> přidej JWT z localStorage

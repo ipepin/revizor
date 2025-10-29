@@ -1,5 +1,5 @@
 // src/api/http.ts
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { API_ORIGIN, apiUrl } from "./base";
 
 const TOKEN_KEY = "revize_jwt";
 
@@ -18,7 +18,8 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     ...(init.headers || {}),
     ...authHeader(),
   };
-  const res = await fetch(`${API}${path}`, { ...init, headers });
+  const url = apiUrl(path);
+  const res = await fetch(url, { ...init, headers });
   return res;
 }
 
@@ -51,4 +52,4 @@ export const apiPatchJson = (path: string, body: unknown, init?: RequestInit) =>
     ...init,
   });
 
-export { API };
+export { API_ORIGIN as API };

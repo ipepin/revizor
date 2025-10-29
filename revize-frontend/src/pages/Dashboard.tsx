@@ -225,25 +225,28 @@ export default function Dashboard() {
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
       <Sidebar mode="dashboard" onNewProject={() => setShowNewProjectDialog(true)} />
 
-      <main className="flex-1 p-6">
-        <h1 className="text-3xl font-bold text-blue-800 mb-4">📁 Projekty</h1>
+      <main className="compact-main flex-1 space-y-4 p-4 md:p-6">
+        <h1 className="mb-3 flex items-center gap-2">
+          <span className="text-lg">📁</span>
+          Projekty
+        </h1>
 
         <input
           type="text"
-          className="p-2 border rounded w-full mb-4"
+          className="mb-3 w-full rounded border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
           placeholder="Hledat adresu nebo objednatele..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <table className="w-full bg-white border rounded shadow text-sm">
+        <table className="compact-table w-full bg-white border rounded-lg shadow-sm">
           <thead className="bg-blue-100 text-blue-900">
             <tr>
-              <th className="p-2 text-left">#</th>
-              <th className="p-2 text-left">🏠 Adresa</th>
-              <th className="p-2 text-left">🧾 Objednatel</th>
-              <th className="p-2 text-left">📆 Platnost</th>
-              <th className="p-2 text-left">📄 Revize</th>
+              <th className="px-2 py-1 text-left">#</th>
+              <th className="px-2 py-1 text-left">🏠 Adresa</th>
+              <th className="px-2 py-1 text-left">🧾 Objednatel</th>
+              <th className="px-2 py-1 text-left">📆 Platnost</th>
+              <th className="px-2 py-1 text-left">📄 Revize</th>
             </tr>
           </thead>
           <tbody>
@@ -268,28 +271,28 @@ export default function Dashboard() {
                       }
                     }}
                   >
-                    <td className="p-2 font-mono">{proj.id}</td>
-                    <td className="p-2">{proj.address}</td>
-                    <td className="p-2">{proj.client}</td>
-                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
+                    <td className="px-2 py-1 font-mono">{proj.id}</td>
+                    <td className="px-2 py-1">{proj.address}</td>
+                    <td className="px-2 py-1">{proj.client}</td>
+                    <td className={`px-2 py-1 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
                       {expired ? "Revize po platnosti" : "OK"}
                     </td>
-                    <td className="p-2">{proj.revisions?.length ?? 0}</td>
+                    <td className="px-2 py-1">{proj.revisions?.length ?? 0}</td>
                   </tr>
 
                   {isSelected && (
                     <tr>
-                      <td colSpan={5} className="bg-blue-50 p-2">
-                        <div className="text-right mb-2 flex justify-between">
+                      <td colSpan={5} className="bg-blue-50 px-3 py-2">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           {/* Přidat: revize + VV */}
                           <button
-                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                            className="rounded bg-blue-600 px-3 py-1 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
                             onClick={() => handleAdd(proj.id)}
                           >
                             ➕ Přidat
                           </button>
                           <button
-                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                            className="rounded bg-red-600 px-3 py-1 text-sm font-medium text-white shadow-sm transition hover:bg-red-700"
                             onClick={() => {
                               if (window.confirm("Opravdu chcete smazat tento projekt včetně všech revizí?")) {
                                 handleDeleteProject(proj.id);
@@ -301,15 +304,15 @@ export default function Dashboard() {
                         </div>
 
                         {/* Revizní zprávy */}
-                        <table className="w-full text-sm bg-white border rounded">
+                        <table className="compact-table w-full bg-white border rounded-md shadow-sm">
                           <thead className="bg-gray-100">
                             <tr>
-                              <th className="p-2 text-left">#</th>
-                              <th className="p-2 text-left">Typ</th>
-                              <th className="p-2 text-left">Datum</th>
-                              <th className="p-2 text-left">Platnost</th>
-                              <th className="p-2 text-left">Stav</th>
-                              <th className="p-2 text-left">Akce</th>
+                              <th className="px-2 py-1 text-left">#</th>
+                              <th className="px-2 py-1 text-left">Typ</th>
+                              <th className="px-2 py-1 text-left">Datum</th>
+                              <th className="px-2 py-1 text-left">Platnost</th>
+                              <th className="px-2 py-1 text-left">Stav</th>
+                              <th className="px-2 py-1 text-left">Akce</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -317,48 +320,50 @@ export default function Dashboard() {
                               const isDone = (rev.status || "").toLowerCase() === "dokončená";
                               return (
                                 <tr key={rev.id} className={`border-t ${isDone ? "bg-green-50" : ""}`}>
-                                  <td className="p-2">{rev.number}</td>
-                                  <td className="p-2">{rev.type}</td>
-                                  <td className="p-2">{rev.date_done}</td>
-                                  <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
+                                  <td className="px-2 py-1">{rev.number}</td>
+                                  <td className="px-2 py-1">{rev.type}</td>
+                                  <td className="px-2 py-1">{rev.date_done}</td>
+                                  <td className={`px-2 py-1 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
                                     {rev.valid_until}
                                   </td>
-                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
+                                  <td className={`px-2 py-1 ${isDone ? "text-green-700" : "text-blue-600"}`}>
                                     {rev.status}
                                   </td>
-                                  <td className="p-2 space-x-2">
-                                    <button
-                                      className="text-blue-600 hover:underline"
-                                      onClick={() => openRevision(proj.id, rev)}
-                                      title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
-                                    >
-                                      Otevřít
-                                    </button>
-                                    <button
-                                      className="text-red-600 hover:underline"
-                                      onClick={async () => {
-                                        const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
-                                        if (!confirmDelete) return;
-                                        try {
-                                          const res = await fetch(apiUrl(`/revisions/${rev.id}`), {
-                                            method: "DELETE",
-                                            headers: { ...authHeader(token!) },
-                                          });
-                                          if (!res.ok) throw new Error("Mazání selhalo");
-                                          fetchProjects();
-                                        } catch (err) {
-                                          console.error("❌ Chyba při mazání revize:", err);
-                                        }
-                                      }}
-                                    >
-                                      Smazat
-                                    </button>
-                                    <button
-                                      onClick={() => navigate(`/summary/${rev.id}`)}
-                                      className="text-green-600 hover:underline"
-                                    >
-                                      Souhrn
-                                    </button>
+                                  <td className="px-2 py-1">
+                                    <div className="flex flex-wrap gap-2 text-sm">
+                                      <button
+                                        className="text-blue-600 hover:underline"
+                                        onClick={() => openRevision(proj.id, rev)}
+                                        title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
+                                      >
+                                        Otevřít
+                                      </button>
+                                      <button
+                                        className="text-red-600 hover:underline"
+                                        onClick={async () => {
+                                          const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
+                                          if (!confirmDelete) return;
+                                          try {
+                                            const res = await fetch(apiUrl(`/revisions/${rev.id}`), {
+                                              method: "DELETE",
+                                              headers: { ...authHeader(token!) },
+                                            });
+                                            if (!res.ok) throw new Error("Mazání selhalo");
+                                            fetchProjects();
+                                          } catch (err) {
+                                            console.error("❌ Chyba při mazání revize:", err);
+                                          }
+                                        }}
+                                      >
+                                        Smazat
+                                      </button>
+                                      <button
+                                        onClick={() => navigate(`/summary/${rev.id}`)}
+                                        className="text-green-600 hover:underline"
+                                      >
+                                        Souhrn
+                                      </button>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -370,60 +375,64 @@ export default function Dashboard() {
                         <div className="h-4" />
 
                         {/* VV Protokoly */}
-                        <div className="bg-white border rounded">
-                          <div className="px-2 py-2 bg-gray-100 font-semibold">Protokoly o určení vnějších vlivů</div>
-                          <table className="w-full text-sm">
+                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                          <div className="mb-2 rounded border border-transparent bg-gray-100 px-3 py-2 text-sm font-semibold">
+                            Protokoly o určení vnějších vlivů
+                          </div>
+                          <table className="compact-table w-full">
                             <thead>
                               <tr>
-                                <th className="p-2 text-left">#</th>
-                                <th className="p-2 text-left">Název / Prostor</th>
-                                <th className="p-2 text-left">Datum</th>
-                                <th className="p-2 text-left">Akce</th>
+                                <th className="px-2 py-1 text-left">#</th>
+                                <th className="px-2 py-1 text-left">Název / Prostor</th>
+                                <th className="px-2 py-1 text-left">Datum</th>
+                                <th className="px-2 py-1 text-left">Akce</th>
                               </tr>
                             </thead>
                             <tbody>
                               {vvLoading[proj.id] && (
-                                <tr><td className="p-2" colSpan={4}>Načítám VV…</td></tr>
+                                <tr><td className="px-2 py-1" colSpan={4}>Načítám VV…</td></tr>
                               )}
                               {!vvLoading[proj.id] && (vvByProject[proj.id]?.length ?? 0) === 0 && (
-                                <tr><td className="p-2" colSpan={4}>Žádné protokoly.</td></tr>
+                                <tr><td className="px-2 py-1" colSpan={4}>Žádné protokoly.</td></tr>
                               )}
                               {(vvByProject[proj.id] || []).map((vv: any) => {
                                 const spaceName = vv.data_json?.spaces?.[0]?.name ?? "—";
                                 const date = vv.data_json?.date ?? "—";
                                 return (
                                   <tr key={vv.id} className="border-t">
-                                    <td className="p-2 font-mono">{vv.number ?? vv.id}</td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1 font-mono">{vv.number ?? vv.id}</td>
+                                    <td className="px-2 py-1">
                                       {vv.data_json?.objectName || "bez názvu"} ·{" "}
                                       <span className="text-slate-500">{spaceName}</span>
                                     </td>
-                                    <td className="p-2">{date}</td>
-                                    <td className="p-2 space-x-3">
-                                      <button
-                                        className="text-blue-600 hover:underline"
-                                        onClick={() => navigate(`/vv/${vv.id}`)}
-                                      >
-                                        Otevřít
-                                      </button>
-                                      <button
-                                        className="text-red-600 hover:underline"
-                                        onClick={async () => {
-                                          if (!window.confirm("Opravdu chceš smazat tento VV protokol?")) return;
-                                          try {
-                                            const res = await fetch(apiUrl(`/vv/${vv.id}`), {
-                                              method: "DELETE",
-                                              headers: { ...authHeader(token!) },
-                                            });
-                                            if (!res.ok) throw new Error("Mazání selhalo");
-                                            loadVvForProject(proj.id);
-                                          } catch (err) {
-                                            console.error("❌ Chyba při mazání VV:", err);
-                                          }
-                                        }}
-                                      >
-                                        Smazat
-                                      </button>
+                                    <td className="px-2 py-1">{date}</td>
+                                    <td className="px-2 py-1">
+                                      <div className="flex flex-wrap gap-2 text-sm">
+                                        <button
+                                          className="text-blue-600 hover:underline"
+                                          onClick={() => navigate(`/vv/${vv.id}`)}
+                                        >
+                                          Otevřít
+                                        </button>
+                                        <button
+                                          className="text-red-600 hover:underline"
+                                          onClick={async () => {
+                                            if (!window.confirm("Opravdu chceš smazat tento VV protokol?")) return;
+                                            try {
+                                              const res = await fetch(apiUrl(`/vv/${vv.id}`), {
+                                                method: "DELETE",
+                                                headers: { ...authHeader(token!) },
+                                              });
+                                              if (!res.ok) throw new Error("Mazání selhalo");
+                                              loadVvForProject(proj.id);
+                                            } catch (err) {
+                                              console.error("❌ Chyba při mazání VV:", err);
+                                            }
+                                          }}
+                                        >
+                                          Smazat
+                                        </button>
+                                      </div>
                                     </td>
                                   </tr>
                                 );
@@ -435,12 +444,12 @@ export default function Dashboard() {
                         {/* Dialog „Přidat“: VV + zúžené revize */}
                         {showDialog && selectedProjectId === proj.id && (
                           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                            <div className="bg-white p-6 rounded shadow w-80">
-                              <h2 className="text-lg font-semibold mb-4">Vyber, co chceš přidat</h2>
+                          <div className="compact-card w-80 space-y-4">
+                            <h2 className="text-base font-semibold">Vyber, co chceš přidat</h2>
 
                               {/* VV */}
                               <div
-                                className="p-2 mb-2 hover:bg-gray-100 cursor-pointer border rounded"
+                                className="cursor-pointer rounded border px-3 py-2 hover:bg-gray-100"
                                 onClick={async () => {
                                   setShowDialog(false);
                                   try {
@@ -463,7 +472,7 @@ export default function Dashboard() {
                               </div>
 
                               {/* Revize */}
-                              <ul className="border rounded">
+                              <ul className="overflow-hidden rounded border text-sm">
                                 {revisionTypes.map((type, idx) => (
                                   <li
                                     key={type}
@@ -513,7 +522,7 @@ export default function Dashboard() {
                               </ul>
 
                               <button
-                                className="mt-4 px-4 py-2 bg-gray-300 rounded w-full"
+                                className="mt-2 w-full rounded bg-gray-200 px-3 py-1.5 text-sm"
                                 onClick={() => setShowDialog(false)}
                               >
                                 Zrušit
@@ -534,28 +543,28 @@ export default function Dashboard() {
       {/* Nový projekt dialog */}
       {showNewProjectDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-96">
-            <h2 className="text-lg font-semibold mb-4">Nový projekt</h2>
+          <div className="compact-card w-full max-w-md space-y-4">
+            <h2 className="text-base font-semibold">Nový projekt</h2>
             <input
               type="text"
-              className="w-full p-2 mb-2 border rounded"
+              className="w-full rounded border px-3 py-1.5"
               placeholder="Adresa"
               value={newProjectData.address}
               onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })}
             />
             <input
               type="text"
-              className="w-full p-2 mb-4 border rounded"
+              className="w-full rounded border px-3 py-1.5"
               placeholder="Objednatel"
               value={newProjectData.client}
               onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
             />
-            <div className="flex justify-end gap-2">
-              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
+            <div className="flex justify-end gap-2 text-sm">
+              <button className="rounded bg-gray-200 px-3 py-1.5" onClick={() => setShowNewProjectDialog(false)}>
                 Zrušit
               </button>
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white transition hover:bg-blue-700"
                 onClick={handleSaveNewProject}
                 title="Uložit nový projekt"
               >
@@ -572,12 +581,12 @@ export default function Dashboard() {
           className="fixed inset-0 bg-black/40 grid place-items-center z-50"
           onClick={() => setUnlockFor({ projectId: null, revId: null })}
         >
-          <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-semibold mb-2">Revize je dokončená</h3>
-            <p className="text-sm text-gray-600 mb-3">Pro otevření zadej své heslo.</p>
+          <div className="compact-card w-full max-w-sm space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold">Revize je dokončená</h3>
+            <p className="text-sm text-gray-600">Pro otevření zadej své heslo.</p>
             <input
               type="password"
-              className="w-full p-2 border rounded mb-2"
+              className="w-full rounded border px-3 py-1.5"
               placeholder="Heslo"
               value={unlockPwd}
               onChange={(e) => setUnlockPwd(e.target.value)}
@@ -585,16 +594,16 @@ export default function Dashboard() {
               autoFocus
             />
             {unlockErr && <div className="text-red-600 text-sm mb-2">{unlockErr}</div>}
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 text-sm">
               <button
-                className="px-3 py-2 bg-gray-200 rounded"
+                className="rounded bg-gray-200 px-3 py-1.5"
                 onClick={() => setUnlockFor({ projectId: null, revId: null })}
                 disabled={unlockBusy}
               >
                 Zrušit
               </button>
               <button
-                className="px-3 py-2 bg-blue-600 text-white rounded"
+                className="rounded bg-blue-600 px-3 py-1.5 font-medium text-white"
                 onClick={submitUnlock}
                 disabled={unlockBusy || !unlockPwd}
               >

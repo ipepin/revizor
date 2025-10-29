@@ -4,9 +4,9 @@ import MistnostiPanel from "../components/MistnostiPanel";
 
 export default function SectionMereni() {
   return (
-    <div className="space-y-8 px-4">
-      <h1 className="text-2xl font-bold text-blue-800 mb-4">📏 Měření – Elektroinstalace</h1>
-      
+    <div className="space-y-5 text-sm text-gray-800">
+      <h2 className="text-xl font-semibold text-blue-800">📏 Měření – Elektroinstalace</h2>
+
       <RozvadecePanel />
 
       <MistnostiPanel />
