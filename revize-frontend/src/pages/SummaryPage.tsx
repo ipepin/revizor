@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
 import { generateSummaryDocx } from "./summary-export/word";
-import { generateRzFromTemplateUrl } from "./summary-export/docxTemplate"; // ⬅️ OPRAVENÝ IMPORT
+import { renderAndDownloadRzDocxFromTemplate } from "./summary-export/docxTemplate";
 
 import {
   HeaderBlock,
@@ -14,10 +14,9 @@ import {
 } from "./summary/components";
 
 import { dash, listOrDash } from "./summary-utils/text";
-import { normalizeComponents, depthPrefix, buildComponentLine } from "./summary-utils/board";
 
-// ⬇️ kam nasadíš svojí .docx šablonu (Docxtemplater placeholdery)
-const TEMPLATE_URL = "/templates/rz_template.docx";
+// 🔧 utilitky pro rozvaděče (nutné pro vykreslení komponent)
+import { normalizeComponents, depthPrefix, buildComponentLine } from "./summary-utils/board";
 
 /* =============================== */
 /* ======== Summary Page ========= */
@@ -196,18 +195,16 @@ export default function SummaryPage() {
     }
   };
 
-  // ⬇️ NOVÉ: vyplnění Word ŠABLONY placeholdery
+  // NOVÉ: vyplnění Word ŠABLONY placeholdery
   const handleGenerateFromTemplate = async () => {
-    try {
-      await generateRzFromTemplateUrl(
-        TEMPLATE_URL,
-        { safeForm, technician, normsAll, usedInstruments, revId },
-        undefined // název souboru – necháme default
-      );
-    } catch (e: any) {
-      alert(`Nepodařilo se naplnit šablonu: ${e?.message || e}\nZkontroluj konzoli pro detailní chyby tagů.`);
-      // Docxtemplater chyby (Multi error) se vypíšou do konzole z docxTemplate.ts
-    }
+    await renderAndDownloadRzDocxFromTemplate({
+      safeForm,
+      technician,
+      normsAll,
+      usedInstruments,
+      revId,
+      templateUrl: "/templates/rz_template.docx", // umísti do /public/templates
+    });
   };
 
   return (
@@ -485,8 +482,8 @@ export default function SummaryPage() {
                       <div key={bIdx} className="mt-6">
                         <div className="font-semibold">Rozvaděč: {dash(board?.name) || `#${bIdx + 1}`}</div>
                         <div className="text-sm text-slate-600">
-                          Výrobce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | Umístění: {dash(board?.umisteni)} | S/N{" "}
-                          {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP{" "}
+                          Výrobce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | Umístění: {dash(board?.umisteni)} | S/N:{" "}
+                          {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP:{" "}
                           {dash(board?.ip)}
                         </div>
 
@@ -496,7 +493,7 @@ export default function SummaryPage() {
                             const prefix = depthPrefix(c._level);
                             const name = dash(c?.nazev || c?.name);
                             const desc = dash(c?.popis || c?.description || "");
-                            const line = buildComponentLine(c);
+                            const line = buildComponentLine(c); // typ, póly, dim., Riso, Zs, t, IΔ, pozn.
 
                             return (
                               <div
@@ -573,6 +570,7 @@ export default function SummaryPage() {
                 <div className="italic text-slate-400">—</div>
               )}
 
+              {/* silnější oddělení a "pevný" zlom před závadami i v tisku */}
               <hr className="my-10 border-slate-200" />
               <section className="break-before-page">
                 <H1>5. Závady</H1>

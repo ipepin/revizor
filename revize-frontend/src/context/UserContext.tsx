@@ -135,7 +135,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // ---- fetch profil ----
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     if (!token) return null;
-    const resp = await fetch("/api/users/me", {
+    const resp = await fetch("users/me", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) await throwNice(resp);
@@ -146,7 +146,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // ---- fetch firmy ----
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     if (!token) return [];
-    const resp = await fetch("/api/users/companies", {
+    const resp = await fetch("api/users/companies", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) await throwNice(resp);
@@ -261,7 +261,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setProfile((p) => (p ? { ...p, activeCompanyId: targetId } : p));
 
       // ulož na server (PATCH /api/users/me)
-      const resp = await fetch("/api/users/me", {
+      const resp = await fetch("users/me", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

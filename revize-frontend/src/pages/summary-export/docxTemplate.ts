@@ -1,432 +1,290 @@
 // src/pages/summary-export/docxTemplate.ts
-import { saveAs } from "file-saver";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import { Document as DocxDoc, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
+import { saveAs } from "file-saver";
 
-import { dash } from "../summary-utils/text";
-import { normalizeComponents, depthPrefix, buildComponentLine } from "../summary-utils/board";
+/**
+ * ŠABLONA: public/templates/rz-modern.docx
+ *
+ * TAGY (hranaté):
+ *   Jednotlivé: [[EVIDENCNI]] [[TYP_REVIZE]] [[NORMY]] ...
+ *
+ * BLOKY:
+ *   [[#PROHLIDKA]]• [[TEXT]][[/PROHLIDKA]]
+ *   [[#ZKOUSKY]]• [[NAME]] — [[NOTE]][[/ZKOUSKY]]
+ *   [[#INSTRUMENTS]]• [[NAME]] / [[SERIAL]] / [[CAL]][[/INSTRUMENTS]]
+ *
+ * ROZVADĚČE:
+ *   [[#BOARDS]]
+ *   ### [[TITLE]]
+ *   [[DESC]]
+ *   [[#COMPONENTS]][[LINE_LEFT]]	[[LINE_RIGHT]]
+ *   [[/COMPONENTS]]
+ *   [[/BOARDS]]
+ *   (Mezi [[LINE_LEFT]] a [[LINE_RIGHT]] musí být TAB. Ve Wordu si dej tabulátor např. na 11.5 cm.)
+ *
+ * MÍSTNOSTI:
+ *   [[#ROOMS]]
+ *   ### [[NAME]] — [[NOTE]]
+ *   [[#DEVICES]]• [[TYP]] · [[POCET]] ks · [[DIM]] · Riso [[RISO]] MΩ · Zs [[OCHR]] Ω · [[POZN]]
+ *   [[/DEVICES]]
+ *   [[/ROOMS]]
+ *
+ * ZÁVADY:
+ *   [[#ZAVADY]]• [[POPIS]] | ČSN [[CSN]] | čl. [[CLANEK]][[/ZAVADY]]
+ */
 
-/* ============================
-   Typy
-============================ */
-
-type GenArgs = {
+export type GenArgs = {
   safeForm: any;
-  technician: any;
+  technician: {
+    jmeno: string;
+    firma: string;
+    cislo_osvedceni: string;
+    cislo_opravneni: string;
+    ico: string;
+    dic: string;
+    adresa: string;
+    phone: string;
+    email: string;
+  };
   normsAll: string[];
   usedInstruments: Array<{ id: string; name: string; serial: string; calibration: string }>;
   revId?: string | undefined;
 };
 
-type TemplateData = ReturnType<typeof buildTemplateData>;
+const TEMPLATE_URL = "/templates/rz-modern.docx";
 
-/* ============================
-   Veřejná API
-============================ */
+// ---------- util ----------
+const dash = (v: any) => {
+  const s = (v ?? "").toString().trim();
+  return s ? s : "—";
+};
+const nbsp = "\u00A0";
+const repeat = (s: string, n: number) => Array(Math.max(0, n)).fill(s).join("");
 
-/**
- * 1) Načti DOCX šablonu z URL a naplň ji daty.
- */
-export async function generateRzFromTemplateUrl(
-  templateUrl: string,
-  args: GenArgs,
-  outFileName?: string
-) {
-  const ab = await fetchArrayBuffer(templateUrl);
-  await generateRzFromTemplateArrayBuffer(ab, args, outFileName);
+// Parser pro [[TAG]]
+function angularParser(tag: string) {
+  const expr = tag.trim();
+  return {
+    get: (scope: Record<string, any>) => {
+      if (expr in scope) return scope[expr];
+      const parts = expr.split(".");
+      let cur: any = scope;
+      for (const p of parts) {
+        if (cur && typeof cur === "object" && p in cur) cur = cur[p];
+        else return "";
+      }
+      return cur;
+    },
+  };
 }
 
-/**
- * 2) Máš ArrayBuffer šablony (např. z File inputu)? Použij tohle.
- */
-export async function generateRzFromTemplateArrayBuffer(
-  templateArrayBuffer: ArrayBuffer,
-  { safeForm, technician, normsAll, usedInstruments, revId }: GenArgs,
-  outFileName?: string
-) {
-  const data = buildTemplateData({ safeForm, technician, normsAll, usedInstruments, revId });
-  const blob = renderDocx(templateArrayBuffer, data);
-  const fileId = String(safeForm?.evidencni || revId || "vystup");
-  saveAs(blob, outFileName || `revizni_zprava_${fileId}.docx`);
-}
+// ---------- data builder ----------
+function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: GenArgs) {
+  const EVIDENCNI = dash(safeForm.evidencni || revId);
+  const TYP_REVIZE = dash(safeForm.typRevize);
+  const NORMY = normsAll?.length ? normsAll.join(", ") : "—";
 
-/**
- * 3) Vytvoř „startovací“ šablonu s placeholdery (pro rychlý test).
- *    -> soubor si pak můžeš otevřít ve Wordu a dál upravovat vzhled.
- */
-export async function downloadStarterTemplate(placeholdersTitle = "RZ Šablona – placeholdery") {
-  const doc = new DocxDoc({
-    sections: [
-      {
-        children: [
-          new Paragraph({ text: placeholdersTitle, heading: HeadingLevel.HEADING_1 }),
-          new Paragraph({ text: "Evidenční číslo: {{EVIDENCNI}}" }),
-          new Paragraph({ text: "Typ revize: {{TYP_REVIZE}}" }),
-          new Paragraph({ text: "Normy: {{NORMY_TEXT}}" }),
+  const TECH_JMENO = dash(technician?.jmeno);
+  const TECH_FIRMA = dash(technician?.firma);
+  const TECH_OSV = dash(technician?.cislo_osvedceni);
+  const TECH_OPR = dash(technician?.cislo_opravneni);
+  const TECH_ICO = dash(technician?.ico);
+  const TECH_DIC = dash(technician?.dic);
+  const TECH_ADRESA = dash(technician?.adresa);
+  const TECH_TEL = dash(technician?.phone);
+  const TECH_EMAIL = dash(technician?.email);
 
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Revizní technik", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "Jméno: {{TECH.JMENO}}" }),
-          new Paragraph({ text: "Firma: {{TECH.FIRMA}}" }),
-          new Paragraph({ text: "Osvědčení: {{TECH.OSVEDCENI}}" }),
-          new Paragraph({ text: "Oprávnění: {{TECH.OPRAVNENI}}" }),
-          new Paragraph({ text: "IČO: {{TECH.ICO}}" }),
-          new Paragraph({ text: "DIČ: {{TECH.DIC}}" }),
-          new Paragraph({ text: "Adresa: {{TECH.ADRESA}}" }),
-          new Paragraph({ text: "Telefon: {{TECH.PHONE}}" }),
-          new Paragraph({ text: "E-mail: {{TECH.EMAIL}}" }),
+  const OBJ_ADRESA = dash(safeForm.adresa);
+  const OBJ_PREDMET = dash(safeForm.objekt);
+  const OBJ_OBJEDNATEL = dash(safeForm.objednatel);
 
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Revidovaný objekt", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "Adresa: {{OBJEKT.ADRESA}}" }),
-          new Paragraph({ text: "Předmět: {{OBJEKT.PREDMET}}" }),
-          new Paragraph({ text: "Objednatel: {{OBJEKT.OBJEDNATEL}}" }),
+  let VYSLEDEK_TEXT = "Chybí informace";
+  const s = safeForm?.conclusion?.safety;
+  if (s === "able") VYSLEDEK_TEXT = "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
+  if (s === "not_able") VYSLEDEK_TEXT = "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+  const DALSIREVIZE = dash(safeForm?.conclusion?.validUntil);
 
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Výsledek revize", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({
-            children: [new TextRun({ text: "{{VYSLEDEK}}", bold: true })],
-          }),
-          new Paragraph({ text: "Další revize: {{DALSÍ_REVIZE}}" }),
+  const PROHLIDKA = (safeForm?.performedTasks || []).map((t: any) => ({ TEXT: dash(t) }));
 
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Přístroje", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "Jméno | S/N | Kalibrační list" }),
-          new Paragraph({ text: "{{#INSTRUMENTS}}" }),
-          new Paragraph({ text: "{{name}} | {{serial}} | {{calibration}}" }),
-          new Paragraph({ text: "{{/INSTRUMENTS}}" }),
-          new Paragraph({ text: "{{^INSTRUMENTS}}—{{/INSTRUMENTS}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Zkoušky", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{#TESTS}}" }),
-          new Paragraph({ text: "{{name}} — {{note}}" }),
-          new Paragraph({ text: "{{/TESTS}}" }),
-          new Paragraph({ text: "{{^TESTS}}—{{/TESTS}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Rozvaděče", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{#BOARDS}}" }),
-          new Paragraph({ text: "Rozvaděč: {{name}}" }),
-          new Paragraph({ text: "{{details}}" }),
-          new Paragraph({ text: "Komponenty:" }),
-          new Paragraph({ text: "{{#COMPONENTS}}" }),
-          new Paragraph({ text: "{{prefix}}{{name}} – {{line}}" }),
-          new Paragraph({ text: "{{/COMPONENTS}}" }),
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "{{/BOARDS}}" }),
-          new Paragraph({ text: "{{^BOARDS}}—{{/BOARDS}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Místnosti", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{#ROOMS}}" }),
-          new Paragraph({ text: "Místnost: {{name}}" }),
-          new Paragraph({ text: "{{details}}" }),
-          new Paragraph({ text: "Zařízení:" }),
-          new Paragraph({ text: "{{#DEVICES}}" }),
-          new Paragraph({ text: "{{typ}} | {{pocet}} | {{dimenze}} | {{riso}} | {{ochrana}} | {{poznamka}}" }),
-          new Paragraph({ text: "{{/DEVICES}}" }),
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "{{/ROOMS}}" }),
-          new Paragraph({ text: "{{^ROOMS}}—{{/ROOMS}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Závady", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{#DEFECTS}}" }),
-          new Paragraph({ text: "{{description}}  (ČSN: {{standard}}, čl.: {{article}})" }),
-          new Paragraph({ text: "{{/DEFECTS}}" }),
-          new Paragraph({ text: "{{^DEFECTS}}—{{/DEFECTS}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Popis a rozsah revidovaného objektu", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{POPIS_OBJEKTU}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Jmenovité napětí: {{NAPETI}}" }),
-          new Paragraph({ text: "Druh sítě: {{DRUH_SITE}}" }),
-          new Paragraph({ text: "Předložená dokumentace: {{DOKUMENTACE}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Vnější vlivy", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{VNESI_VLIVY}}" }),
-
-          new Paragraph({ text: "" }),
-          new Paragraph({ text: "Přílohy", heading: HeadingLevel.HEADING_2 }),
-          new Paragraph({ text: "{{PRILOHY}}" }),
-        ],
-      },
-    ],
-  });
-
-  const blob = await Packer.toBlob(doc);
-  saveAs(blob, "rz_starter_sablona.docx");
-}
-
-/* ============================
-   Sestavení dat pro šablonu
-============================ */
-
-function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, revId }: GenArgs) {
-  const evid = dash(safeForm?.evidencni || revId);
-  const typRevize = dash(safeForm?.typRevize);
-  const normyText = (normsAll || []).length ? normsAll.join(", ") : "Chybí informace";
-
-  // Výsledek (label)
-  const safety = String(safeForm?.conclusion?.safety || "");
-  const vysledek =
-    !safety
-      ? "Chybí informace"
-      : safety === "able"
-      ? "Elektrická instalace je z hlediska bezpečnosti schopna provozu"
-      : safety === "not_able"
-      ? "Elektrická instalace není z hlediska bezpečnosti schopna provozu"
-      : String(safety);
-
-  // Přístroje
-  const instr = (usedInstruments || []).map((i) => ({
-    id: i.id,
-    name: dash(i.name),
-    serial: dash(i.serial),
-    calibration: dash(i.calibration),
-  }));
-
-  // Zkoušky
-  const tests = Object.entries((safeForm?.tests || {}) as Record<string, any>).map(([name, val]) => {
+  const ZKOUSKY = Object.entries(safeForm?.tests || {}).map(([name, val]: [string, any]) => {
     let note = "";
     if (val == null) note = "";
     else if (typeof val === "string") note = val;
     else if (typeof val === "object") note = val.note ?? val.result?.note ?? val.result ?? "";
     else note = String(val);
-    return { name, note: dash(note) };
+    return { NAME: dash(name), NOTE: dash(note) };
   });
 
-  // Rozvaděče + komponenty
-  const boards = (safeForm?.boards || []).map((b: any, idx: number) => {
-    const name = dash(b?.name) || `#${idx + 1}`;
-    const details =
-      `Výrobce: ${dash(b?.vyrobce)} | Typ: ${dash(b?.typ)} | Umístění: ${dash(b?.umisteni)} | ` +
-      `S/N: ${dash(b?.vyrobniCislo)} | Napětí: ${dash(b?.napeti)} | Odpor: ${dash(b?.odpor)} | IP: ${dash(b?.ip)}`;
+  const INSTRUMENTS = (usedInstruments || []).map((i) => ({
+    NAME: dash(i.name),
+    SERIAL: dash(i.serial),
+    CAL: dash(i.calibration),
+  }));
 
-    const flat = normalizeComponents(b?.komponenty || []);
-    const components = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => ({
-      prefix: depthPrefix(c._level),
-      name: dash(c?.nazev || c?.name) || "—",
-      line: buildComponentLine(c),
-    }));
+  // BOARDS – elegantní „strom“ bez tabulek (tab stopa pro zarovnání)
+  const BOARDS = (safeForm?.boards || []).map((b: any, idx: number) => {
+    const TITLE = dash(b?.name || `#${idx + 1}`);
+    const meta: string[] = [];
+    if (b?.vyrobce) meta.push(`Výrobce: ${dash(b.vyrobce)}`);
+    if (b?.typ) meta.push(`Typ: ${dash(b.typ)}`);
+    if (b?.umisteni) meta.push(`Umístění: ${dash(b.umisteni)}`);
+    if (b?.vyrobniCislo) meta.push(`S/N: ${dash(b.vyrobniCislo)}`);
+    if (b?.napeti) meta.push(`Napětí: ${dash(b.napeti)}`);
+    if (b?.odpor) meta.push(`Odpor: ${dash(b.odpor)}`);
+    if (b?.ip) meta.push(`IP: ${dash(b.ip)}`);
+    const DESC = meta.join("  |  ") || "—";
 
-    return { name, details, components };
+    const flat: any[] = Array.isArray(b?.komponenty) ? b.komponenty : [];
+
+    const COMPONENTS = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
+      const lvl = Math.max(0, Number(c?._level ?? 0));
+      // hezčí „stromová“ odrážka (pevné mezery kvůli zalamování)
+      const prefix = repeat(nbsp + nbsp, lvl) + (lvl > 0 ? "▸ " : "• ");
+      const name = dash(c?.nazev || c?.name);
+      const desc = dash(c?.popis || c?.description || "");
+
+      const typ = c?.typ || c?.type || c?.druh;
+      const poles = c?.poles || c?.poly || c?.pocet_polu || c?.pocetPolu;
+      const dim = c?.dimenze || c?.dim || c?.prurez;
+      const riso = c?.riso ?? c?.Riso ?? c?.izolace ?? c?.insulation;
+      const zs = c?.ochrana ?? c?.zs ?? c?.Zs ?? c?.loop_impedance;
+      const tMs =
+        c?.vybavovaciCasMs ??
+        c?.vybavovaci_cas_ms ??
+        c?.rcd_time ??
+        c?.trip_time ??
+        c?.vybavovaciCas ??
+        c?.cas_vybaveni;
+      const iDelta =
+        c?.vybavovaciProudmA ??
+        c?.vybavovaci_proud_ma ??
+        c?.rcd_trip_current ??
+        c?.trip_current ??
+        c?.i_fi ??
+        c?.ifi;
+      const pozn = c?.poznamka ?? c?.pozn ?? c?.note;
+
+      const parts: string[] = [];
+      if (desc && desc !== "—") parts.push(desc);
+      if (typ) parts.push(`typ: ${typ}`);
+      if (poles) parts.push(`póly: ${poles}`);
+      if (dim) parts.push(`dim.: ${dim}`);
+      if (riso || riso === 0) parts.push(`Riso: ${riso} MΩ`);
+      if (zs || zs === 0) parts.push(`Zs: ${zs} Ω`);
+      if (tMs || tMs === 0) parts.push(`t: ${tMs} ms`);
+      if (iDelta || iDelta === 0) parts.push(`IΔ: ${iDelta} mA`);
+      if (pozn) parts.push(`Pozn.: ${pozn}`);
+
+      // VLEVO = prefix + název, VPRAVO = parametry; mezi ně dej TAB
+      const LINE_LEFT = `${prefix}${name}`;
+      const LINE_RIGHT = parts.join("   •   ") || " ";
+
+      return { LINE_LEFT, LINE_RIGHT };
+    });
+
+    return { TITLE, DESC, COMPONENTS };
   });
 
-  // Místnosti + zařízení
-  const rooms = (safeForm?.rooms || []).map((r: any) => ({
-    name: dash(r?.name),
-    details: dash(r?.details),
-    devices: ((r?.devices || []) as any[]).map((d) => ({
-      typ: dash(d?.typ),
-      pocet: dash(d?.pocet),
-      dimenze: dash(d?.dimenze),
-      riso: dash(d?.riso),
-      ochrana: dash(d?.ochrana),
-      poznamka: dash(d?.podrobnosti || d?.note),
+  const ROOMS = (safeForm?.rooms || []).map((r: any) => ({
+    NAME: dash(r?.name),
+    NOTE: dash(r?.details),
+    DEVICES: (Array.isArray(r?.devices) ? r.devices : []).map((d: any) => ({
+      TYP: dash(d?.typ),
+      POCET: dash(d?.pocet),
+      DIM: dash(d?.dimenze),
+      RISO: dash(d?.riso),
+      OCHR: dash(d?.ochrana),
+      POZN: dash(d?.podrobnosti || d?.note),
     })),
   }));
 
-  // Závady
-  const defects = (safeForm?.defects || []).map((d: any) => ({
-    description: dash(d?.description),
-    standard: dash(d?.standard),
-    article: dash(d?.article),
+  const ZAVADY = (safeForm?.defects || []).map((d: any) => ({
+    POPIS: dash(d?.description),
+    CSN: dash(d?.standard),
+    CLANEK: dash(d?.article),
   }));
 
   return {
-    // Hlavička
-    EVIDENCNI: evid,
-    TYP_REVIZE: typRevize,
-    NORMY_TEXT: normyText,
+    EVIDENCNI,
+    TYP_REVIZE,
+    NORMY,
 
-    // Techník
-    TECH: {
-      JMENO: dash(technician?.jmeno),
-      FIRMA: dash(technician?.firma),
-      OSVEDCENI: dash(technician?.cislo_osvedceni),
-      OPRAVNENI: dash(technician?.cislo_opravneni),
-      ICO: dash(technician?.ico),
-      DIC: dash(technician?.dic),
-      ADRESA: dash(technician?.adresa),
-      PHONE: dash(technician?.phone),
-      EMAIL: dash(technician?.email),
-    },
+    TECH_JMENO,
+    TECH_FIRMA,
+    TECH_OSV,
+    TECH_OPR,
+    TECH_ICO,
+    TECH_DIC,
+    TECH_ADRESA,
+    TECH_TEL,
+    TECH_EMAIL,
 
-    // Objekt
-    OBJEKT: {
-      ADRESA: dash(safeForm?.adresa),
-      PREDMET: dash(safeForm?.objekt),
-      OBJEDNATEL: dash(safeForm?.objednatel),
-    },
+    OBJ_ADRESA,
+    OBJ_PREDMET,
+    OBJ_OBJEDNATEL,
 
-    // Výsledek + termín
-    VYSLEDEK: vysledek,
-    "DALSÍ_REVIZE": dash(safeForm?.conclusion?.validUntil),
-    ZAVER_TEXT: dash(safeForm?.conclusion?.text),
+    VYSLEDEK_TEXT,
+    DALSIREVIZE,
 
-    // Textové bloky
-    POPIS_OBJEKTU: dash(safeForm?.inspectionDescription),
-    NAPETI: dash(safeForm?.voltage),
-    DRUH_SITE: dash(safeForm?.sit),
-    DOKUMENTACE: dash(safeForm?.documentation),
-    VNESI_VLIVY: dash(safeForm?.environment),
-    PRILOHY: dash(safeForm?.extraNotes),
-
-    // Seznamy
-    INSTRUMENTS: instr,
-    TESTS: tests,
-    BOARDS: boards,
-    ROOMS: rooms,
-    DEFECTS: defects,
+    PROHLIDKA,
+    ZKOUSKY,
+    INSTRUMENTS,
+    BOARDS,
+    ROOMS,
+    ZAVADY,
   };
 }
 
-/* ============================
-   Docxtemplater render
-============================ */
-
-function renderDocx(templateArrayBuffer: ArrayBuffer, data: TemplateData): Blob {
-  const zip = new PizZip(templateArrayBuffer);
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    delimiters: { start: "[[", end: "]]" }
-  });
-
-  // Volitelný „linter“ párování smyček (pomůže odhalit Multi error)
-  lintTemplateTags(doc);
-
-  try {
-    doc.render(data as any);
-  } catch (error: any) {
-    // Detailní výpis všech chyb – pomůže najít přesné místo
-    const errs = error?.properties?.errors || [];
-    console.group("Docxtemplater errors");
-    console.error(error);
-    if (errs.length) {
-      errs.forEach((e: any, idx: number) => {
-        console.log(`#${idx + 1}`);
-        console.log("message:", e?.properties?.explanation || e?.message || String(e));
-        console.log("id:", e?.id);
-        console.log("context tag:", e?.properties?.id);
-        console.log("rootError:", e?.rootError);
-      });
-    }
-    console.groupEnd();
-    throw new Error("Docx render selhal – zkontroluj konzoli (Docxtemplater errors).");
-  }
-
-  return doc.getZip().generate({
-    type: "blob",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  }) as Blob;
-}
-
-/* ============================
-   Utility (fetch + linter)
-============================ */
-
-async function fetchArrayBuffer(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Nelze načíst šablonu (${res.status} ${res.statusText})`);
+// ---------- načtení šablony (fix TS: používáme fetch + arrayBuffer) ----------
+async function fetchBinary(url: string): Promise<ArrayBuffer> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} při načítání ${url}`);
   return await res.arrayBuffer();
 }
 
-/** Hrubá kontrola párování {{#...}} / {{/...}} a častých omylů */
-function lintTemplateTags(doc: any) {
-  const text: string | undefined = doc?.getFullText?.();
-  if (!text) return;
+// ---------- render + download ----------
+export async function renderAndDownloadRzDocxFromTemplate(args: GenArgs) {
+  const buf = await fetchBinary(TEMPLATE_URL);
 
-  const stack: string[] = [];
-  const re = /{{\s*(#|\/|\^)?\s*([A-Za-z0-9_.]+)\s*}}/g;
-  let m: RegExpExecArray | null;
-  const errors: string[] = [];
+  let zip: PizZip;
+  try {
+    zip = new PizZip(buf);
+  } catch (e) {
+    console.error("[docxTemplate] PizZip error:", e);
+    throw new Error("Soubor šablony není validní .docx (zip). Otevři ho ve Wordu a ulož znovu.");
+  }
 
-  while ((m = re.exec(text))) {
-    const typ = m[1]; // '#', '/', '^' (inverzní sekce)
-    const name = m[2];
-    if (typ === "#") stack.push(name);
-    else if (typ === "/") {
-      const last = stack.pop();
-      if (last !== name) errors.push(`Nesedí párování smyček: očekáván </${last}> ale našel jsem </${name}>.`);
-    }
+  const doc = new Docxtemplater(zip, {
+    parser: angularParser as any,
+    linebreaks: true,
+    delimiters: { start: "[[", end: "]]" },
+  });
+
+  const data = buildData(args);
+
+  try {
+    doc.render(data);
+  } catch (e: any) {
+    console.error("[docxTemplate] Render error:", e);
+    const multi =
+      e?.properties?.errors?.map((er: any) => {
+        const file = er?.properties?.file ? ` (${er.properties.file})` : "";
+        const tag = er?.properties?.xtag ? ` [${er.properties.xtag}]` : "";
+        return `- ${er?.properties?.explanation || er?.message || "Chyba"}${tag}${file}`;
+      }) || [];
+    const msg =
+      multi.length > 0
+        ? `Šablonu se nepodařilo vyplnit:\n${multi.join("\n")}`
+        : e?.message || "Neznámá chyba při renderu šablony";
+    throw new Error(msg);
   }
-  if (stack.length) {
-    errors.push(`Chybí ukončení smyček: ${stack.map((s) => `</${s}>`).join(", ")}`);
-  }
-  if (errors.length) {
-    console.warn("[TEMPLATE LINT]", errors);
-  }
+
+  const out = doc.getZip().generate({
+    type: "blob",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+
+  const fileId = String(args?.safeForm?.evidencni || args?.revId || "vystup");
+  saveAs(out, `revizni_zprava_${fileId}.docx`);
 }
-
-/* ============================
-   NÁVOD NA PLACEHOLDERY V ŠABLONĚ (shrnutí)
-   — vlož do .docx a drž se tohohle zápisu —
-----------------------------------------------------------------
-Jednoduché texty:
-  {{EVIDENCNI}}
-  {{TYP_REVIZE}}
-  {{NORMY_TEXT}}
-  {{VYSLEDEK}}
-  {{DALSÍ_REVIZE}}
-  {{ZAVER_TEXT}}
-  {{POPIS_OBJEKTU}}
-  {{NAPETI}}
-  {{DRUH_SITE}}
-  {{DOKUMENTACE}}
-  {{VNESI_VLIVY}}
-  {{PRILOHY}}
-
-Technik:
-  {{TECH.JMENO}}, {{TECH.FIRMA}}, {{TECH.OSVEDCENI}}, {{TECH.OPRAVNENI}},
-  {{TECH.ICO}}, {{TECH.DIC}}, {{TECH.ADRESA}}, {{TECH.PHONE}}, {{TECH.EMAIL}}
-
-Revidovaný objekt:
-  {{OBJEKT.ADRESA}}, {{OBJEKT.PREDMET}}, {{OBJEKT.OBJEDNATEL}}
-
-Seznamy (drž sekce v rámci JEDNÉ buňky/odstavce):
-  INSTRUMENTS:
-    {{#INSTRUMENTS}}
-    {{name}} | {{serial}} | {{calibration}}
-    {{/INSTRUMENTS}}
-    {{^INSTRUMENTS}}—{{/INSTRUMENTS}}
-
-  TESTS:
-    {{#TESTS}}
-    {{name}} — {{note}}
-    {{/TESTS}}
-
-  BOARDS + COMPONENTS:
-    {{#BOARDS}}
-    Rozvaděč: {{name}}
-    {{details}}
-    {{#COMPONENTS}}
-    {{prefix}}{{name}} – {{line}}
-    {{/COMPONENTS}}
-    {{/BOARDS}}
-    {{^BOARDS}}—{{/BOARDS}}
-
-  ROOMS + DEVICES:
-    {{#ROOMS}}
-    Místnost: {{name}}
-    {{details}}
-    {{#DEVICES}}
-    {{typ}} | {{pocet}} | {{dimenze}} | {{riso}} | {{ochrana}} | {{poznamka}}
-    {{/DEVICES}}
-    {{/ROOMS}}
-    {{^ROOMS}}—{{/ROOMS}}
-
-  DEFECTS:
-    {{#DEFECTS}}
-    {{description}}  (ČSN: {{standard}}, čl.: {{article}})
-    {{/DEFECTS}}
-    {{^DEFECTS}}—{{/DEFECTS}}
-----------------------------------------------------------------
-*/

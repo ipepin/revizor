@@ -12,7 +12,19 @@ export default function ConclusionSection() {
     {
       id: "base",
       label: "Základní závěr",
-      text: `Revize byla provedena dle platných ČSN s ohledem na normy platné v době výstavby. Hodnoty impedance smyčky odpovídají požadavkům ČSN 33 2000-4-41 ed. 3 čl. 411.4.4 a požadavky normy se tímto považují za splněné. Izolační stav byl měřen mezi živými vodiči navzájem a dále mezi živými vodiči a ochranným vodičem. Hodnoty izolačního odporu, které byly naměřeny jsou vyšší, než 1 MΩ, tudíž vyhovují hodnotám dle tabulky 6.1. v ČSN 33 2000-6 čl.6.4.3.3. Přechodový odpor byl naměřen plně v souladu s požadavky ČSN 33 2000-1 až 3 a nepřekročil hodnotu 0,1 Ω. Na zařízení nebyly v době revize zjištěny závady, které ohrožují bezpečnost a zdraví osob. Za provozuschopnost a bezpečnost zařízení zodpovídá provozovatel.`,
+      text: `Revize byla provedena dle platných ČSN s ohledem na normy platné v době výstavby.
+Hodnoty impedance smyčky odpovídají požadavkům ČSN 33 2000-4-41 ed. 3 čl. 411.4.4 a požadavky normy se tímto považují za splněné.
+Izolační stav byl měřen mezi živými vodiči navzájem a dále mezi živými vodiči a ochranným vodičem. Hodnoty izolačního odporu, které byly naměřeny, jsou vyšší než 1 MΩ, tudíž vyhovují hodnotám dle tabulky 6.1 v ČSN 33 2000-6 čl. 6.4.3.3.
+Přechodový odpor byl naměřen v souladu s požadavky ČSN 33 2000-1 až 3 a nepřekročil hodnotu 0,1 Ω.
+Na zařízení nebyly v době revize zjištěny závady, které by ohrožovaly bezpečnost a zdraví osob.
+
+Bylo provedeno poučení a doporučení kontroly bezpečnostních prvků.
+Ve smyslu vyhlášky Č 48/82 ČÚBP – obsluha elektrotechnických zařízení musí být seznámena s bezpečností ovládání a vypínání těchto zařízení.
+Elektrická zařízení musí splňovat všechny požadované funkce a musí být udržována ve stavu odpovídajícím platným předpisům.
+
+Protipožární ochrana: XXXXXXXXXXXX
+
+Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.`,
     },
     {
       id: "short",
