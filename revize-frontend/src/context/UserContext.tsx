@@ -19,7 +19,7 @@ export type Profile = {
   authorizationNumber?: string;
   activeCompanyId?: number | string | null;
 
-  // OSVČ údaje (vrací je /api/users/me)
+  // OSVČ údaje (vrací je /users/me)
   ico?: string;
   dic?: string;
   address?: string;
@@ -146,7 +146,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // ---- fetch firmy ----
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     if (!token) return [];
-    const resp = await fetch("api/users/companies", {
+    const resp = await fetch("users/companies", {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) await throwNice(resp);
@@ -260,7 +260,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setCompany(optimistic);
       setProfile((p) => (p ? { ...p, activeCompanyId: targetId } : p));
 
-      // ulož na server (PATCH /api/users/me)
+      // ulož na server (PATCH /users/me)
       const resp = await fetch("users/me", {
         method: "PATCH",
         headers: {
