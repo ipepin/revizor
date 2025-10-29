@@ -1,7 +1,7 @@
 // src/api/auth.ts
 // Jednoduchá API vrstva pro autentizaci + uživatele (FastAPI + JWT)
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { apiUrl } from "./base";
 
 // --- typy ---
 export type LoginResponse = {
@@ -32,7 +32,7 @@ async function throwIfNotOk(res: Response): Promise<void> {
       const data = await res.json();
       detail = (data && (data.detail || data.message)) ?? "";
     } catch {
-      // ignore json parse error
+      /* ignore json parse error */
     }
     throw new Error(detail || `${res.status} ${res.statusText}`);
   }
@@ -49,7 +49,7 @@ export async function loginUser(
   body.set("username", email);
   body.set("password", password);
 
-  const res = await fetch(`${API}/auth/login`, {
+  const res = await fetch(apiUrl("/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -60,7 +60,7 @@ export async function loginUser(
 
 /** Registrace – JSON payload (name, email, password). */
 export async function registerUser(data: RegisterPayload) {
-  const res = await fetch(`${API}/auth/register`, {
+  const res = await fetch(apiUrl("/auth/register"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -71,7 +71,7 @@ export async function registerUser(data: RegisterPayload) {
 
 /** Detail přihlášeného uživatele (JWT v Authorization). */
 export async function getCurrentUser(token: string): Promise<User> {
-  const res = await fetch(`${API}/auth/me`, {
+  const res = await fetch(apiUrl("/auth/me"), {
     headers: { ...authHeader(token) },
   });
   await throwIfNotOk(res);
@@ -80,12 +80,13 @@ export async function getCurrentUser(token: string): Promise<User> {
 
 /** (Volitelné) Ověření e-mailu tokenem. */
 export async function verifyEmail(token: string) {
-  const url = new URL(`${API}/auth/verify`);
+  const url = new URL(apiUrl("/auth/verify"));
   url.searchParams.set("token", token);
   const res = await fetch(url.toString());
   await throwIfNotOk(res);
   return await res.json();
 }
 
-// Exportuj i base URL, kdyby se hodilo jinde
-export { API as API_URL };
+/** Export „base URL“ jen pro zobrazení/debug. */
+const _root = apiUrl("/"); // např. "http://localhost:8000/"
+export const API_URL = _root.endsWith("/") ? _root.slice(0, -1) : _root;

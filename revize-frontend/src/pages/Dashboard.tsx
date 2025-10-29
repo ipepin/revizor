@@ -5,7 +5,7 @@ import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
 import { useUser } from "../context/UserContext";
-
+import { apiUrl } from "../api/base";
 // VV store (vytváření VV protokolů)
 import { useVvDocs } from "../context/VvDocsContext";
 
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [unlockErr, setUnlockErr] = useState<string | null>(null);
 
   // URL backendu z env, fallback na localhost
-  const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 
   // owner_id z profilu
   const owner_id =
@@ -53,7 +53,7 @@ export default function Dashboard() {
   const fetchProjects = async (signal?: AbortSignal) => {
     if (!token) return;
     try {
-      const res = await fetch(`${API}/projects`, {
+      const res = await fetch(apiUrl("/projects"), {
         headers: { ...authHeader(token) },
         signal,
       });
@@ -94,7 +94,7 @@ export default function Dashboard() {
     if (!token) return;
     setVvLoading((m) => ({ ...m, [projectId]: true }));
     try {
-      const res = await fetch(`${API}/vv/project/${projectId}`, {
+      const res = await fetch(apiUrl(`/vv/project/${projectId}`), {
         headers: { ...authHeader(token) },
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -125,7 +125,7 @@ export default function Dashboard() {
     if (owner_id != null) payload.owner_id = owner_id;
 
     try {
-      const res = await fetch(`${API}/projects`, {
+      const res = await fetch(apiUrl("/projects"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader(token!) },
         body: JSON.stringify(payload),
@@ -149,7 +149,7 @@ export default function Dashboard() {
 
   const handleDeleteProject = async (projectId: number) => {
     try {
-      const res = await fetch(`${API}/projects/${projectId}`, {
+      const res = await fetch(apiUrl(`/projects/${projectId}`), {
         method: "DELETE",
         headers: { ...authHeader(token!) },
       });
@@ -189,7 +189,7 @@ export default function Dashboard() {
     setUnlockBusy(true);
     setUnlockErr(null);
     try {
-      const res = await fetch(`${API}/revisions/${unlockFor.revId}/unlock`, {
+      const res = await fetch(apiUrl(`/revisions/${unlockFor.revId}/unlock`), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeader(token) },
         body: JSON.stringify({ password: unlockPwd }),
@@ -340,7 +340,7 @@ export default function Dashboard() {
                                         const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
                                         if (!confirmDelete) return;
                                         try {
-                                          const res = await fetch(`${API}/revisions/${rev.id}`, {
+                                          const res = await fetch(apiUrl(`/revisions/${rev.id}`), {
                                             method: "DELETE",
                                             headers: { ...authHeader(token!) },
                                           });
@@ -411,7 +411,7 @@ export default function Dashboard() {
                                         onClick={async () => {
                                           if (!window.confirm("Opravdu chceš smazat tento VV protokol?")) return;
                                           try {
-                                            const res = await fetch(`${API}/vv/${vv.id}`, {
+                                            const res = await fetch(apiUrl(`/vv/${vv.id}`), {
                                               method: "DELETE",
                                               headers: { ...authHeader(token!) },
                                             });
@@ -485,7 +485,7 @@ export default function Dashboard() {
                                       if (owner_id != null) newRevision.owner_id = owner_id;
 
                                       try {
-                                        const response = await fetch(`${API}/revisions`, {
+                                        const response = await fetch(apiUrl("/revisions"), {
                                           method: "POST",
                                           headers: { "Content-Type": "application/json", ...authHeader(token!) },
                                           body: JSON.stringify(newRevision),

@@ -1,12 +1,14 @@
+// src/pages/InstrumentsPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
+import { apiUrl } from "../api/base";
 
 type Instrument = {
   id: string;
   name: string;
-  measurement_text: string;             // ⬅️ povinné textové pole
+  measurement_text: string;             // povinné textové pole
   calibration_code: string;
   serial?: string | null;
   calibration_valid_until?: string | null; // YYYY-MM-DD
@@ -15,7 +17,6 @@ type Instrument = {
 
 export default function InstrumentsPage() {
   const { token } = useAuth();
-  const API = "/api";
 
   const [items, setItems] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +34,7 @@ export default function InstrumentsPage() {
     note: "",
   } as Instrument);
 
-  const isEdit = useMemo(() => editId && editId !== "new", [editId]);
+  const isEdit = useMemo(() => !!editId && editId !== "new", [editId]);
   const title = isEdit ? "Upravit přístroj" : "Přidat přístroj";
 
   async function load() {
@@ -41,7 +42,9 @@ export default function InstrumentsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/users/instruments`, { headers: { ...authHeader(token) } });
+      const res = await fetch(apiUrl("/users/instruments"), {
+        headers: { ...authHeader(token) },
+      });
       if (!res.ok) throw new Error(await res.text());
       const data = (await res.json()) as Instrument[];
       setItems(Array.isArray(data) ? data : []);
@@ -52,7 +55,10 @@ export default function InstrumentsPage() {
     }
   }
 
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   function startNew() {
     setEditId("new");
@@ -74,20 +80,22 @@ export default function InstrumentsPage() {
 
   function cancelEdit() {
     setEditId(null);
+    setError(null);
   }
 
   async function save() {
     if (!token) return;
-    // ✅ Validace povinného pole
-    if (!draft.measurement_text || !draft.measurement_text.trim()) {
-      setError("Pole „Měření“ je povinné.");
-      return;
-    }
-    if (!draft.name || !draft.name.trim()) {
+
+    // ✅ Validace povinných polí
+    if (!draft.name?.trim()) {
       setError("Pole „Název přístroje“ je povinné.");
       return;
     }
-    if (!draft.calibration_code || !draft.calibration_code.trim()) {
+    if (!draft.measurement_text?.trim()) {
+      setError("Pole „Měření“ je povinné.");
+      return;
+    }
+    if (!draft.calibration_code?.trim()) {
       setError("Pole „Kalibrační list“ je povinné.");
       return;
     }
@@ -97,23 +105,26 @@ export default function InstrumentsPage() {
     try {
       const isNew = editId === "new";
       const url = isNew
-        ? `${API}/users/instruments`
-        : `${API}/users/instruments/${draft.id}`;
+        ? apiUrl("/users/instruments")
+        : apiUrl(`/users/instruments/${draft.id}`);
       const method = isNew ? "POST" : "PATCH";
+
       const body = {
         name: draft.name,
-        measurement_text: draft.measurement_text, // ⬅️ posíláme text
+        measurement_text: draft.measurement_text,
         calibration_code: draft.calibration_code,
         serial: draft.serial || null,
         calibration_valid_until: draft.calibration_valid_until || null,
         note: draft.note || null,
       };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", ...authHeader(token) },
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
+
       await load();
       cancelEdit();
     } catch (e: any) {
@@ -127,7 +138,7 @@ export default function InstrumentsPage() {
     if (!token) return;
     if (!confirm("Opravdu smazat přístroj?")) return;
     try {
-      const res = await fetch(`${API}/users/instruments/${id}`, {
+      const res = await fetch(apiUrl(`/users/instruments/${id}`), {
         method: "DELETE",
         headers: { ...authHeader(token) },
       });
@@ -195,7 +206,7 @@ export default function InstrumentsPage() {
                 />
               </Field>
 
-              {/* ⬇️ NOVÁ podoba “Měření” */}
+              {/* Měření (povinné) */}
               <div className="md:col-span-2">
                 <Field label="Měření (povinné)">
                   <input

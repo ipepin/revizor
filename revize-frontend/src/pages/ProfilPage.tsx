@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { useUser } from "../context/UserContext";
 import { authHeader } from "../api/auth";
+import { apiUrl } from "../api/base"; // ⬅️ JEDNOTNÝ HELPER NA VITE_API_URL
 
 type Company = {
   id: number;
@@ -19,7 +20,6 @@ type Company = {
 
 export default function ProfilePage() {
   const { token } = useAuth();
-  const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   // ⬇️ z UserContextu bereme setActiveCompany + refreshUser,
   // aby se po změnách ihned propsal Sidebar a zbytek aplikace
@@ -71,8 +71,8 @@ export default function ProfilePage() {
       setErr(null);
       try {
         const [uRes, cRes] = await Promise.all([
-          fetch(`${API}/users/me`, { headers: { ...authHeader(token) } }),
-          fetch(`${API}/users/companies`, { headers: { ...authHeader(token) } }),
+          fetch(apiUrl("/users/me"), { headers: { ...authHeader(token) } }),
+          fetch(apiUrl("/users/companies"), { headers: { ...authHeader(token) } }),
         ]);
         if (!uRes.ok) throw new Error(await uRes.text());
         if (!cRes.ok) throw new Error(await cRes.text());
@@ -86,7 +86,7 @@ export default function ProfilePage() {
         setLoading(false);
       }
     })();
-  }, [token, API]);
+  }, [token]);
 
   async function saveProfile() {
     if (!token) return;
@@ -94,7 +94,7 @@ export default function ProfilePage() {
     setErr(null);
     setOk(null);
     try {
-      const res = await fetch(`${API}/users/me`, {
+      const res = await fetch(apiUrl("/users/me"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeader(token) },
         body: JSON.stringify(form),
@@ -149,7 +149,7 @@ export default function ProfilePage() {
     if (!token) return;
     const isNew = editId === "new";
     try {
-      const url = isNew ? `${API}/users/companies` : `${API}/users/companies/${draft.id}`;
+      const url = isNew ? apiUrl("/users/companies") : apiUrl(`/users/companies/${draft.id}`);
       const method = isNew ? "POST" : "PATCH";
       const res = await fetch(url, {
         method,
@@ -168,7 +168,7 @@ export default function ProfilePage() {
 
       // refresh seznamu firem
       setLoadingCompanies(true);
-      const cRes = await fetch(`${API}/users/companies`, { headers: { ...authHeader(token) } });
+      const cRes = await fetch(apiUrl("/users/companies"), { headers: { ...authHeader(token) } });
       const cData = await cRes.json();
       setCompanies(Array.isArray(cData) ? cData : []);
       setLoadingCompanies(false);
@@ -187,19 +187,19 @@ export default function ProfilePage() {
     if (!token) return;
     if (!confirm("Opravdu smazat tento subjekt?")) return;
     try {
-      const res = await fetch(`${API}/users/companies/${id}`, {
+      const res = await fetch(apiUrl(`/users/companies/${id}`), {
         method: "DELETE",
         headers: { ...authHeader(token) },
       });
       if (!res.ok) throw new Error(await res.text());
 
       // refresh seznamu
-      const cRes = await fetch(`${API}/users/companies`, { headers: { ...authHeader(token) } });
+      const cRes = await fetch(apiUrl("/users/companies"), { headers: { ...authHeader(token) } });
       const cData = await cRes.json();
       setCompanies(Array.isArray(cData) ? cData : []);
 
       // přenačti profil i UserContext (active_company_id se mohl změnit)
-      const uRes = await fetch(`${API}/users/me`, { headers: { ...authHeader(token) } });
+      const uRes = await fetch(apiUrl("/users/me"), { headers: { ...authHeader(token) } });
       const uData = await uRes.json();
       setForm((f) => ({ ...f, ...uData }));
 
@@ -212,7 +212,7 @@ export default function ProfilePage() {
   // ⬇️ PŘEPÍNÁNÍ AKTIVNÍ FIRMY – používáme UserContext.setActiveCompany
   async function onActivateCompany(id: number) {
     try {
-      await setActiveCompany(id);   // PATCH /api/users/me + refreshUser()
+      await setActiveCompany(id);   // PATCH /users/me + refreshUser() uvnitř kontextu
       setForm((f) => ({ ...f, active_company_id: id })); // lokální sync pro „zelený řádek“
     } catch {
       alert("Nepodařilo se přepnout aktivní firmu.");
@@ -419,7 +419,7 @@ export default function ProfilePage() {
                   {companies.map((c) => {
                     const isActive = c.id === form.active_company_id;
                     return (
-                      <tr key={c.id} className={`border-t ${isActive ? "bg-green-50" : ""}`}>
+                      <tr key={c.id} className={`border-top ${isActive ? "bg-green-50" : ""}`}>
                         <td className="p-2">{c.name}</td>
                         <td className="p-2">{c.address || ""}</td>
                         <td className="p-2">{c.ico || ""}</td>

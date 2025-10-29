@@ -9,6 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { useAuth } from "./AuthContext";
+import { apiUrl } from "../api/base";
 
 export type Profile = {
   id?: string | number;
@@ -19,7 +20,7 @@ export type Profile = {
   authorizationNumber?: string;
   activeCompanyId?: number | string | null;
 
-  // OSVČ údaje (vrací je /users/me)
+  // OSVČ údaje (vrací je /api/users/me)
   ico?: string;
   dic?: string;
   address?: string;
@@ -130,12 +131,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   // hlídáme, abychom nespustili dvojité loady firem při rychlém sledu
-  const loadingAllRef = useRef<boolean>(false);
+  const loadingAllRef = useRef<boolean>(false);;;
 
   // ---- fetch profil ----
   const fetchProfile = useCallback(async (): Promise<Profile | null> => {
     if (!token) return null;
-    const resp = await fetch("users/me", {
+    const resp = await fetch(apiUrl("users/me"), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) await throwNice(resp);
@@ -146,7 +147,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // ---- fetch firmy ----
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     if (!token) return [];
-    const resp = await fetch("users/companies", {
+    const resp = await fetch(apiUrl("users/companies"), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!resp.ok) await throwNice(resp);
@@ -261,7 +262,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setProfile((p) => (p ? { ...p, activeCompanyId: targetId } : p));
 
       // ulož na server (PATCH /users/me)
-      const resp = await fetch("users/me", {
+      const resp = await fetch(apiUrl("users/me"), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

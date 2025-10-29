@@ -1,5 +1,4 @@
 // src/pages/EditRevision.tsx
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -11,17 +10,20 @@ import ZkouskySection from "../sections/ZkouskySection";
 import MereniSection from "../sections/MereniSection";
 import DefectsRecommendationsSection from "../sections/DefectsRecommendationsSection";
 import ZaverSection from "../sections/ConclusionSection";
-import { apiGet } from "../api/http";
+
+import { apiUrl } from "../api/base";
+import { useAuth } from "../context/AuthContext";
+import { authHeader } from "../api/auth";
 
 export default function EditRevision() {
   const { revId } = useParams();
-  const [activeSection, setActiveSection] = useState("identifikace");
+  const { token } = useAuth();
 
+  const [activeSection, setActiveSection] = useState("identifikace");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // map sekcí – beze změny
   const sectionMap: Record<string, React.ReactNode> = {
     identifikace: <IdentifikaceSection />,
     prohlidka: <ProhlidkaSection />,
@@ -31,24 +33,27 @@ export default function EditRevision() {
     zaver: <ZaverSection />,
   };
 
-  // validace parametru
   if (!revId) return <div className="p-6">❌ Chybí ID revize v URL.</div>;
 
-  // Přednahrání detailu revize přes API (s JWT)
+  // Načtení detailu revize (kvůli ověření existence a případnému prefetchi)
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
+      if (!token) return;
       setLoading(true);
       setErr(null);
       try {
-        const res = await apiGet(`/revisions/${revId}`, { signal: ctrl.signal });
+        const res = await fetch(apiUrl(`/revisions/${revId}`), {
+          method: "GET",
+          headers: { ...authHeader(token) },
+          signal: ctrl.signal,
+        });
         if (!res.ok) {
           setErr(`${res.status} ${res.statusText}`);
           return;
         }
-        // Pokud bys tady potřeboval data, můžeš si je uložit do state.
-        // const data = await res.json();
-        await res.json(); // jen „spotřebujeme“ stream
+        // data aktuálně nikde nepotřebujeme – jen „spotřebujeme“ stream
+        await res.json();
       } catch (e: any) {
         if (e?.name !== "AbortError") setErr("Network error");
       } finally {
@@ -56,7 +61,7 @@ export default function EditRevision() {
       }
     })();
     return () => ctrl.abort();
-  }, [revId, refreshKey]);
+  }, [revId, token, refreshKey]);
 
   if (loading) {
     return (

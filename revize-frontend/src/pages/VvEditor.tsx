@@ -11,8 +11,10 @@ import {
   AlertTriangle,
   BadgeCheck,
 } from "lucide-react";
-import api, { API as API_URL } from "../api/axios";
 import Sidebar from "../components/Sidebar";
+import { apiUrl } from "../api/base";
+import { useAuth } from "../context/AuthContext";
+import { authHeader } from "../api/auth";
 
 /** ===== Typy ===== */
 type Group = "A" | "B" | "C";
@@ -201,6 +203,7 @@ function toColumns<T>(arr: T[], cols: number): T[][] {
 export default function VvEditor() {
   const { id: vvId } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   const [doc, setDoc] = useState<VvDoc | null>(null);
   const [data, setData] = useState<ProtocolData>(emptyProtocol());
@@ -215,30 +218,35 @@ export default function VvEditor() {
 
   // GET /vv/:id
   useEffect(() => {
-    if (!vvId) return;
+    if (!vvId || !token) return;
     let alive = true;
     setBusy(true);
-    api
-      .get<VvDoc>(`/vv/${vvId}`)
-      .then((res) => {
+    (async () => {
+      try {
+        const res = await fetch(apiUrl(`/vv/${vvId}`), {
+          headers: { ...authHeader(token) },
+        });
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const payload = (await res.json()) as VvDoc;
         if (!alive) return;
-        setDoc(res.data);
-        const payload = (res.data?.data_json as ProtocolData) || emptyProtocol();
-        const merged: ProtocolData = { ...emptyProtocol(), ...payload };
+        setDoc(payload);
+        const base = emptyProtocol();
+        const merged: ProtocolData = { ...base, ...(payload?.data_json || {}) };
         if (merged.submittedDocs === undefined) merged.submittedDocs = "";
         if (merged.objectDescription === undefined) merged.objectDescription = "";
         setData(merged);
         setActiveSpaceId(merged.spaces?.[0]?.id || null);
-      })
-      .catch((e) => {
+      } catch (e) {
         console.error("VV GET error:", e);
         alert("Nepodařilo se načíst dokument VV. (GET)");
-      })
-      .finally(() => alive && setBusy(false));
+      } finally {
+        alive && setBusy(false);
+      }
+    })();
     return () => {
       alive = false;
     };
-  }, [vvId]);
+  }, [vvId, token]);
 
   // načtení JSON slovníku
   useEffect(() => {
@@ -288,17 +296,22 @@ export default function VvEditor() {
     };
   }, []);
 
-  // Autosave (PUT /vv/:id)
+  // Autosave (PUT /vv/:id) — debounced
   const saveTimer = useRef<number | null>(null);
   const lastSaved = useRef<string>("");
   const scheduleSave = (payload: ProtocolData) => {
-    if (!doc?.id) return;
+    if (!doc?.id || !token) return;
     const key = JSON.stringify(payload);
     if (key === lastSaved.current) return;
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
       try {
-        await api.put(`/vv/${doc.id}`, { data_json: payload });
+        const res = await fetch(apiUrl(`/vv/${doc.id}`), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...authHeader(token) },
+          body: JSON.stringify({ data_json: payload }),
+        });
+        if (!res.ok) throw new Error(await res.text());
         lastSaved.current = key;
       } catch (e) {
         console.error("VV PUT error:", e);
@@ -359,7 +372,6 @@ export default function VvEditor() {
   };
   const groupedReqForActive = useMemo(
     () => dedupAndGroup(requirementsForSpaceRaw(activeSpace)),
-    // záměrně: změna výběrů v aktivním prostoru => přepočet
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeSpaceId, JSON.stringify(activeSpace?.selections), influences, families]
   );
@@ -376,6 +388,8 @@ export default function VvEditor() {
     URL.revokeObjectURL(url);
   };
   const doPrint = () => window.print();
+
+  const API_DISPLAY = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
@@ -396,7 +410,7 @@ export default function VvEditor() {
           }
         `}</style>
 
-        {/* Toolbar (bez horní lišty) */}
+        {/* Toolbar */}
         <div className="no-print mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate("/")}
@@ -495,7 +509,7 @@ export default function VvEditor() {
 
             {/* Komise */}
             <div className="bg-white rounded-2xl shadow-sm border p-4">
-              <h2 className="font-semibold text-lg mb-2 flex items-center gap-2">
+              <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 Komise <Info className="h-4 w-4 opacity-60" />
               </h2>
               <div className="space-y-2">
@@ -1058,7 +1072,7 @@ export default function VvEditor() {
 
         {/* Footer status */}
         <div className="no-print text-sm text-slate-500 mt-6">
-          Backend: <span className="font-mono">{API_URL}</span> •{" "}
+          Backend: <span className="font-mono">{API_DISPLAY}</span> •{" "}
           {busy ? "Načítám…" : "Připraveno"}
         </div>
       </main>
