@@ -13,6 +13,10 @@ import EditRevision from "./pages/EditRevision";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import DefectProposalsPage from "./pages/admin/DefectProposalsPage";
+import RevisionsAdminPage from "./pages/admin/RevisionsAdminPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
@@ -92,6 +96,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                   </ProtectedRoute>
                 }
               />
+
+              {/* Admin */}
+              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/defects" element={<AdminRoute><DefectProposalsPage /></AdminRoute>} />
+              <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
 
               {/* (volitelné) 404 fallback */}
               {/* <Route path="*" element={<NotFoundPage />} /> */}

@@ -160,6 +160,22 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           )}
 
           <hr className="my-4 border-gray-300" />
+          {profile?.isAdmin && (
+            <div className=\"mt-4\">
+              <div className=\"text-xs text-gray-500 mb-2\">Admin</div>
+              <div className=\"flex flex-col gap-2\">
+                <button className=\"bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition\" onClick={() => navigate('/admin')}>
+                  P¯ehled administr·tora
+                </button>
+                <button className=\"bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition\" onClick={() => navigate('/admin/defects')}>
+                  N·vrhy z·vad
+                </button>
+                <button className=\"bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition\" onClick={() => navigate('/admin/revisions')}>
+                  Revize vöech uûivatel˘
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* NASTAVEN√ç */}
           <div className="relative">
@@ -246,3 +262,4 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     </>
   );
 }
+

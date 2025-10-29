@@ -46,6 +46,8 @@ class User(Base):
     password_hash      = Column(String, nullable=False)
     is_verified        = Column(Boolean, default=False)
     verification_token = Column(String, nullable=True)
+    # Admin role flag (simple RBAC). Kept as boolean for compatibility with existing code
+    is_admin           = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # profilová data
     certificate_number   = Column(String, nullable=True)   # číslo osvědčení

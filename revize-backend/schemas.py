@@ -128,6 +128,7 @@ class UserProfileRead(BaseModel):
     user_id: Optional[int] = None
     name: Optional[str] = None
     email: Optional[str] = None
+    is_admin: Optional[bool] = None
     phone: Optional[str] = None
     address: Optional[str] = None
 

@@ -15,6 +15,7 @@ export type Profile = {
   id?: string | number;
   fullName: string;
   email?: string;
+  isAdmin?: boolean;
   phone?: string;
   certificateNumber?: string;
   authorizationNumber?: string;
@@ -83,6 +84,7 @@ function mapProfile(raw: any): Profile {
     id: raw?.id ?? raw?.user_id ?? raw?.userId,
     fullName: raw?.full_name ?? raw?.fullName ?? raw?.name ?? "",
     email: raw?.email ?? undefined,
+    isAdmin: Boolean(raw?.is_admin ?? raw?.isAdmin ?? false),
     phone: raw?.phone ?? undefined,
     certificateNumber: raw?.certificate_number ?? raw?.certificateNumber ?? undefined,
     authorizationNumber: raw?.authorization_number ?? raw?.authorizationNumber ?? undefined,
