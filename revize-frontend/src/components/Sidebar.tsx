@@ -185,13 +185,13 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
               </div>
             </div>
 
-          {/* NASTAVENĂŤ */}
+          {/* Nastaveni*/}
           <div className="relative">
             <button
               className="bg-gray-200 px-4 py-2 rounded w-full text-left hover:bg-gray-300 transition"
               onClick={() => setShowSettings(!showSettings)}
             >
-              âš™ď¸Ź NastavenĂ­
+              âš™ď¸Ź Nastaveni
             </button>
 
             {showSettings && (
@@ -201,6 +201,34 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                     isCatalog ? "bg-blue-50 font-medium" : ""
                   }`}
                   onClick={() => go("/katalog")}
+                >
+                  Katalog
+                </li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => go("/instruments")}
+                >
+                  Merici pristroje
+                </li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => go("/profil")}
+                >
+                  Profil
+                </li>
+                <li className="p-2 hover:bg-gray-100 cursor-pointer">Tisk</li>
+                <li className="p-2 hover:bg-gray-100 cursor-pointer">Merici pristroje</li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    logout();
+                    go("/login");
+                  }}
+                >
+                  Odhlasit se
+                </li>
+              </ul>
+            )}
                 >
                   đź“š Katalog
                 </li>
@@ -270,5 +298,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     </>
   );
 }
+
 
 
