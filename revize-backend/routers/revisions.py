@@ -195,7 +195,8 @@ def get_revision(
     )
     if not rev:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    if not _can_access_project(user, rev.project):
+    # Admin může přistupovat ke všem revizím
+    if not bool(getattr(user, "is_admin", False)) and not _can_access_project(user, rev.project):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
     return _to_schema(rev)
 
