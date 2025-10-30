@@ -1,4 +1,4 @@
-﻿// src/components/Sidebar.tsx
+// src/components/Sidebar.tsx
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
@@ -18,30 +18,30 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
   const { logout } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
-  // potvrzenĂ­ dokonÄŤenĂ­
+  // potvrzení dokončení
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  // User context (novÄ›: profil technika + firma)
+  // User context (nově: profil technika + firma)
   const { profile, company, loading } = useUser();
 
-  // dostupnĂ© jen pokud jsme uvnitĹ™ RevisionEdit provideru
+  // dostupné jen pokud jsme uvnitř RevisionEdit provideru
   const { finish } = (() => {
     try {
       return useRevisionForm();
     } catch {
-      // mimo provider â€“ vrĂˇtĂ­me dummy
+      // mimo provider – vrátíme dummy
       return { finish: () => Promise.resolve() } as any;
     }
   })();
 
   const editSections = [
     { key: "identifikace", label: "Identifikace" },
-    { key: "prohlidka", label: "ProhlĂ­dka" },
-    { key: "zkousky", label: "ZkouĹˇky" },
-    { key: "mereni", label: "MÄ›Ĺ™enĂ­" },
-    { key: "zavady", label: "ZĂˇvady a doporuÄŤenĂ­" },
-    { key: "zaver", label: "ZĂˇvÄ›r" },
+    { key: "prohlidka", label: "Prohlídka" },
+    { key: "zkousky", label: "Zkoušky" },
+    { key: "mereni", label: "Měření" },
+    { key: "zavady", label: "Závady a doporučení" },
+    { key: "zaver", label: "Závěr" },
   ];
 
   const go = (path: string) => {
@@ -51,25 +51,25 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
 
   const isCatalog = mode === "catalog" || location.pathname.startsWith("/katalog");
   const isSummary = mode === "summary";
-  // strĂˇnka mÄ›Ĺ™icĂ­ch pĹ™Ă­strojĹŻ (obÄ› moĹľnĂ© cesty)
+  // stránka měřicích přístrojů (obě možné cesty)
   const isInstruments =
     location.pathname.startsWith("/instruments") ||
     location.pathname.startsWith("/merici-pristroje");
 
   const initial = (profile?.fullName?.[0] || "T").toUpperCase();
 
-  // potvrzenĂ­ dokonÄŤenĂ­ â†’ zavolat finish() a pĹ™esmÄ›rovat
+  // potvrzení dokončení → zavolat finish() a přesměrovat
   const confirmFinish = async () => {
     setFinishing(true);
     try {
       await finish();
     } catch (e) {
-      // pĹ™Ă­padnÄ› mĹŻĹľeĹˇ doplnit toast; poĹľadavek je kaĹľdopĂˇdnÄ› pĹ™esmÄ›rovat
-      console.warn("DokonÄŤenĂ­ selhalo, pĹ™esmÄ›rovĂˇvĂˇm i tak.", e);
+      // případně můžeš doplnit toast; požadavek je každopádně přesměrovat
+      console.warn("Dokončení selhalo, přesměrovávám i tak.", e);
     } finally {
       setFinishing(false);
       setShowConfirmFinish(false);
-      navigate("/"); // zpÄ›t na projekty
+      navigate("/"); // zpět na projekty
     }
   };
 
@@ -77,39 +77,39 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     <>
       <aside className="w-64 bg-white shadow-lg p-4 flex flex-col justify-between sticky top-0 h-screen overflow-y-auto">
         <div>
-          {/* Hlavicka se jmĂ©nem technika, ÄŤĂ­slem osvÄ›dÄŤenĂ­ a aktivnĂ­m subjektem */}
+          {/* Hlavicka se jménem technika, číslem osvědčení a aktivním subjektem */}
           <div className="text-center mb-6">
             <div className="w-20 h-20 rounded-full bg-blue-500/20 text-blue-900 mx-auto mb-2 shadow-inner flex items-center justify-center text-2xl font-semibold">
               {initial}
             </div>
 
             <div className="font-bold text-blue-900">
-              {profile?.fullName ?? (loading ? "NaÄŤĂ­tĂˇmâ€¦" : "â€”")}
+              {profile?.fullName ?? (loading ? "Načítám…" : "—")}
             </div>
 
             <div className="text-sm text-gray-600">
-              OsvÄ›dÄŤenĂ­:{" "}
+              Osvědčení:{" "}
               <span className="font-medium">
-                {profile?.certificateNumber || (loading ? "â€¦" : "â€”")}
+                {profile?.certificateNumber || (loading ? "…" : "—")}
               </span>
             </div>
 
             <div className="text-sm text-gray-600">
-              AktivnĂ­ subjekt:{" "}
+              Aktivní subjekt:{" "}
               <span className="font-medium" title={company?.name}>
-                {company?.name || (loading ? "â€¦" : "â€”")}
+                {company?.name || (loading ? "…" : "—")}
               </span>
             </div>
           </div>
 
-          {/* ReĹľim EDIT â€“ pĹ™epĂ­naÄŤe sekcĂ­ + akce */}
+          {/* Režim EDIT – přepínače sekcí + akce */}
           {mode === "edit" && (
             <>
               <button
                 className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
                 onClick={() => navigate("/")}
               >
-                â¬…ď¸Ź ZpÄ›t na projekty
+                ← Zpět na projekty
               </button>
 
               <nav className="flex flex-col gap-2 mb-4">
@@ -128,34 +128,34 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 ))}
               </nav>
 
-              {/* DokonÄŤit revizi (s potvrzenĂ­m) */}
+              {/* Dokončit revizi (s potvrzením) */}
               <button
                 className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
                 onClick={() => setShowConfirmFinish(true)}
-                title="OznaÄŤit revizi jako dokonÄŤenou"
+                title="Označit revizi jako dokončenou"
               >
-                âś… DokonÄŤit
+                ✓ Dokončit
               </button>
             </>
           )}
 
-          {/* ReĹľim DASHBOARD â€“ tlaÄŤĂ­tko novĂ˝ projekt (NE na instruments) */}
+          {/* Režim DASHBOARD – tlačítko nový projekt (NE na instruments) */}
           {mode === "dashboard" && !isInstruments && (
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded mb-2 hover:bg-blue-700 transition"
               onClick={() => onNewProject?.()}
             >
-              + NovĂ˝ projekt
+              + Nový projekt
             </button>
           )}
 
-          {/* ReĹľimy CATALOG / SUMMARY / INSTRUMENTS â€“ jen â€žZpÄ›t na projektyâ€ś */}
+          {/* Režimy CATALOG / SUMMARY / INSTRUMENTS – jen „Zpět na projekty“ */}
           {(isCatalog || isSummary || isInstruments) && (
             <button
               className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
               onClick={() => navigate("/")}
             >
-              â¬…ď¸Ź ZpÄ›t na projekty
+              ← Zpět na projekty
             </button>
           )}
 
@@ -184,14 +184,15 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 </button>
               </div>
             </div>
+          )}
 
-          {/* Nastaveni*/}
-          <div className="relative">
+          {/* Nastavení */}
+          <div className="relative mt-4">
             <button
               className="bg-gray-200 px-4 py-2 rounded w-full text-left hover:bg-gray-300 transition"
               onClick={() => setShowSettings(!showSettings)}
             >
-              âš™ď¸Ź Nastaveni
+              ⚙️ Nastavení
             </button>
 
             {showSettings && (
@@ -208,7 +209,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                   className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => go("/instruments")}
                 >
-                  Merici pristroje
+                  Měřící přístroje
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
@@ -217,7 +218,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                   Profil
                 </li>
                 <li className="p-2 hover:bg-gray-100 cursor-pointer">Tisk</li>
-                <li className="p-2 hover:bg-gray-100 cursor-pointer">Merici pristroje</li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => {
@@ -225,35 +225,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                     go("/login");
                   }}
                 >
-                  Odhlasit se
-                </li>
-              </ul>
-            )}
-                >
-                  đź“š Katalog
-                </li>
-                <li
-                  className="p-2 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => go("/instruments")}
-                >
-                  đź§° MÄ›Ĺ™Ă­cĂ­ pĹ™Ă­stroje
-                </li>
-                <li
-                  className="p-2 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => go("/profil")}
-                >
-                  đź‘¤ Profil
-                </li>
-                <li className="p-2 hover:bg-gray-100 cursor-pointer">đź–¨ď¸Ź Tisk</li>
-                <li className="p-2 hover:bg-gray-100 cursor-pointer">đź–¨ď¸Ź MÄ›Ĺ™Ă­cĂ­ pĹ™Ă­stroje</li>
-                <li
-                  className="p-2 hover:bg-gray-100 cursor-pointer"
-                  onClick={() => {
-                    logout();
-                    go("/login");
-                  }}
-                >
-                  đźšŞ OdhlĂˇsit se
+                  Odhlásit se
                 </li>
               </ul>
             )}
@@ -261,7 +233,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
         </div>
       </aside>
 
-      {/* PotvrzovacĂ­ dialog â€žDokonÄŤitâ€ś */}
+      {/* Potvrzovací dialog „Dokončit“ */}
       {showConfirmFinish && (
         <div
           className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
@@ -271,9 +243,9 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
             className="bg-white p-6 rounded shadow w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold mb-2">OznaÄŤit revizi jako dokonÄŤenou?</h3>
+            <h3 className="text-lg font-semibold mb-2">Označit revizi jako dokončenou?</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Po potvrzenĂ­ bude revize uzamÄŤena k ĂşpravĂˇm. NĂˇslednÄ› tÄ› pĹ™esmÄ›ruji na pĹ™ehled projektĹŻ.
+              Po potvrzení bude revize uzamčena k úpravám. Následně tě přesměruji na přehled projektů.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -281,15 +253,15 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 onClick={() => setShowConfirmFinish(false)}
                 disabled={finishing}
               >
-                ZruĹˇit
+                Zrušit
               </button>
               <button
                 className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-60"
                 onClick={confirmFinish}
                 disabled={finishing}
-                title="DokonÄŤit revizi"
+                title="Dokončit revizi"
               >
-                {finishing ? "DokonÄŤujiâ€¦" : "DokonÄŤit"}
+                {finishing ? "Dokončuji…" : "Dokončit"}
               </button>
             </div>
           </div>
@@ -298,6 +270,4 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     </>
   );
 }
-
-
 
