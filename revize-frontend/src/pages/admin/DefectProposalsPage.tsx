@@ -23,8 +23,11 @@ export default function DefectProposalsPage() {
   async function load() {
     setLoading(true);
     try {
-      const resp = await api.get("/defects", { params: q ? { q } : undefined });
-      setItems(resp.data || []);
+      const params: any = {};
+      if (q) params.q = q;
+      // ask server for all defects; optionally filter status on server in future
+      const resp = await api.get("/admin/defects", { params });
+      setItems(Array.isArray(resp.data) ? resp.data : []);
     } finally {
       setLoading(false);
     }
@@ -121,4 +124,3 @@ export default function DefectProposalsPage() {
     </div>
   );
 }
-

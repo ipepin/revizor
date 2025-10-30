@@ -21,8 +21,8 @@ export default function RevisionsAdminPage() {
     (async () => {
       setLoading(true);
       try {
-        // Note: backend current list endpoint returns only accessible revs; admin-wide listing may need a new endpoint
-        const resp = await api.get("/revisions");
+        // Fetch all revisions via admin endpoint
+        const resp = await api.get("/admin/revisions");
         if (mounted) setItems(resp.data || []);
       } finally {
         if (mounted) setLoading(false);
@@ -55,4 +55,3 @@ export default function RevisionsAdminPage() {
     </div>
   );
 }
-
