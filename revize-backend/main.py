@@ -46,4 +46,5 @@ app.include_router(companies_router, dependencies=[Depends(get_current_user)])
 app.include_router(devices_router,  dependencies=[Depends(get_current_user)])
 app.include_router(export_router,  dependencies=[Depends(get_current_user)])
 app.include_router(vv_router, dependencies=[Depends(get_current_user)])
-app.include_router(admin_router, dependencies=[Depends(get_current_user)])
+# Admin router řeší autorizaci uvnitř handlerů; neblokuj CORS preflight přes globální dependency
+app.include_router(admin_router)
