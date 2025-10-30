@@ -184,18 +184,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 </button>
               </div>
             </div>
-          )}>
-                  Přehled administrátora
-                </button>
-                <button className=\"bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition\" onClick={() => navigate('/admin/defects')}>
-                  Návrhy závad
-                </button>
-                <button className=\"bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition\" onClick={() => navigate('/admin/revisions')}>
-                  Revize všech uživatelů
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* NASTAVENĂŤ */}
           <div className="relative">
