@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import func
 
@@ -211,8 +212,9 @@ def reject_user(
     return {"id": target.id, "is_verified": target.is_verified}
 
 
-class AdminUserPatchPayload(dict):
-    pass
+class AdminUserPatchPayload(BaseModel):
+    is_admin: Optional[bool] = None
+    is_verified: Optional[bool] = None
 
 
 @router.patch("/users/{uid}")
@@ -226,7 +228,7 @@ def patch_user(
     target = db.query(UserModel).get(uid)
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
-    data = dict(payload or {})
+    data = payload.model_dump(exclude_unset=True)
     if "is_admin" in data:
         target.is_admin = bool(data["is_admin"])  # type: ignore
     if "is_verified" in data:
