@@ -43,9 +43,15 @@ export default function RevisionsAdminPage() {
         ) : (
           <div className="bg-white rounded shadow divide-y mt-3">
             {items.map((r) => (
-              <div key={r.id} className="p-3">
-                <div className="font-medium">{r.number || `Revize #${r.id}`}</div>
-                <div className="text-xs text-gray-500">{r.type || ""} • {r.status || ""} • projekt #{r.project_id}</div>
+              <div key={r.id} className="p-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium">{r.number || `Revize #${r.id}`}</div>
+                  <div className="text-xs text-gray-500">{r.type || ""} • {r.status || ""} • projekt #{r.project_id}</div>
+                </div>
+                <div className="flex gap-2">
+                  <a className="px-3 py-1 bg-indigo-600 text-white rounded" href={`#/summary/${r.id}`}>Souhrn</a>
+                  <a className="px-3 py-1 bg-gray-200 rounded" href={`#/revize/${r.id}`}>Otevřít</a>
+                </div>
               </div>
             ))}
             {items.length === 0 && <div className="p-4 text-gray-500">Žádné revize</div>}

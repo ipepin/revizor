@@ -8,7 +8,8 @@ import json as _json
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
+from sqlalchemy import select
 from pydantic import BaseModel
 
 from database import get_db
@@ -189,7 +190,7 @@ def get_revision(
 ):
     rev = (
         db.query(Revision)
-        .options(joinedload(Revision.project))
+        .options(joinedload(Revision.project), defer(Revision.data_json))
         .filter(Revision.id == rev_id)
         .first()
     )
@@ -198,6 +199,23 @@ def get_revision(
     # Admin může přistupovat ke všem revizím
     if not bool(getattr(user, "is_admin", False)) and not _can_access_project(user, rev.project):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    # bezpečné načtení data_json zvlášť (může být uložen jako string)
+    try:
+        raw_value = db.execute(
+            select(Revision.__table__.c.data_json).where(Revision.id == rev_id)
+        ).scalar_one_or_none()
+        from json import loads as _loads
+        if isinstance(raw_value, str):
+            try:
+                rev.data_json = _loads(raw_value)
+            except Exception:
+                rev.data_json = {}
+        elif raw_value is None:
+            rev.data_json = {}
+        else:
+            rev.data_json = raw_value if isinstance(raw_value, dict) else {}
+    except Exception:
+        rev.data_json = {}
     return _to_schema(rev)
 
 

@@ -17,6 +17,7 @@ import AdminRoute from "./components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DefectProposalsPage from "./pages/admin/DefectProposalsPage";
 import RevisionsAdminPage from "./pages/admin/RevisionsAdminPage";
+import DefectsEditorPage from "./pages/admin/DefectsEditorPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
@@ -101,6 +102,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
               <Route path="/admin/defects" element={<AdminRoute><DefectProposalsPage /></AdminRoute>} />
               <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
+              <Route path="/admin/defects-editor" element={<AdminRoute><DefectsEditorPage /></AdminRoute>} />
 
               {/* (volitelné) 404 fallback */}
               {/* <Route path="*" element={<NotFoundPage />} /> */}
