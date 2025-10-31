@@ -8,7 +8,7 @@ from sqlalchemy import func
 
 from database import get_db
 from routers.auth import get_current_user
-from models import User as UserModel, Revision, Defect, Project
+from models import User as UserModel, Revision, Defect, Project, VvDoc
 from schemas import RevisionRead, ProjectRead, DefectRead
 
 
@@ -73,16 +73,15 @@ def list_all_defects(
 def list_all_projects(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
+    owner_id: Optional[int] = Query(None),
 ):
     _ensure_admin(user)
-    return (
-        db.query(Project)
-        .options(
-            joinedload(Project.revisions).defer(Revision.data_json),
-        )
-        .order_by(Project.id.desc())
-        .all()
+    q = db.query(Project).options(
+        joinedload(Project.revisions).defer(Revision.data_json),
     )
+    if owner_id is not None:
+        q = q.filter(Project.owner_id == owner_id)
+    return q.order_by(Project.id.desc()).all()
 
 
 @router.get("/revisions/{rev_id}/technician")
@@ -131,6 +130,26 @@ def get_revision_technician(
             "phone": getattr(comp, "phone", None),
         },
     }
+
+
+@router.get("/projects/{pid}/vv")
+def list_vv_for_project(
+    pid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    rows = db.query(VvDoc).filter(VvDoc.project_id == pid).order_by(VvDoc.number.asc()).all()
+    out = []
+    for r in rows:
+        out.append(
+            {
+                "id": getattr(r, "id", None),
+                "number": getattr(r, "number", None),
+                "project_id": getattr(r, "project_id", None),
+            }
+        )
+    return out
 
 
 # -------- Users (technicians) management --------
