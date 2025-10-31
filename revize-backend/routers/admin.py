@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload, defer
+from sqlalchemy import func
 
 from database import get_db
 from routers.auth import get_current_user
@@ -139,14 +140,17 @@ def list_users(
     user: UserModel = Depends(get_current_user),
     q: Optional[str] = Query(None),
     verified: Optional[bool] = Query(None),
-    role: Optional[str] = Query(None, pattern="^(admin|user)$"),
+    role: Optional[str] = Query(None),  # expected values: 'admin' | 'user'
 ):
     _ensure_admin(user)
     query = db.query(UserModel)
     if q:
         q_like = f"%{q.strip().lower()}%"
+        # Použij lower(...) LIKE ... pro dobrou kompatibilitu se SQLite
         query = query.filter(
-            (UserModel.name.ilike(q_like)) | (UserModel.email.ilike(q_like)) | (UserModel.phone.ilike(q_like))
+            (func.lower(UserModel.name).like(q_like))
+            | (func.lower(UserModel.email).like(q_like))
+            | (func.lower(UserModel.phone).like(q_like))
         )
     if verified is not None:
         query = query.filter(UserModel.is_verified == verified)
