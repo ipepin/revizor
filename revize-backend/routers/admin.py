@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from routers.auth import get_current_user
 from models import User as UserModel, Revision, Defect, Project
-from schemas import RevisionRead, ProjectRead
+from schemas import RevisionRead, ProjectRead, DefectRead
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -26,7 +26,7 @@ def list_all_revisions(
     project_id: Optional[int] = Query(None),
 ):
     _ensure_admin(user)
-    q = db.query(Revision).order_by(Revision.id.desc())
+    q = db.query(Revision).options(joinedload(Revision.project)).order_by(Revision.id.desc())
     if status_filter:
         q = q.filter(Revision.status == status_filter)
     if project_id is not None:
@@ -35,7 +35,7 @@ def list_all_revisions(
     return [RevisionRead.model_validate(r, from_attributes=True) for r in rows]
 
 
-@router.get("/defects")
+@router.get("/defects", response_model=List[DefectRead])
 def list_all_defects(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
@@ -55,4 +55,9 @@ def list_all_projects(
     user: UserModel = Depends(get_current_user),
 ):
     _ensure_admin(user)
-    return db.query(Project).order_by(Project.id.desc()).all()
+    return (
+        db.query(Project)
+        .options(joinedload(Project.revisions))
+        .order_by(Project.id.desc())
+        .all()
+    )
