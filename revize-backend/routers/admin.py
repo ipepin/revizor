@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 
 from database import get_db
 from routers.auth import get_current_user
@@ -26,7 +26,14 @@ def list_all_revisions(
     project_id: Optional[int] = Query(None),
 ):
     _ensure_admin(user)
-    q = db.query(Revision).options(joinedload(Revision.project)).order_by(Revision.id.desc())
+    q = (
+        db.query(Revision)
+        .options(
+            joinedload(Revision.project),
+            defer(Revision.data_json),  # avoid coercion errors on bad persisted strings
+        )
+        .order_by(Revision.id.desc())
+    )
     if status_filter:
         q = q.filter(Revision.status == status_filter)
     if project_id is not None:
@@ -68,7 +75,9 @@ def list_all_projects(
     _ensure_admin(user)
     return (
         db.query(Project)
-        .options(joinedload(Project.revisions))
+        .options(
+            joinedload(Project.revisions).defer(Revision.data_json),
+        )
         .order_by(Project.id.desc())
         .all()
     )
