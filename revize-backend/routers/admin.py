@@ -81,3 +81,157 @@ def list_all_projects(
         .order_by(Project.id.desc())
         .all()
     )
+
+
+@router.get("/revisions/{rev_id}/technician")
+def get_revision_technician(
+    rev_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    """Vrátí identitu technika (vlastníka projektu), který revizi vypracoval.
+    Pouze pro admina.
+    """
+    _ensure_admin(user)
+    rev = db.query(Revision).filter(Revision.id == rev_id).first()
+    if not rev:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
+    prj = db.query(Project).filter(Project.id == rev.project_id).first()
+    if not prj:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
+    tech = db.query(UserModel).options(joinedload(UserModel.active_company)).filter(UserModel.id == prj.owner_id).first()
+    if not tech:
+        # fallback: bez technika
+        return {
+            "user": None,
+            "company": None,
+        }
+    comp = getattr(tech, "active_company", None)
+    return {
+        "user": {
+            "id": tech.id,
+            "name": getattr(tech, "name", None),
+            "email": getattr(tech, "email", None),
+            "phone": getattr(tech, "phone", None),
+            "address": getattr(tech, "address", None),
+            "certificate_number": getattr(tech, "certificate_number", None),
+            "authorization_number": getattr(tech, "authorization_number", None),
+        },
+        "company": None
+        if comp is None
+        else {
+            "id": comp.id,
+            "name": getattr(comp, "name", None),
+            "ico": getattr(comp, "ico", None),
+            "dic": getattr(comp, "dic", None),
+            "address": getattr(comp, "address", None),
+            "email": getattr(comp, "email", None),
+            "phone": getattr(comp, "phone", None),
+        },
+    }
+
+
+# -------- Users (technicians) management --------
+
+@router.get("/users")
+def list_users(
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+    q: Optional[str] = Query(None),
+    verified: Optional[bool] = Query(None),
+    role: Optional[str] = Query(None, pattern="^(admin|user)$"),
+):
+    _ensure_admin(user)
+    query = db.query(UserModel)
+    if q:
+        q_like = f"%{q.strip().lower()}%"
+        query = query.filter(
+            (UserModel.name.ilike(q_like)) | (UserModel.email.ilike(q_like)) | (UserModel.phone.ilike(q_like))
+        )
+    if verified is not None:
+        query = query.filter(UserModel.is_verified == verified)
+    if role == "admin":
+        query = query.filter(UserModel.is_admin.is_(True))
+    if role == "user":
+        query = query.filter((UserModel.is_admin.is_(False)) | (UserModel.is_admin.is_(None)))
+
+    rows = query.order_by(UserModel.id.desc()).all()
+    # return light payload for table
+    out = []
+    for u in rows:
+        out.append(
+            {
+                "id": u.id,
+                "name": getattr(u, "name", None),
+                "email": getattr(u, "email", None),
+                "phone": getattr(u, "phone", None),
+                "is_verified": bool(getattr(u, "is_verified", False)),
+                "is_admin": bool(getattr(u, "is_admin", False)),
+                "certificate_number": getattr(u, "certificate_number", None),
+                "authorization_number": getattr(u, "authorization_number", None),
+            }
+        )
+    return out
+
+
+@router.post("/users/{uid}/verify")
+def verify_user(
+    uid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    target = db.query(UserModel).get(uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    target.is_verified = True
+    target.verification_token = None
+    db.add(target)
+    db.commit()
+    return {"id": target.id, "is_verified": target.is_verified}
+
+
+@router.post("/users/{uid}/reject")
+def reject_user(
+    uid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    target = db.query(UserModel).get(uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    target.is_verified = False
+    db.add(target)
+    db.commit()
+    return {"id": target.id, "is_verified": target.is_verified}
+
+
+class AdminUserPatchPayload(dict):
+    pass
+
+
+@router.patch("/users/{uid}")
+def patch_user(
+    uid: int,
+    payload: AdminUserPatchPayload,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    target = db.query(UserModel).get(uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    data = dict(payload or {})
+    if "is_admin" in data:
+        target.is_admin = bool(data["is_admin"])  # type: ignore
+    if "is_verified" in data:
+        target.is_verified = bool(data["is_verified"])  # type: ignore
+    db.add(target)
+    db.commit()
+    db.refresh(target)
+    return {
+        "id": target.id,
+        "is_admin": bool(getattr(target, "is_admin", False)),
+        "is_verified": bool(getattr(target, "is_verified", False)),
+    }

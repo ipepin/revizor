@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import DefectProposalsPage from "./pages/admin/DefectProposalsPage";
 import RevisionsAdminPage from "./pages/admin/RevisionsAdminPage";
 import DefectsEditorPage from "./pages/admin/DefectsEditorPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
@@ -100,6 +101,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
 
               {/* Admin */}
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/defects" element={<AdminRoute><DefectProposalsPage /></AdminRoute>} />
               <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
               <Route path="/admin/defects-editor" element={<AdminRoute><DefectsEditorPage /></AdminRoute>} />

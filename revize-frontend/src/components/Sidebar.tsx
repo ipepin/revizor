@@ -172,6 +172,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 </button>
                 <button
                   className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
+                  onClick={() => navigate("/admin/users")}
+                >
+                  Technici
+                </button>
+                <button
+                  className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
                   onClick={() => navigate("/admin/defects")}
                 >
                   Návrhy závad
