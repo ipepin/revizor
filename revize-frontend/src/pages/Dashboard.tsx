@@ -53,7 +53,9 @@ export default function Dashboard() {
   const fetchProjects = async (signal?: AbortSignal) => {
     if (!token) return;
     try {
-      const res = await fetch(apiUrl("/projects"), {
+      const admin = (profile as any)?.isAdmin === true;
+      const path = admin ? "/admin/projects" : "/projects";
+      const res = await fetch(apiUrl(path), {
         headers: { ...authHeader(token) },
         signal,
       });

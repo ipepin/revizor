@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from routers.auth import get_current_user
-from models import User as UserModel, Revision, Defect
-from schemas import RevisionRead
+from models import User as UserModel, Revision, Defect, Project
+from schemas import RevisionRead, ProjectRead
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -48,3 +48,11 @@ def list_all_defects(
         q = q.filter(Defect.moderation_status == status_filter)
     return q.order_by(Defect.id.desc()).all()
 
+
+@router.get("/projects", response_model=List[ProjectRead])
+def list_all_projects(
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    return db.query(Project).order_by(Project.id.desc()).all()
