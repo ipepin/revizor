@@ -18,7 +18,7 @@ def _ensure_admin(user: UserModel) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Admin only")
 
 
-@router.get("/revisions", response_model=List[RevisionRead])
+@router.get("/revisions")
 def list_all_revisions(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
@@ -32,7 +32,18 @@ def list_all_revisions(
     if project_id is not None:
         q = q.filter(Revision.project_id == project_id)
     rows = q.all()
-    return [RevisionRead.model_validate(r, from_attributes=True) for r in rows]
+    # Vrať minimalistické serializovatelné dicty, abychom vyloučili problémy s Pydantic/ORM
+    def _d(r: Revision):
+        return {
+            "id": r.id,
+            "project_id": r.project_id,
+            "number": r.number,
+            "type": r.type,
+            "status": r.status,
+            "date_done": r.date_done.isoformat() if getattr(r, "date_done", None) else None,
+            "valid_until": r.valid_until.isoformat() if getattr(r, "valid_until", None) else None,
+        }
+    return [_d(r) for r in rows]
 
 
 @router.get("/defects", response_model=List[DefectRead])
