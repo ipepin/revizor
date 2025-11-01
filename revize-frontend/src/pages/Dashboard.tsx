@@ -618,3 +618,9 @@ export default function Dashboard() {
     </div>
   );
 }
+  // Pokud je admin, přesměruj na admin dashboard (při vstupu na "/")
+  useEffect(() => {
+    if ((profile as any)?.isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [(profile as any)?.isAdmin]);

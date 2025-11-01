@@ -69,7 +69,7 @@ def list_all_defects(
     return q.order_by(Defect.id.desc()).all()
 
 
-@router.get("/projects", response_model=List[ProjectRead])
+@router.get("/projects")
 def list_all_projects(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
@@ -81,7 +81,27 @@ def list_all_projects(
     )
     if owner_id is not None:
         q = q.filter(Project.owner_id == owner_id)
-    return q.order_by(Project.id.desc()).all()
+    rows = q.order_by(Project.id.desc()).all()
+    # Vrať lehký payload bez data_json, aby nedocházelo k chybám serializace
+    out = []
+    for p in rows:
+        out.append(
+            {
+                "id": p.id,
+                "address": getattr(p, "address", None),
+                "client": getattr(p, "client", None),
+                "revisions": [
+                    {
+                        "id": r.id,
+                        "number": getattr(r, "number", None),
+                        "type": getattr(r, "type", None),
+                        "status": getattr(r, "status", None),
+                    }
+                    for r in getattr(p, "revisions", []) or []
+                ],
+            }
+        )
+    return out
 
 
 @router.get("/revisions/{rev_id}/technician")

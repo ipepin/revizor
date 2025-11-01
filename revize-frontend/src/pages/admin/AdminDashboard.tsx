@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import api from "../../api/axios";
 
@@ -9,13 +9,10 @@ type VvDoc = { id: string; number?: string };
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [activeUserId, setActiveUserId] = useState<number | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [expanded, setExpanded] = useState<Record<number, { vv?: VvDoc[] }>>({});
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [expandedUsers, setExpandedUsers] = useState<Record<number, { projects?: Project[]; vvByProject?: Record<number, VvDoc[]>; loading?: boolean }>>({});
 
-  // load users
+  // Načti techniky hned po přihlášení
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -23,10 +20,7 @@ export default function AdminDashboard() {
       try {
         const resp = await api.get("/admin/users");
         const list: AdminUser[] = Array.isArray(resp.data) ? resp.data : [];
-        if (mounted) {
-          setUsers(list);
-          if (list.length && activeUserId == null) setActiveUserId(list[0].id);
-        }
+        if (mounted) setUsers(list);
       } finally {
         if (mounted) setLoadingUsers(false);
       }
@@ -36,35 +30,48 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // load projects for active user
-  useEffect(() => {
-    if (!activeUserId) {
-      setProjects([]);
-      return;
-    }
-    let mounted = true;
-    (async () => {
-      setLoadingProjects(true);
-      try {
-        const resp = await api.get("/admin/projects", { params: { owner_id: activeUserId } });
-        const list: Project[] = Array.isArray(resp.data) ? resp.data : [];
-        if (mounted) setProjects(list);
-      } finally {
-        if (mounted) setLoadingProjects(false);
+  async function toggleUser(userId: number) {
+    setExpandedUsers((m) => ({ ...m, [userId]: { ...(m[userId] || {}), loading: true } }));
+    // když ještě nemáme projekty, načti
+    if (!expandedUsers[userId]?.projects) {
+      const resp = await api.get("/admin/projects", { params: { owner_id: userId } });
+      const projects: Project[] = Array.isArray(resp.data) ? resp.data : [];
+      setExpandedUsers((m) => ({ ...m, [userId]: { projects, vvByProject: {}, loading: false } }));
+      // automaticky načti VV ke všem projektům
+      for (const p of projects) {
+        try {
+          const r = await api.get(`/admin/projects/${p.id}/vv`);
+          const vv: VvDoc[] = Array.isArray(r.data) ? r.data : [];
+          setExpandedUsers((m) => ({
+            ...m,
+            [userId]: {
+              ...(m[userId] || {}),
+              projects: m[userId]?.projects,
+              vvByProject: { ...(m[userId]?.vvByProject || {}), [p.id]: vv },
+            },
+          }));
+        } catch {}
       }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [activeUserId]);
+    } else {
+      // jen přepnout zobrazení (pokud chceš čisté toggle, ponech uloženo)
+      setExpandedUsers((m) => ({ ...m, [userId]: { ...(m[userId] || {}), loading: false, projects: m[userId]?.projects } }));
+    }
+  }
 
-  async function toggleProject(pid: number) {
-    setExpanded((m) => ({ ...m, [pid]: { vv: m[pid]?.vv } }));
-    // lazy load VV docs if not present
-    if (!expanded[pid]?.vv) {
-      const resp = await api.get(`/admin/projects/${pid}/vv`);
+  async function ensureVv(userId: number, projectId: number) {
+    const entry = expandedUsers[userId] || {};
+    const vvByProject = entry.vvByProject || {};
+    if (!vvByProject[projectId]) {
+      const resp = await api.get(`/admin/projects/${projectId}/vv`);
       const vv: VvDoc[] = Array.isArray(resp.data) ? resp.data : [];
-      setExpanded((m) => ({ ...m, [pid]: { vv } }));
+      setExpandedUsers((m) => ({
+        ...m,
+        [userId]: {
+          ...(m[userId] || {}),
+          projects: m[userId]?.projects,
+          vvByProject: { ...(m[userId]?.vvByProject || {}), [projectId]: vv },
+        },
+      }));
     }
   }
 
@@ -74,90 +81,86 @@ export default function AdminDashboard() {
       <main className="flex-1 p-4 compact-main">
         <h1>Administrace</h1>
 
-        {/* Tabs: technicians */}
-        <div className="mt-4 overflow-x-auto">
-          <div className="inline-flex gap-2 border-b">
-            {loadingUsers ? (
-              <div className="text-gray-500 px-2 py-1">Načítám techniky…</div>
-            ) : users.length === 0 ? (
-              <div className="text-gray-500 px-2 py-1">Žádní technici</div>
-            ) : (
-              users.map((u) => (
-                <button
-                  key={u.id}
-                  className={`px-3 py-1 rounded-t ${activeUserId === u.id ? "bg-white border border-b-0" : "bg-gray-100"}`}
-                  onClick={() => setActiveUserId(u.id)}
-                  title={u.email}
-                >
-                  {u.name || `Uživatel #${u.id}`}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Projects for active technician */}
-        <div className="mt-4">
-          {loadingProjects ? (
-            <div className="text-gray-500">Načítám projekty…</div>
-          ) : projects.length === 0 ? (
-            <div className="text-gray-500">Žádné projekty</div>
+        <div className="mt-4 bg-white rounded shadow divide-y">
+          {loadingUsers ? (
+            <div className="p-3 text-gray-500">Načítám techniky…</div>
+          ) : users.length === 0 ? (
+            <div className="p-3 text-gray-500">Žádní technici</div>
           ) : (
-            <div className="bg-white rounded shadow divide-y">
-              {projects.map((p) => (
-                <div key={p.id} className="p-3">
-                  <div className="flex items-center justify-between">
+            users.map((u) => {
+              const expanded = expandedUsers[u.id];
+              const open = Boolean(expanded && expanded.projects);
+              return (
+                <div key={u.id} className="p-3">
+                  <button className="w-full text-left flex items-center justify-between" onClick={() => toggleUser(u.id)}>
                     <div>
-                      <div className="font-medium">{p.address || `Projekt #${p.id}`}</div>
-                      <div className="text-xs text-gray-500">{p.client || "—"}</div>
+                      <div className="font-medium">{u.name || `Uživatel #${u.id}`}</div>
+                      <div className="text-xs text-gray-500">{u.email}</div>
                     </div>
-                    <button className="px-3 py-1 bg-gray-200 rounded" onClick={() => toggleProject(p.id)}>
-                      Detaily
-                    </button>
-                  </div>
+                    <span className="text-sm text-gray-600">{open ? "Skrýt" : "Zobrazit"}</span>
+                  </button>
 
-                  {/* Details: revisions + VV docs */}
-                  {expanded[p.id] && (
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm font-semibold mb-1">Revize</div>
+                  {open && (
+                    <div className="mt-3">
+                      {(expanded?.projects || []).length === 0 ? (
+                        <div className="text-gray-500">Žádné projekty</div>
+                      ) : (
                         <div className="border rounded divide-y">
-                          {(p.revisions || []).map((r) => (
-                            <div key={r.id} className="p-2 flex items-center justify-between">
-                              <div>
-                                <div className="font-medium">{r.number || `Revize #${r.id}`}</div>
-                                <div className="text-xs text-gray-500">{r.type || ""} • {r.status || ""}</div>
+                          {(expanded?.projects || []).map((p) => (
+                            <div key={p.id} className="p-2">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium">{p.address || `Projekt #${p.id}`}</div>
+                                  <div className="text-xs text-gray-500">{p.client || "—"}</div>
+                                </div>
+                                {/* VV se načítají automaticky při rozbalení uživatele */}
                               </div>
-                              <div className="flex gap-2">
-                                <a className="px-3 py-1 bg-indigo-600 text-white rounded" href={`#/summary/${r.id}`}>Souhrn</a>
-                                <a className="px-3 py-1 bg-gray-200 rounded" href={`#/revize/${r.id}`}>Otevřít</a>
+
+                              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                  <div className="text-sm font-semibold mb-1">Revize</div>
+                                  <div className="border rounded divide-y">
+                                    {(p.revisions || []).map((r) => (
+                                      <div key={r.id} className="p-2 flex items-center justify-between">
+                                        <div>
+                                          <div className="font-medium">{r.number || `Revize #${r.id}`}</div>
+                                          <div className="text-xs text-gray-500">{r.type || ""} • {r.status || ""}</div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <a className="px-3 py-1 bg-indigo-600 text-white rounded" href={`#/summary/${r.id}`}>Souhrn</a>
+                                          <a className="px-3 py-1 bg-gray-200 rounded" href={`#/revize/${r.id}`}>Otevřít</a>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {(p.revisions || []).length === 0 && (
+                                      <div className="p-2 text-gray-500">Žádné revize</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-sm font-semibold mb-1">Protokoly VV</div>
+                                  <div className="border rounded divide-y">
+                                    {((expanded?.vvByProject || {})[p.id] || []).map((v) => (
+                                      <div key={v.id} className="p-2 flex items-center justify-between">
+                                        <div>{v.number || v.id}</div>
+                                        <a className="px-3 py-1 bg-gray-200 rounded" href={`#/vv/${v.id}`}>Otevřít</a>
+                                      </div>
+                                    ))}
+                                    {(!((expanded?.vvByProject || {})[p.id]) || ((expanded?.vvByProject || {})[p.id] || []).length === 0) && (
+                                      <div className="p-2 text-gray-500">Žádné protokoly</div>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ))}
-                          {(p.revisions || []).length === 0 && (
-                            <div className="p-2 text-gray-500">Žádné revize</div>
-                          )}
                         </div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold mb-1">Protokoly VV</div>
-                        <div className="border rounded divide-y">
-                          {(expanded[p.id]?.vv || []).map((v) => (
-                            <div key={v.id} className="p-2 flex items-center justify-between">
-                              <div>{v.number || v.id}</div>
-                              <a className="px-3 py-1 bg-gray-200 rounded" href={`#/vv/${v.id}`}>Otevřít</a>
-                            </div>
-                          ))}
-                          {(!expanded[p.id]?.vv || expanded[p.id]?.vv?.length === 0) && (
-                            <div className="p-2 text-gray-500">Žádné protokoly</div>
-                          )}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              );
+            })
           )}
         </div>
       </main>
