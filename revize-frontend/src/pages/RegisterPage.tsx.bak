@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import type { RegisterPayload } from "../api/auth";
@@ -8,7 +8,7 @@ const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
 
-  const [form, setForm] = useState<RegisterPayload>({ name: "", email: "", password: "", phone: "", certificate_number: "", authorization_number: "", address: "", ico: "", dic: "" });
+  const [form, setForm] = useState<RegisterPayload>({ name: "", email: "", password: "" });
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.password !== confirm) {
-      setError("Hesla se neshodujĂ­");
+      setError("Hesla se neshodují");
       return;
     }
     try {
@@ -54,7 +54,7 @@ const RegisterPage: React.FC = () => {
             <input
               required
               name="name"
-              placeholder="JmĂ©no"
+              placeholder="Jméno"
               className="input input-bordered w-full input-primary"
               value={form.name}
               onChange={handleChange}
@@ -67,57 +67,6 @@ const RegisterPage: React.FC = () => {
               placeholder="E-mail"
               className="input input-bordered w-full input-primary"
               value={form.email}
-              onChange={handleChange}
-            />
-
-            <input
-              required
-              name="phone"
-              placeholder="Telefon"
-              className="input input-bordered w-full input-primary"
-              value={form.phone || ""}
-              onChange={handleChange}
-            />
-
-            <input
-              required
-              name="certificate_number"
-              placeholder="Číslo osvědčení RT"
-              className="input input-bordered w-full input-primary"
-              value={form.certificate_number}
-              onChange={handleChange}
-            />
-
-            <input
-              required
-              name="authorization_number"
-              placeholder="Číslo oprávnění"
-              className="input input-bordered w-full input-primary"
-              value={form.authorization_number || ""}
-              onChange={handleChange}
-            />
-
-            <input
-              name="address"
-              placeholder="Adresa"
-              className="input input-bordered w-full input-primary"
-              value={form.address || ""}
-              onChange={handleChange}
-            />
-
-            <input
-              name="ico"
-              placeholder="IČO"
-              className="input input-bordered w-full input-primary"
-              value={form.ico || ""}
-              onChange={handleChange}
-            />
-
-            <input
-              name="dic"
-              placeholder="DIČ"
-              className="input input-bordered w-full input-primary"
-              value={form.dic || ""}
               onChange={handleChange}
             />
 
@@ -143,12 +92,12 @@ const RegisterPage: React.FC = () => {
             {error && <p className="text-error text-sm -mt-2">{error}</p>}
 
             <button type="submit" className="btn btn-accent w-full" disabled={loading}>
-              {loading ? "Registrujiâ€¦" : "Registrovat"}
+              {loading ? "Registruji…" : "Registrovat"}
             </button>
           </form>
 
           <p className="mt-6 text-sm text-center">
-            UĹľ mĂˇte ĂşÄŤet? <Link to="/login" className="link link-secondary">PĹ™ihlĂˇsit se</Link>
+            Už máte účet? <Link to="/login" className="link link-secondary">Přihlásit se</Link>
           </p>
         </div>
       </div>

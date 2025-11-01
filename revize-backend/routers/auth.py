@@ -3,6 +3,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import text
+from datetime import datetime
+from utils.ticr import verify_user_mock
 from sqlalchemy.orm import Session
 import secrets
 
@@ -19,6 +22,12 @@ class RegisterIn(BaseModel):
     name: str
     email: EmailStr
     password: str
+    phone: str | None = None
+    certificate_number: str
+    authorization_number: str | None = None
+    address: str | None = None
+    ico: str | None = None
+    dic: str | None = None
 
 
 class TokenOut(BaseModel):
@@ -54,10 +63,48 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         password_hash=hash_password(data.password),
         is_verified=first_user,
         verification_token=verification_token,
+        phone=data.phone,
+        certificate_number=data.certificate_number,
+        authorization_number=data.authorization_number,
+        address=data.address,
+        ico=data.ico,
+        dic=data.dic,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # TIČR ověření (mock) – kontrola jména a čísla osvědčení
+    try:
+        verify = verify_user_mock({
+            "id": user.id,
+            "name": user.name,
+            "certificate_number": user.certificate_number,
+        })
+        if verify.get("status") != "verified":
+            # registraci ponecháme, ale vrátíme 400; lze změnit na pending dle potřeby
+            raise HTTPException(status_code=400, detail="Uvedené číslo oprávnění není nalezeno v databázi TIČR")
+
+        sql = text(
+            "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
+        )
+        now_iso = datetime.utcnow().isoformat()
+        db.execute(sql, {
+            "st": verify.get("status"),
+            "rid": verify.get("register_id"),
+            "scope": ",".join(verify.get("scope", []) or []),
+            "vu": verify.get("valid_until"),
+            "snap": str(verify.get("snapshot")),
+            "ts": now_iso,
+            "id": user.id,
+        })
+        db.commit()
+    except HTTPException:
+        # předáme dál konkrétní zprávu
+        raise
+    except Exception:
+        # nedostupné sloupce apod. neblokují registraci
+        pass
 
     # pro vývoj vracíme i verifikační token (v produkci by se poslal e-mailem)
     return {

@@ -13,6 +13,12 @@ export type RegisterPayload = {
   name: string;
   email: string;
   password: string;
+  phone?: string;
+  certificate_number: string;
+  authorization_number?: string;
+  address?: string;
+  ico?: string;
+  dic?: string;
 };
 
 export type User = {

@@ -23,6 +23,7 @@ export default function AdminUsersPage() {
   const [verified, setVerified] = useState<string>(""); // "", "true", "false"
   const [role, setRole] = useState<string>(""); // "", "admin", "user"
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [rtDialog, setRtDialog] = useState<{ user?: AdminUser; data?: any } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -72,10 +73,11 @@ export default function AdminUsersPage() {
     }
   }
 
-  async function verifyRt(id: number) {
-    setBusyId(id);
+  async function verifyRt(user: AdminUser) {
+    setBusyId(user.id);
     try {
-      await api.post(`/admin/rt/verify/${id}`);
+      const resp = await api.post(`/admin/rt/verify/${user.id}`);
+      setRtDialog({ user, data: resp.data });
       await load();
     } finally {
       setBusyId(null);
@@ -121,7 +123,17 @@ export default function AdminUsersPage() {
                   <div>Ev. č. oprávnění: {u.authorization_number || "—"}</div>
                 </div>
                 <div className="col-span-2 text-xs text-gray-600">
-                  <div>TIČR: {u.rt_status || "—"}</div>
+                  {u.rt_status === 'verified' ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 text-2xl leading-none">✓</span>
+                      <span className="font-medium">Ověřeno TIČR</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-red-600 text-2xl leading-none">✕</span>
+                      <span className="font-medium">Není v databázi TIČR</span>
+                    </div>
+                  )}
                   <div>Platnost do: {u.rt_valid_until || "—"}</div>
                 </div>
                 <div className="col-span-2 flex gap-2 justify-end">
@@ -133,13 +145,41 @@ export default function AdminUsersPage() {
                   <button className="px-3 py-1 bg-gray-200 rounded" disabled={busyId===u.id} onClick={() => toggleAdmin(u)}>
                     {u.is_admin ? "Odebrat admina" : "Udělat adminem"}
                   </button>
-                  <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={busyId===u.id} onClick={() => verifyRt(u.id)}>
+                  <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={busyId===u.id} onClick={() => verifyRt(u)}>
                     Ověřit v TIČR
                   </button>
                 </div>
               </div>
             ))}
             {items.length === 0 && <div className="p-4 text-gray-500">Žádní uživatelé</div>}
+          </div>
+        )}
+
+              {rtDialog && (
+                <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setRtDialog(null)}>
+                  <div className="bg-white p-6 rounded shadow w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-lg font-semibold mb-3">Výsledek ověření v TIČR</h3>
+              {rtDialog.data?.rt_status === 'verified' ? (
+                      <div className="text-sm text-gray-700 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600">✓</span>
+                    <span>Byl v databázi TIČR nalezen revizní technik:</span>
+                  </div>
+                  <div><span className="font-medium">Jméno:</span> {rtDialog.data?.match?.full_name || rtDialog.user?.name || "—"}</div>
+                  <div><span className="font-medium">Číslo osvědčení:</span> {rtDialog.data?.match?.certificate_number || rtDialog.user?.certificate_number || "—"}</div>
+                  <div><span className="font-medium">Číslo oprávnění:</span> {rtDialog.data?.match?.authorization_number || rtDialog.user?.authorization_number || "—"}</div>
+                  <div><span className="font-medium">Rozsah/obory:</span> {(rtDialog.data?.match?.scope || []).join(', ') || "—"}</div>
+                  <div><span className="font-medium">Platnost do:</span> {rtDialog.data?.rt_valid_until || rtDialog.data?.valid_until || "—"}</div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-700">
+                  Technik nebyl v databázi TIČR nalezen.
+                </div>
+              )}
+              <div className="flex justify-end gap-2 mt-4">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setRtDialog(null)}>Zavřít</button>
+              </div>
+            </div>
           </div>
         )}
       </main>

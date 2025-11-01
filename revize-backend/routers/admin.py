@@ -314,4 +314,10 @@ def rt_verify_user(
         },
     )
     db.commit()
-    return {"ok": True, "rt_status": result.get("status"), "rt_valid_until": result.get("valid_until")}
+    return {
+        "ok": True,
+        "rt_status": result.get("status"),
+        "rt_valid_until": result.get("valid_until"),
+        "match": result.get("matched"),
+        "checked_at": now_iso,
+    }
