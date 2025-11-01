@@ -69,28 +69,27 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         address=data.address,
         ico=data.ico,
         dic=data.dic,
+        instruments_json="[]",
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
     # TIČR ověření (mock) – kontrola jména a čísla osvědčení
+    rt_status = None
     try:
         verify = verify_user_mock({
             "id": user.id,
             "name": user.name,
             "certificate_number": user.certificate_number,
         })
-        if verify.get("status") != "verified":
-            # registraci ponecháme, ale vrátíme 400; lze změnit na pending dle potřeby
-            raise HTTPException(status_code=400, detail="Uvedené číslo oprávnění není nalezeno v databázi TIČR")
-
+        rt_status = verify.get("status")
         sql = text(
             "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
         )
         now_iso = datetime.utcnow().isoformat()
         db.execute(sql, {
-            "st": verify.get("status"),
+            "st": rt_status,
             "rid": verify.get("register_id"),
             "scope": ",".join(verify.get("scope", []) or []),
             "vu": verify.get("valid_until"),
@@ -99,12 +98,9 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
             "id": user.id,
         })
         db.commit()
-    except HTTPException:
-        # předáme dál konkrétní zprávu
-        raise
     except Exception:
         # nedostupné sloupce apod. neblokují registraci
-        pass
+        rt_status = rt_status or "pending"
 
     # pro vývoj vracíme i verifikační token (v produkci by se poslal e-mailem)
     return {
@@ -113,6 +109,7 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         "email": user.email,
         "is_verified": user.is_verified,
         "verification_token": user.verification_token,
+        "rt_status": rt_status,
     }
 
 
