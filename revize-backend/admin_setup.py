@@ -34,6 +34,41 @@ def ensure_is_admin_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def ensure_ticr_columns(conn: sqlite3.Connection) -> None:
+    """Add TIČR-related columns to users if they don't exist.
+    Columns are added as generic SQLite types to keep compatibility.
+    - rt_register_id: TEXT
+    - rt_scope: TEXT (JSON string)
+    - rt_valid_until: TEXT (DATE ISO)
+    - rt_status: TEXT
+    - rt_source_snapshot: TEXT (JSON string)
+    - rt_last_checked_at: TEXT (DATETIME ISO)
+    """
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(users)")
+    existing = {row[1] for row in cur.fetchall()}
+
+    def add(col: str, decl: str):
+        cur.execute(f"ALTER TABLE users ADD COLUMN {col} {decl}")
+
+    try:
+        if "rt_register_id" not in existing:
+            add("rt_register_id", "TEXT")
+        if "rt_scope" not in existing:
+            add("rt_scope", "TEXT")
+        if "rt_valid_until" not in existing:
+            add("rt_valid_until", "TEXT")
+        if "rt_status" not in existing:
+            add("rt_status", "TEXT")
+        if "rt_source_snapshot" not in existing:
+            add("rt_source_snapshot", "TEXT")
+        if "rt_last_checked_at" not in existing:
+            add("rt_last_checked_at", "TEXT")
+        conn.commit()
+    finally:
+        cur.close()
+
+
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -67,6 +102,7 @@ def main() -> None:
     conn = sqlite3.connect(str(DB_PATH))
     try:
         ensure_is_admin_column(conn)
+        ensure_ticr_columns(conn)
         upsert_admin(conn, "admin@lb-eltech.cz", "a")
     finally:
         conn.close()

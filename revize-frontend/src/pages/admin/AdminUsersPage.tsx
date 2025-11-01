@@ -11,6 +11,9 @@ type AdminUser = {
   is_verified: boolean;
   certificate_number?: string | null;
   authorization_number?: string | null;
+  rt_status?: string | null;
+  rt_valid_until?: string | null;
+  rt_last_checked_at?: string | null;
 };
 
 export default function AdminUsersPage() {
@@ -69,6 +72,16 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function verifyRt(id: number) {
+    setBusyId(id);
+    try {
+      await api.post(`/admin/rt/verify/${id}`);
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="flex">
       <Sidebar mode="dashboard" />
@@ -107,6 +120,10 @@ export default function AdminUsersPage() {
                   <div>Ev. č. osvědčení: {u.certificate_number || "—"}</div>
                   <div>Ev. č. oprávnění: {u.authorization_number || "—"}</div>
                 </div>
+                <div className="col-span-2 text-xs text-gray-600">
+                  <div>TIČR: {u.rt_status || "—"}</div>
+                  <div>Platnost do: {u.rt_valid_until || "—"}</div>
+                </div>
                 <div className="col-span-2 flex gap-2 justify-end">
                   {u.is_verified ? (
                     <button className="px-3 py-1 bg-amber-200 rounded" disabled={busyId===u.id} onClick={() => reject(u.id)}>Odznačit</button>
@@ -115,6 +132,9 @@ export default function AdminUsersPage() {
                   )}
                   <button className="px-3 py-1 bg-gray-200 rounded" disabled={busyId===u.id} onClick={() => toggleAdmin(u)}>
                     {u.is_admin ? "Odebrat admina" : "Udělat adminem"}
+                  </button>
+                  <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={busyId===u.id} onClick={() => verifyRt(u.id)}>
+                    Ověřit v TIČR
                   </button>
                 </div>
               </div>
@@ -126,4 +146,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-

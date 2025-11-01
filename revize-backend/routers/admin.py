@@ -4,12 +4,14 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload, defer
-from sqlalchemy import func
+from sqlalchemy import func, text
+from datetime import datetime
 
 from database import get_db
 from routers.auth import get_current_user
 from models import User as UserModel, Revision, Defect, Project, VvDoc
 from schemas import RevisionRead, ProjectRead, DefectRead
+from utils.ticr import verify_user_mock
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -180,42 +182,33 @@ def list_users(
     user: UserModel = Depends(get_current_user),
     q: Optional[str] = Query(None),
     verified: Optional[bool] = Query(None),
-    role: Optional[str] = Query(None),  # expected values: 'admin' | 'user'
+    role: Optional[str] = Query(None),  # 'admin' | 'user'
 ):
     _ensure_admin(user)
-    query = db.query(UserModel)
+    sql = (
+        "SELECT id, name, email, phone, is_verified, is_admin, "
+        "certificate_number, authorization_number, "
+        "rt_status, rt_valid_until, rt_last_checked_at "
+        "FROM users"
+    )
+    where: List[str] = []
+    params: dict = {}
     if q:
-        q_like = f"%{q.strip().lower()}%"
-        # Použij lower(...) LIKE ... pro dobrou kompatibilitu se SQLite
-        query = query.filter(
-            (func.lower(UserModel.name).like(q_like))
-            | (func.lower(UserModel.email).like(q_like))
-            | (func.lower(UserModel.phone).like(q_like))
-        )
+        where.append("(lower(name) LIKE :q OR lower(email) LIKE :q OR lower(phone) LIKE :q)")
+        params["q"] = f"%{q.strip().lower()}%"
     if verified is not None:
-        query = query.filter(UserModel.is_verified == verified)
+        where.append("is_verified = :ver")
+        params["ver"] = 1 if verified else 0
     if role == "admin":
-        query = query.filter(UserModel.is_admin.is_(True))
+        where.append("is_admin = 1")
     if role == "user":
-        query = query.filter((UserModel.is_admin.is_(False)) | (UserModel.is_admin.is_(None)))
+        where.append("(is_admin IS NULL OR is_admin = 0)")
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY id DESC"
 
-    rows = query.order_by(UserModel.id.desc()).all()
-    # return light payload for table
-    out = []
-    for u in rows:
-        out.append(
-            {
-                "id": u.id,
-                "name": getattr(u, "name", None),
-                "email": getattr(u, "email", None),
-                "phone": getattr(u, "phone", None),
-                "is_verified": bool(getattr(u, "is_verified", False)),
-                "is_admin": bool(getattr(u, "is_admin", False)),
-                "certificate_number": getattr(u, "certificate_number", None),
-                "authorization_number": getattr(u, "authorization_number", None),
-            }
-        )
-    return out
+    rows = db.execute(text(sql), params).mappings().all()
+    return [dict(r) for r in rows]
 
 
 @router.post("/users/{uid}/verify")
@@ -280,3 +273,45 @@ def patch_user(
         "is_admin": bool(getattr(target, "is_admin", False)),
         "is_verified": bool(getattr(target, "is_verified", False)),
     }
+
+
+@router.post("/rt/verify/{uid}")
+def rt_verify_user(
+    uid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    """Mock verify user against TIČR and store result into users table columns (rt_*).
+    Replace with real implementation later.
+    """
+    _ensure_admin(user)
+    u: Optional[UserModel] = db.query(UserModel).filter(UserModel.id == uid).first()
+    if not u:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    data = {
+        "id": u.id,
+        "name": getattr(u, "name", None),
+        "certificate_number": getattr(u, "certificate_number", None),
+    }
+    result = verify_user_mock(data)
+
+    now_iso = datetime.utcnow().isoformat()
+    sql = text(
+        "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, "
+        "rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
+    )
+    db.execute(
+        sql,
+        {
+            "st": result.get("status"),
+            "rid": result.get("register_id"),
+            "scope": ",".join(result.get("scope", []) or []),
+            "vu": result.get("valid_until"),
+            "snap": str(result.get("snapshot")),
+            "ts": now_iso,
+            "id": uid,
+        },
+    )
+    db.commit()
+    return {"ok": True, "rt_status": result.get("status"), "rt_valid_until": result.get("valid_until")}
