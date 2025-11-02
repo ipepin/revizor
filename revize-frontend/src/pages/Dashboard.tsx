@@ -316,21 +316,7 @@ export default function Dashboard() {
                                     </button>
                                     <button
                                       className="text-red-600 hover:underline"
-                                      onClick={async () => {
-                                        const pwd = window.prompt("Pro smazání revize zadejte své heslo:");
-                                        if (!pwd) return;
-                                        try {
-                                          const response = await fetch(apiUrl(`/revisions/${rev.id}`), {
-                                            method: "DELETE",
-                                            headers: { "Content-Type": "application/json", ...authHeader(token!) },
-                                            body: JSON.stringify({ password: pwd }),
-                                          });
-                                          if (!response.ok) throw new Error("Mazání selhalo");
-                                          fetchProjects();
-                                        } catch (error) {
-                                          console.error("❌ Chyba při mazání revize:", error);
-                                        }
-                                      }}
+                                      onClick={() => openDelete('revision', rev.id) }
                                     >
                                       Smazat
                                     </button>
@@ -389,21 +375,7 @@ export default function Dashboard() {
                                       </button>
                                       <button
                                         className="text-red-600 hover:underline"
-                                        onClick={async () => {
-                                          const pwd = window.prompt("Pro smazání VV protokolu zadejte své heslo:");
-                                          if (!pwd) return;
-                                          try {
-                                            const res = await fetch(apiUrl(`/vv/${vv.id}`), {
-                                              method: "DELETE",
-                                              headers: { "Content-Type": "application/json", ...authHeader(token!) },
-                                              body: JSON.stringify({ password: pwd }),
-                                            });
-                                            if (!res.ok) throw new Error("Mazání selhalo");
-                                            loadVvForProject(proj.id);
-                                          } catch (err) {
-                                            console.error("❌ Chyba při mazání VV:", err);
-                                          }
-                                        }}
+                                      onClick={() => openDelete('vv', vv.id, proj.id) }
                                       >
                                         Smazat
                                       </button>
