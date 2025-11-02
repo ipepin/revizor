@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Sidebar from "../../components/Sidebar";
 import api from "../../api/axios";
 
@@ -24,6 +24,7 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState<string>(""); // "", "admin", "user"
   const [busyId, setBusyId] = useState<number | null>(null);
   const [rtDialog, setRtDialog] = useState<{ user?: AdminUser; data?: any } | null>(null);
+  const [confirmDel, setConfirmDel] = useState<AdminUser | null>(null);
 
   async function load() {
     setLoading(true);
@@ -84,13 +85,23 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function deleteUser(id: number) {
+    setBusyId(id);
+    try {
+      await api.delete(`/admin/users/${id}`);
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="flex">
       <Sidebar mode="dashboard" />
       <main className="flex-1 p-4 compact-main">
         <h1>Technici</h1>
         <div className="flex flex-wrap items-center gap-2 mt-3 mb-4">
-          <input className="border rounded px-2 py-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat jméno/e-mail/telefon" />
+          <input className="border rounded px-2 py-1" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Hledat jméno/e‑mail/telefon" />
           <select className="border rounded px-2 py-1" value={verified} onChange={(e) => setVerified(e.target.value)}>
             <option value="">Ověření – všichni</option>
             <option value="true">Jen ověření</option>
@@ -148,19 +159,22 @@ export default function AdminUsersPage() {
                   <button className="px-3 py-1 bg-blue-600 text-white rounded" disabled={busyId===u.id} onClick={() => verifyRt(u)}>
                     Ověřit v TIČR
                   </button>
+                  <button className="px-3 py-1 bg-red-600 text-white rounded" disabled={busyId===u.id} onClick={() => setConfirmDel(u)} title="Smazat technika">
+                    Smazat
+                  </button>
                 </div>
               </div>
             ))}
-            {items.length === 0 && <div className="p-4 text-gray-500">Žádní uživatelé</div>}
+            {items.length === 0 && <div className="p-4 text-gray-500">Žádný uživatel</div>}
           </div>
         )}
 
-              {rtDialog && (
-                <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setRtDialog(null)}>
-                  <div className="bg-white p-6 rounded shadow w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
-                    <h3 className="text-lg font-semibold mb-3">Výsledek ověření v TIČR</h3>
+        {rtDialog && (
+          <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setRtDialog(null)}>
+            <div className="bg-white p-6 rounded shadow w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-3">Výsledek ověření v TIČR</h3>
               {rtDialog.data?.rt_status === 'verified' ? (
-                      <div className="text-sm text-gray-700 space-y-1">
+                <div className="text-sm text-gray-700 space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-green-600">✓</span>
                     <span>Byl v databázi TIČR nalezen revizní technik:</span>
@@ -172,12 +186,28 @@ export default function AdminUsersPage() {
                   <div><span className="font-medium">Platnost do:</span> {rtDialog.data?.rt_valid_until || rtDialog.data?.valid_until || "—"}</div>
                 </div>
               ) : (
-                <div className="text-sm text-gray-700">
-                  Technik nebyl v databázi TIČR nalezen.
-                </div>
+                <div className="text-sm text-gray-700">Technik nebyl v databázi TIČR nalezen.</div>
               )}
               <div className="flex justify-end gap-2 mt-4">
                 <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setRtDialog(null)}>Zavřít</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {confirmDel && (
+          <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setConfirmDel(null)}>
+            <div className="bg-white p-6 rounded shadow w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-3">Smazat technika?</h3>
+              <p className="text-sm text-gray-700 mb-4">Tato akce je nevratná. Smaže se uživatel a navázaná data.</p>
+              <div className="flex justify-end gap-2">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setConfirmDel(null)}>Zrušit</button>
+                <button
+                  className="px-4 py-2 bg-red-600 text-white rounded"
+                  onClick={() => { const id = confirmDel.id; setConfirmDel(null); deleteUser(id); }}
+                >
+                  Smazat
+                </button>
               </div>
             </div>
           </div>
@@ -186,3 +216,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+

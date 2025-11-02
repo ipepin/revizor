@@ -1,0 +1,240 @@
+﻿// src/api/auth.ts
+// JednoduchĂˇ API vrstva pro autentizaci + uĹľivatele (FastAPI + JWT)
+
+import { API_DISPLAY_URL, apiUrl } from "./base";
+
+// --- typy ---
+export type LoginResponse = {
+  access_token: string;
+  token_type: "bearer" | string;
+};
+
+export type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  certificate_number: string;
+  authorization_number?: string;
+  address?: string;
+  ico?: string;
+  dic?: string;
+};
+
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+// --- helpers ---
+export const authHeader = (token?: string): HeadersInit =>
+  token ? { Authorization: `Bearer ${token}` } : {};
+
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = (data && (data.detail || data.message)) ?? "";
+    } catch {
+      /* ignore json parse error */
+    }
+    throw new Error(detail || `${res.status} ${res.statusText}`);
+  }
+}
+
+// --- API volĂˇnĂ­ ---
+
+/** PĹ™ihlĂˇĹˇenĂ­ â€“ FastAPI OAuth2 oÄŤekĂˇvĂˇ username+password (form-urlencoded). */
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<LoginResponse> {
+  const body = new URLSearchParams();
+  body.set("username", email);
+  body.set("password", password);
+
+  const res = await fetch(apiUrl("/auth/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as LoginResponse;
+}
+
+/** Registrace â€“ JSON payload (name, email, password). */
+export async function registerUser(data: RegisterPayload) {
+  const res = await fetch(apiUrl("/auth/register"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  await throwIfNotOk(res);
+  const j = await res.json();
+  if (j?.rt_status && j.rt_status !== "verified") {
+    throw new Error("UvedenĂ© ÄŤĂ­slo oprĂˇvnÄ›nĂ­ nenĂ­ nalezeno v databĂˇzi TIÄŚR");
+  }
+  return j;
+}
+
+/** Detail pĹ™ihlĂˇĹˇenĂ©ho uĹľivatele (JWT v Authorization). */
+export async function getCurrentUser(token: string): Promise<User> {
+  const res = await fetch(apiUrl("/auth/me"), {
+    headers: { ...authHeader(token) },
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as User;
+}
+
+/** (VolitelnĂ©) OvÄ›Ĺ™enĂ­ e-mailu tokenem. */
+export async function verifyEmail(token: string) {
+  const base =
+    API_DISPLAY_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
+  const url = new URL(apiUrl("/auth/verify"), base);
+  url.searchParams.set("token", token);
+  const res = await fetch(url.toString());
+  await throwIfNotOk(res);
+  return await res.json();
+}
+
+/** Export â€žbase URLâ€ś jen pro zobrazenĂ­/debug. */
+export const API_URL = API_DISPLAY_URL;
+// src/api/auth.ts
+// JednoduchĂˇ API vrstva pro autentizaci + uĹľivatele (FastAPI + JWT)
+
+import { API_DISPLAY_URL, apiUrl } from "./base";
+
+// --- typy ---
+export type LoginResponse = {
+  access_token: string;
+  token_type: "bearer" | string;
+};
+
+export type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  certificate_number: string;
+  authorization_number?: string;
+  address?: string;
+  ico?: string;
+  dic?: string;
+};
+
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+// --- helpers ---
+export const authHeader = (token?: string): HeadersInit =>
+  token ? { Authorization: `Bearer ${token}` } : {};
+
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const data = await res.json();
+      detail = (data && (data.detail || data.message)) ?? "";
+    } catch {
+      /* ignore json parse error */
+    }
+    throw new Error(detail || `${res.status} ${res.statusText}`);
+  }
+}
+
+// --- API volĂˇnĂ­ ---
+
+/** PĹ™ihlĂˇĹˇenĂ­ â€“ FastAPI OAuth2 oÄŤekĂˇvĂˇ username+password (form-urlencoded). */
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<LoginResponse> {
+  const body = new URLSearchParams();
+  body.set("username", email);
+  body.set("password", password);
+
+  const res = await fetch(apiUrl("/auth/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as LoginResponse;
+}
+
+/** Registrace â€“ JSON payload (name, email, password, ...). */
+export async function registerUser(data: RegisterPayload) {
+  const res = await fetch(apiUrl("/auth/register"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  await throwIfNotOk(res);
+  const j = await res.json();
+  if (j?.rt_status && j.rt_status !== "verified") {
+    throw new Error("UvedenĂ© ÄŤĂ­slo oprĂˇvnÄ›nĂ­ nenĂ­ nalezeno v databĂˇzi TIÄŚR");
+  }
+  return j;
+}
+
+/** Detail pĹ™ihlĂˇĹˇenĂ©ho uĹľivatele (JWT v Authorization). */
+export async function getCurrentUser(token: string): Promise<User> {
+  const res = await fetch(apiUrl("/auth/me"), {
+    headers: { ...authHeader(token) },
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as User;
+}
+
+/** (VolitelnĂ©) OvÄ›Ĺ™enĂ­ e-mailu tokenem. */
+export async function verifyEmail(token: string) {
+  const base =
+    API_DISPLAY_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
+  const url = new URL(apiUrl("/auth/verify"), base);
+  url.searchParams.set("token", token);
+  const res = await fetch(url.toString());
+  await throwIfNotOk(res);
+  return await res.json();
+}
+
+/** Export â€žbase URLâ€ś jen pro zobrazenĂ­/debug. */
+export const API_URL = API_DISPLAY_URL;
+
+// --- TIÄŚR lookup (pĹ™edbÄ›ĹľnĂ© ovÄ›Ĺ™enĂ­) ---
+export type RtLookupPayload = {
+  name: string;
+  certificate_number: string;
+};
+
+export type RtLookupResponse = {
+  status: "verified" | "not_found" | "mismatch" | "expired" | "error";
+  register_id?: string | null;
+  scope?: string[];
+  valid_until?: string | null;
+  matched?: {
+    full_name?: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    certificate_number?: string;
+    authorization_number?: string | null;
+    scope?: string[];
+  };
+};
+
+export async function lookupRt(payload: RtLookupPayload): Promise<RtLookupResponse> {
+  const res = await fetch(apiUrl("/auth/rt/lookup"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as RtLookupResponse;
+}
+

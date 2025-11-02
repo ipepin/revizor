@@ -64,7 +64,7 @@ export async function loginUser(
   return (await res.json()) as LoginResponse;
 }
 
-/** Registrace – JSON payload (name, email, password). */
+/** Registrace – JSON payload (name, email, password, ...). */
 export async function registerUser(data: RegisterPayload) {
   const res = await fetch(apiUrl("/auth/register"), {
     method: "POST",
@@ -72,7 +72,11 @@ export async function registerUser(data: RegisterPayload) {
     body: JSON.stringify(data),
   });
   await throwIfNotOk(res);
-  return await res.json();
+  const j = await res.json();
+  if (j?.rt_status && j.rt_status !== "verified") {
+    throw new Error("Uvedené číslo oprávnění není nalezeno v databázi TIČR");
+  }
+  return j;
 }
 
 /** Detail přihlášeného uživatele (JWT v Authorization). */
@@ -98,3 +102,35 @@ export async function verifyEmail(token: string) {
 
 /** Export „base URL“ jen pro zobrazení/debug. */
 export const API_URL = API_DISPLAY_URL;
+
+// --- TIČR lookup (předběžné ověření) ---
+export type RtLookupPayload = {
+  name: string;
+  certificate_number: string;
+};
+
+export type RtLookupResponse = {
+  status: "verified" | "not_found" | "mismatch" | "expired" | "error";
+  register_id?: string | null;
+  scope?: string[];
+  valid_until?: string | null;
+  matched?: {
+    full_name?: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    certificate_number?: string;
+    authorization_number?: string | null;
+    scope?: string[];
+  };
+};
+
+export async function lookupRt(payload: RtLookupPayload): Promise<RtLookupResponse> {
+  const res = await fetch(apiUrl("/auth/rt/lookup"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as RtLookupResponse;
+}
+

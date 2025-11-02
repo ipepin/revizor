@@ -1,18 +1,18 @@
-# routers/auth.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import text
 from datetime import datetime
-from utils.ticr import verify_user_mock
 from sqlalchemy.orm import Session
 import secrets
 
 from database import get_db
 from models import User
 from utils.security import hash_password, verify_password, create_access_token
-from routers.deps import get_current_user  # <- důležité: žádný kruhový import
+from routers.deps import get_current_user
+from utils.ticr import verify_user_mock
+from utils.ticr_client import verify_against_ticr, TICR_LIVE
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -24,7 +24,7 @@ class RegisterIn(BaseModel):
     password: str
     phone: str | None = None
     certificate_number: str
-    authorization_number: str | None = None
+    authorization_number: str | None = None  # optional
     address: str | None = None
     ico: str | None = None
     dic: str | None = None
@@ -48,12 +48,28 @@ class UserOut(BaseModel):
 # ---------- Endpoints ----------
 @router.post("/register")
 def register(data: RegisterIn, db: Session = Depends(get_db)):
-    # unikátní e-mail
-    existing = db.query(User).filter(User.email == data.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # TIČR ověření před uložením – pokud nesedí, zablokuj registraci
+    if TICR_LIVE:
+        verify = verify_against_ticr(data.name, data.certificate_number)
+        # Fallback to mock only for hard errors (network/parse)
+        if verify.get("status") == "error":
+            verify = verify_user_mock({
+                "name": data.name,
+                "certificate_number": data.certificate_number,
+            })
+    else:
+        verify = verify_user_mock({
+            "name": data.name,
+            "certificate_number": data.certificate_number,
+        })
 
-    # prvního uživatele rovnou ověř (usnadní vývoj)
+    if verify.get("status") != "verified":
+        raise HTTPException(
+            status_code=400,
+            detail="Uvedené číslo oprávnění není nalezeno v databázi TIČR",
+        )
+
+    # prvního uživatele rovnou ověřit (usnadnění vývoje)
     first_user = db.query(User).count() == 0
     verification_token = None if first_user else secrets.token_urlsafe(32)
 
@@ -75,32 +91,27 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # TIČR ověření (mock) – kontrola jména a čísla osvědčení
-    rt_status = None
+    # Zapiš rt_* výsledek k uživateli (best-effort)
     try:
-        verify = verify_user_mock({
-            "id": user.id,
-            "name": user.name,
-            "certificate_number": user.certificate_number,
-        })
-        rt_status = verify.get("status")
         sql = text(
             "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
         )
         now_iso = datetime.utcnow().isoformat()
-        db.execute(sql, {
-            "st": rt_status,
-            "rid": verify.get("register_id"),
-            "scope": ",".join(verify.get("scope", []) or []),
-            "vu": verify.get("valid_until"),
-            "snap": str(verify.get("snapshot")),
-            "ts": now_iso,
-            "id": user.id,
-        })
+        db.execute(
+            sql,
+            {
+                "st": verify.get("status"),
+                "rid": verify.get("register_id"),
+                "scope": ",".join(verify.get("scope", []) or []),
+                "vu": verify.get("valid_until"),
+                "snap": str(verify.get("snapshot")),
+                "ts": now_iso,
+                "id": user.id,
+            },
+        )
         db.commit()
     except Exception:
-        # nedostupné sloupce apod. neblokují registraci
-        rt_status = rt_status or "pending"
+        pass
 
     # pro vývoj vracíme i verifikační token (v produkci by se poslal e-mailem)
     return {
@@ -109,8 +120,27 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         "email": user.email,
         "is_verified": user.is_verified,
         "verification_token": user.verification_token,
-        "rt_status": rt_status,
+        "rt_status": verify.get("status"),
     }
+
+
+class RtLookupIn(BaseModel):
+    name: str
+    certificate_number: str
+
+
+@router.post("/rt/lookup")
+def rt_lookup(payload: RtLookupIn):
+    """Public endpoint for registration UI to verify name + certificate against TIČR.
+    Uses live client when TICR_LIVE=1, otherwise mock.
+    """
+    if TICR_LIVE:
+        result = verify_against_ticr(payload.name, payload.certificate_number)
+        if result.get("status") == "error":
+            result = verify_user_mock(payload.model_dump())
+    else:
+        result = verify_user_mock(payload.model_dump())
+    return result
 
 
 @router.post("/login", response_model=TokenOut)
@@ -118,7 +148,7 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
-    # OAuth2PasswordRequestForm používá pole "username" -> zde je to e-mail
+    # OAuth2PasswordRequestForm používá pole "username" -> zde je to e‑mail
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -149,3 +179,4 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     user.verification_token = None
     db.commit()
     return {"ok": True}
+

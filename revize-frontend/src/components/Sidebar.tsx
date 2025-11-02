@@ -1,4 +1,4 @@
-// src/components/Sidebar.tsx
+﻿// src/components/Sidebar.tsx
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
@@ -22,7 +22,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
 
-  // User context (nově: profil technika + firma)
+  // User context (profil technika + firma)
   const { profile, company, loading } = useUser();
 
   // dostupné jen pokud jsme uvnitř RevisionEdit provideru
@@ -64,7 +64,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     try {
       await finish();
     } catch (e) {
-      // případně můžeš doplnit toast; požadavek je každopádně přesměrovat
+      // případně lze doplnit toast; požadavek je každopádně přesměrovat
       console.warn("Dokončení selhalo, přesměrovávám i tak.", e);
     } finally {
       setFinishing(false);
@@ -139,7 +139,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
             </>
           )}
 
-          {/* Režim DASHBOARD – tlačítko nový projekt (NE na instruments) */}
+          {/* Režim DASHBOARD – tlačítko Nový projekt (NE na instruments) */}
           {mode === "dashboard" && !isInstruments && (
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded mb-2 hover:bg-blue-700 transition"
@@ -221,7 +221,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                   className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => go("/instruments")}
                 >
-                  Měřící přístroje
+                  Měřicí přístroje
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"

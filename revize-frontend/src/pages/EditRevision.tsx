@@ -1,4 +1,4 @@
-// src/pages/EditRevision.tsx
+﻿// src/pages/EditRevision.tsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -33,9 +33,9 @@ export default function EditRevision() {
     zaver: <ZaverSection />,
   };
 
-  if (!revId) return <div className="p-6">❌ Chybí ID revize v URL.</div>;
+  if (!revId) return <div className="p-6">âťŚ Chybí ID revize v URL.</div>;
 
-  // Načtení detailu revize (kvůli ověření existence a případnému prefetchi)
+  // Načtení detailu revize (kvůli ověření existence a případnému prefetchi))
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
@@ -52,7 +52,7 @@ export default function EditRevision() {
           setErr(`${res.status} ${res.statusText}`);
           return;
         }
-        // data aktuálně nikde nepotřebujeme – jen „spotřebujeme“ stream
+        // data aktuĂˇlnÄ› nikde nepotĹ™ebujeme â€“ jen â€žspotĹ™ebujemeâ€ś stream
         await res.json();
       } catch (e: any) {
         if (e?.name !== "AbortError") setErr("Network error");
@@ -106,3 +106,4 @@ export default function EditRevision() {
     </RevisionFormProvider>
   );
 }
+

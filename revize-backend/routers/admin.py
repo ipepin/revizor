@@ -12,6 +12,7 @@ from routers.auth import get_current_user
 from models import User as UserModel, Revision, Defect, Project, VvDoc
 from schemas import RevisionRead, ProjectRead, DefectRead
 from utils.ticr import verify_user_mock
+from utils.ticr_client import verify_against_ticr, TICR_LIVE
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -275,6 +276,24 @@ def patch_user(
     }
 
 
+@router.delete("/users/{uid}")
+def delete_user(
+    uid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    """Smazat uživatele (admin only).
+    POZOR: Smazání může kaskádně smazat navázané záznamy (projekty, firmy atd.).
+    """
+    _ensure_admin(user)
+    target = db.query(UserModel).get(uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    db.delete(target)
+    db.commit()
+    return {"ok": True, "id": uid}
+
+
 @router.post("/rt/verify/{uid}")
 def rt_verify_user(
     uid: int,
@@ -291,10 +310,16 @@ def rt_verify_user(
 
     data = {
         "id": u.id,
-        "name": getattr(u, "name", None),
-        "certificate_number": getattr(u, "certificate_number", None),
+        "name": getattr(u, "name", None) or "",
+        "certificate_number": getattr(u, "certificate_number", None) or "",
     }
-    result = verify_user_mock(data)
+    if TICR_LIVE:
+        result = verify_against_ticr(data["name"], data["certificate_number"])  # real attempt
+        if result.get("status") == "error":
+            # fallback to mock to avoid hard failure
+            result = verify_user_mock(data)
+    else:
+        result = verify_user_mock(data)
 
     now_iso = datetime.utcnow().isoformat()
     sql = text(
