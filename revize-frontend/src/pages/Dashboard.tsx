@@ -237,6 +237,22 @@ export default function Dashboard() {
               const sortedRevisions = Array.isArray(proj.revisions)
                 ? [...proj.revisions].sort(
                     (a: any, b: any) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                   )
                 : [];
 
@@ -274,7 +290,7 @@ export default function Dashboard() {
                           </button>
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                            onClick={() => openDelete('project', proj.id)}
+                            onClick={() => setDeleteDialog({ open: true, kind: 'project', id: proj.id, projectId: null, password: '', busy: false, err: null })}
                           >
                             🗑️ Smazat projekt
                           </button>
@@ -316,7 +332,7 @@ export default function Dashboard() {
                                     </button>
                                     <button
                                       className="text-red-600 hover:underline"
-                                      onClick={() => openDelete('revision', rev.id) }
+                                      onClick={() => setDeleteDialog({ open: true, kind: 'revision', id: rev.id, projectId: proj.id, password: '', busy: false, err: null }) }
                                     >
                                       Smazat
                                     </button>
@@ -375,7 +391,7 @@ export default function Dashboard() {
                                       </button>
                                       <button
                                         className="text-red-600 hover:underline"
-                                      onClick={() => openDelete('vv', vv.id, proj.id) }
+                                      onClick={() => setDeleteDialog({ open: true, kind: 'vv', id: vv.id, projectId: proj.id, password: '', busy: false, err: null }) }
                                       >
                                         Smazat
                                       </button>
@@ -536,8 +552,27 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Delete modal – potvrzení s heslem */}
+      {deleteDialog.open && (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => !deleteDialog.busy && setDeleteDialog({ ...deleteDialog, open: false })}>
+          <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold mb-2">Smazat {deleteDialog.kind === "project" ? "projekt" : deleteDialog.kind === "revision" ? "revizi" : "VV protokol"}</h3>
+            <p className="text-sm text-gray-600 mb-3">Pro potvrzení zadej své heslo.</p>
+            <input type="password" className="w-full p-2 border rounded mb-2" placeholder="Heslo" value={deleteDialog.password} onChange={(e) => setDeleteDialog({ ...deleteDialog, password: e.target.value })} onKeyDown={(e) => (e.key === "Enter" ? confirmDelete() : null)} autoFocus />
+            {deleteDialog.err && <div className="text-red-600 text-sm mb-2">{deleteDialog.err}</div>}
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialog({ ...deleteDialog, open: false })} disabled={deleteDialog.busy}>Zrušit</button>
+              <button className="px-3 py-2 bg-red-600 text-white rounded" onClick={confirmDelete} disabled={deleteDialog.busy || !deleteDialog.password}>Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
+
 
 

@@ -1,359 +1,544 @@
-# routers/revisions.py
-from __future__ import annotations
+// src/pages/Dashboard.tsx (obnoven˝ p˘vodnÌ vzhled + VV + maz·nÌ s heslem)
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import { useAuth } from "../context/AuthContext";
+import { authHeader } from "../api/auth";
+import { useUser } from "../context/UserContext";
+import { useVvDocs } from "../context/VvDocsContext";
+import { apiUrl } from "../api/base";
 
-from typing import Any, Dict, List, Optional
-from datetime import date
-import json as _json
+export default function Dashboard() {
+  const [projects, setProjects] = useState<any[]>([]);
+  const { token } = useAuth();
+  const { profile } = useUser();
+  const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({ address: "", client: "" });
+  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload, defer
-from sqlalchemy import select
-from pydantic import BaseModel
+  // unlock modal (heslo pro dokonËenou revizi)
+  const [unlockFor, setUnlockFor] = useState<{ projectId: number | null; revId: number | null}>({ projectId: null, revId: null });
+  const [unlockPwd, setUnlockPwd] = useState("");
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockErr, setUnlockErr] = useState<string | null>(null);
 
-from database import get_db
-from routers.auth import get_current_user
-from models import Revision, Project, User as UserModel
-from schemas import RevisionRead, RevisionCreate, RevisionUpdate
+  // owner_id z profilu
+  const owner_id = (profile as any)?.id ?? (profile as any)?.userId ?? (profile as any)?.user_id ?? undefined;
 
-try:
-    # oƒçek√°v√° se soubor auth/security.py s funkc√≠ verify_password(plain, hashed)
-    from utils.security import verify_password  # type: ignore
-except Exception:  # pragma: no cover
-    def verify_password(*args, **kwargs):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="verify_password() nebyl nalezen v auth/security.py",
+  // VV context (pro vytvo¯enÌ VV)
+  const { add: addVvDoc } = useVvDocs();
+
+  // VV per projekt
+  const [vvByProject, setVvByProject] = useState<Record<number, any[]>>({});
+  const [vvLoading, setVvLoading] = useState<Record<number, boolean>>({});
+
+  // NaËti pro\n  // Dialog maz·nÌ s heslem\n  type DeleteKind = 'project' | 'revision' | 'vv';\n  const [deleteDialog, setDeleteDialog] = useState<{\n    open: boolean; kind: DeleteKind; id: number | string | null; projectId?: number | null; password: string; busy: boolean; err: string | null;\n  }>({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });\n\n  const openDelete = (kind: DeleteKind, id: number | string, projectId?: number) => {\n    setDeleteDialog({ open: true, kind, id, projectId: projectId ?? null, password: '', busy: false, err: null });\n  };\n\n  const confirmDelete = async () => {\n    if (!token || !deleteDialog.id) return;\n    setDeleteDialog((d) => ({ ...d, busy: true, err: null }));\n    try {\n      let url = '';\n      if (deleteDialog.kind === 'project') url = apiUrl(`/projects/${deleteDialog.id}`);\n      else if (deleteDialog.kind === 'revision') url = apiUrl(`/revisions/${deleteDialog.id}`);\n      else url = apiUrl(`/vv/${deleteDialog.id}`);\n\n      const res = await fetch(url, {\n        method: 'DELETE',\n        headers: { 'Content-Type': 'application/json', ...authHeader(token!) },\n        body: JSON.stringify({ password: deleteDialog.password })\n      });\n      if (!res.ok) throw new Error(`${res.status}`);\n\n      if (deleteDialog.kind === 'vv' && deleteDialog.projectId) {\n        await loadVvForProject(deleteDialog.projectId);\n      } else {\n        await fetchProjects();\n      }\n      setDeleteDialog({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });\n    } catch (e: any) {\n      setDeleteDialog((d) => ({ ...d, err: 'Maz·nÌ selhalo', busy: false }));\n    }\n  };\n
+
+  // NaËti projekty
+  const fetchProjects = async (signal?: AbortSignal) => {
+    if (!token) return;
+    try {
+      const res = await fetch(apiUrl("/projects"), {
+        headers: { ...authHeader(token) },
+        signal,
+      });
+      if (!res.ok) {
+        setErr(`${res.status} ${res.statusText}`);
+        setProjects([]);
+        return;
+      }
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : []);
+      setErr(null);
+    } catch (e: any) {
+      if (e?.name !== "AbortError") {
+        setErr("Network error");
+        setProjects([]);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    const ctrl = new AbortController();
+    setLoading(true);
+    fetchProjects(ctrl.signal).finally(() => setLoading(false));
+    return () => ctrl.abort();
+  }, [token]);
+
+  const isExpired = (date: string) => new Date(date) < new Date();
+
+  // p¯id·nÌ (otev¯e v˝bÏrov˝ dialog)
+  const handleAdd = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setShowDialog(true);
+  };
+
+  // naËtenÌ VV listu pro konkrÈtnÌ projekt (lazy p¯i rozbalenÌ)
+  const loadVvForProject = async (projectId: number) => {
+    if (!token) return;
+    setVvLoading((m) => ({ ...m, [projectId]: true }));
+    try {
+      const res = await fetch(apiUrl(`/vv/project/${projectId}`), {
+        headers: { ...authHeader(token) },
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const list = await res.json();
+      setVvByProject((m) => ({ ...m, [projectId]: list }));
+    } catch {
+      setVvByProject((m) => ({ ...m, [projectId]: [] }));
+    } finally {
+      setVvLoading((m) => ({ ...m, [projectId]: false }));
+    }
+  };
+
+  const handleSaveNewProject = async () => {
+    const address = newProjectData.address.trim();
+    const client = newProjectData.client.trim();
+    if (!address || !client) {
+      alert("VyplÚ adresu i objednatele.");
+      return;
+    }
+
+    const name = `${address} ó ${client}`;
+    const payload: any = { name, address, client, shared_with_user_ids: [] };
+    if (owner_id != null) payload.owner_id = owner_id;
+
+    try {
+      const res = await fetch(apiUrl("/projects"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token!) },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const data = await res.json();
+          detail = data?.detail ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail)) : "";
+        } catch {}
+        throw new Error(`Chyba p¯i ukl·d·nÌ projektu${detail ? `: ${detail}` : ""}`);
+      }
+      setShowNewProjectDialog(false);
+      setNewProjectData({ address: "", client: "" });
+      await fetchProjects();
+    } catch (err) {
+      console.error("Chyba p¯i uloûenÌ projektu:", err);
+      alert(String(err));
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number, password: string) => {
+    try {
+      const res = await fetch(apiUrl(`/projects/${projectId}`), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...authHeader(token!) },
+        body: JSON.stringify({ password })
+      });
+      if (!res.ok) throw new Error("Chyba p¯i maz·nÌ projektu");
+      await fetchProjects();
+    } catch (err) {
+      console.error("Chyba p¯i maz·nÌ projektu:", err);
+      alert("Nepoda¯ilo se projekt smazat");
+    }
+  };
+
+  const filteredProjects = (projects || []).filter((project: any) => {
+    const address = project.address?.toLowerCase() || "";
+    const client = project.client?.toLowerCase() || "";
+    const query = search.toLowerCase();
+    return address.includes(query) || client.includes(query);
+  });
+
+  // jen tyto typy revizÌ
+  const revisionTypes = ["Elektroinstalace", "FVE"];
+
+  // otev¯enÌ revize
+  const openRevision = (projectId: number, rev: any) => {
+    if ((rev.status || "").toLowerCase() === "dokonËen·") {
+      setUnlockFor({ projectId, revId: rev.id });
+      setUnlockPwd("");
+      setUnlockErr(null);
+    } else {
+      navigate(`/revize/${rev.id}`);
+    }
+  };
+
+  // odesl·nÌ hesla (odemknutÌ dokonËenÈ revize)
+  const submitUnlock = async () => {
+    if (!unlockFor.revId || !token) return;
+    setUnlockBusy(true);
+    setUnlockErr(null);
+    try {
+      const res = await fetch(apiUrl(`/revisions/${unlockFor.revId}/unlock`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token) },
+        body: JSON.stringify({ password: unlockPwd }),
+      });
+      if (!res.ok) throw new Error("Unlock failed");
+      const data = await res.json();
+
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id !== unlockFor.projectId
+            ? p
+            : {
+                ...p,
+                revisions: (p.revisions || []).map((r: any) => (r.id === unlockFor.revId ? { ...r, status: data.status } : r)),
+              }
         )
+      );
+
+      const idToOpen = unlockFor.revId;
+      setUnlockFor({ projectId: null, revId: null });
+      setUnlockPwd("");
+      navigate(`/revize/${idToOpen}`);
+    } catch (e) {
+      setUnlockErr("NeplatnÈ heslo.");
+    } finally {
+      setUnlockBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
+      <Sidebar mode="dashboard" onNewProject={() => setShowNewProjectDialog(true)} />
+
+      <main className="flex-1 p-6">
+        <h1 className="text-3xl font-bold text-blue-800 mb-4">?? Projekty</h1>
+
+        <input
+          type="text"
+          className="p-2 border rounded w-full mb-4"
+          placeholder="Hledat adresu nebo objednatele..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <table className="w-full bg-white border rounded shadow text-sm">
+          <thead className="bg-blue-100 text-blue-900">
+            <tr>
+              <th className="p-2 text-left">#</th>
+              <th className="p-2 text-left">?? Adresa</th>
+              <th className="p-2 text-left">?? Objednatel</th>
+              <th className="p-2 text-left">?? Platnost</th>
+              <th className="p-2 text-left">?? Revize</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProjects.map((proj: any) => {
+              const expired = proj.revisions?.some((r: any) => isExpired(r.valid_until));
+              const isSelected = expandedProjectId === proj.id;
+              const sortedRevisions = Array.isArray(proj.revisions)
+                ? [...proj.revisions].sort(
+                    (a: any, b: any) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime()
+                  )
+                : [];
+
+              return (
+                <React.Fragment key={proj.id}>
+                  <tr
+                    className={`cursor-pointer border-t hover:bg-blue-50 ${isSelected ? "bg-blue-100" : ""}`}
+                    onClick={async () => {
+                      const next = isSelected ? null : proj.id;
+                      setExpandedProjectId(next);
+                      if (!isSelected && !vvByProject[proj.id]) {
+                        await loadVvForProject(proj.id);
+                      }
+                    }}
+                  >
+                    <td className="p-2 font-mono">{proj.id}</td>
+                    <td className="p-2">{proj.address}</td>
+                    <td className="p-2">{proj.client}</td>
+                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
+                      {expired ? "Revize po platnosti" : "OK"}
+                    </td>
+                    <td className="p-2">{proj.revisions?.length ?? 0}</td>
+                  </tr>
+
+                  {isSelected && (
+                    <tr>
+                      <td colSpan={5} className="bg-blue-50 p-2">
+                        <div className="text-right mb-2 flex justify-between">
+                          {/* P¯idat: revize + VV */}
+                          <button
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                            onClick={() => handleAdd(proj.id)}
+                          >
+                            ? P¯idat
+                          </button>
+                          <button
+                            className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                            onClick={() => openDelete('project', proj.id)}
+                          >
+                            ??? Smazat projekt
+                          </button>
+                        </div>
+
+                        {/* ReviznÌ zpr·vy */}
+                        <table className="w-full text-sm bg-white border rounded">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="p-2 text-left">#</th>
+                              <th className="p-2 text-left">Typ</th>
+                              <th className="p-2 text-left">Datum</th>
+                              <th className="p-2 text-left">Platnost</th>
+                              <th className="p-2 text-left">Stav</th>
+                              <th className="p-2 text-left">Akce</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sortedRevisions.map((rev: any) => {
+                              const isDone = (rev.status || "").toLowerCase() === "dokonËen·";
+                              return (
+                                <tr key={rev.id} className={`border-t ${isDone ? "bg-green-50" : ""}`}>
+                                  <td className="p-2">{rev.number}</td>
+                                  <td className="p-2">{rev.type}</td>
+                                  <td className="p-2">{rev.date_done}</td>
+                                  <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
+                                    {rev.valid_until}
+                                  </td>
+                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
+                                    {rev.status}
+                                  </td>
+                                  <td className="p-2 space-x-2">
+                                    <button
+                                      className="text-blue-600 hover:underline"
+                                      onClick={() => openRevision(proj.id, rev)}
+                                      title={isDone ? "DokonËeno ñ otev¯Ìt po zad·nÌ hesla" : "Otev¯Ìt"}
+                                    >
+                                      Otev¯Ìt
+                                    </button>
+                                    <button
+                                      className="text-red-600 hover:underline"
+                                      onClick={() => openDelete('revision', rev.id) }
+                                    >
+                                      Smazat
+                                    </button>
+                                    <button
+                                      onClick={() => navigate(`/summary/${rev.id}`)}
+                                      className="text-green-600 hover:underline"
+                                    >
+                                      Souhrn
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+
+                        {/* mezera */}
+                        <div className="h-4" />
+
+                        {/* VV Protokoly */}
+                        <div className="bg-white border rounded">
+                          <div className="px-2 py-2 bg-gray-100 font-semibold">Protokoly o urËenÌ vnÏjöÌch vliv˘</div>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr>
+                                <th className="p-2 text-left">#</th>
+                                <th className="p-2 text-left">N·zev / Prostor</th>
+                                <th className="p-2 text-left">Datum</th>
+                                <th className="p-2 text-left">Akce</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {vvLoading[proj.id] && (
+                                <tr><td className="p-2" colSpan={4}>NaËÌt·m VVÖ</td></tr>
+                              )}
+                              {!vvLoading[proj.id] && (vvByProject[proj.id]?.length ?? 0) === 0 && (
+                                <tr><td className="p-2" colSpan={4}>é·dnÈ protokoly.</td></tr>
+                              )}
+                              {(vvByProject[proj.id] || []).map((vv: any) => {
+                                const spaceName = vv.data_json?.spaces?.[0]?.name ?? "ó";
+                                const date = vv.data_json?.date ?? "ó";
+                                return (
+                                  <tr key={vv.id} className="border-t">
+                                    <td className="p-2 font-mono">{vv.number ?? vv.id}</td>
+                                    <td className="p-2">
+                                      {vv.data_json?.objectName || "bez n·zvu"} ∑ {" "}
+                                      <span className="text-slate-500">{spaceName}</span>
+                                    </td>
+                                    <td className="p-2">{date}</td>
+                                    <td className="p-2 space-x-3">
+                                      <button
+                                        className="text-blue-600 hover:underline"
+                                        onClick={() => navigate(`/vv/${vv.id}`)}
+                                      >
+                                        Otev¯Ìt
+                                      </button>
+                                      <button
+                                        className="text-red-600 hover:underline"
+                                      onClick={() => openDelete('vv', vv.id, proj.id) }
+                                      >
+                                        Smazat
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Dialog ÑP¯idatì: VV + z˙ûenÈ revize */}
+                        {showDialog && selectedProjectId === proj.id && (
+                          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white p-6 rounded shadow w-80">
+                              <h2 className="text-lg font-semibold mb-4">Vyber, co chceö p¯idat</h2>
+
+                              {/* VV */}
+                              <div
+                                className="p-2 mb-2 hover:bg-gray-100 cursor-pointer border rounded"
+                                onClick={async () => {
+                                  setShowDialog(false);
+                                  try {
+                                    const created = await addVvDoc(proj.id, {
+                                      objectName: proj.address ? `${proj.address}` : "Objekt",
+                                      address: proj.address || "",
+                                    });
+                                    navigate(`/vv/${created.id}`);
+                                    loadVvForProject(proj.id);
+                                  } catch (err: any) {
+                                    console.error("? VV create failed:", err?.response?.data || err);
+                                    alert("Nepoda¯ilo se zaloûit VV protokol.");
+                                  }
+                                }}
+                              >
+                                PosouzenÌ vnÏjöÌch vliv˘ (VV)
+                              </div>
+
+                              {/* Revize */}
+                              <ul className="border rounded">
+                                {revisionTypes.map((type, idx) => (
+                                  <li
+                                    key={type}
+                                    className={`p-2 hover:bg-gray-100 cursor-pointer ${idx < revisionTypes.length - 1 ? "border-b" : ""}`}
+                                    onClick={async () => {
+                                      setShowDialog(false);
+                                      const newRevision: any = {
+                                        project_id: proj.id,
+                                        type,
+                                        date_done: new Date().toISOString().split("T")[0],
+                                        valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 4))
+                                          .toISOString()
+                                          .split("T")[0],
+                                        status: "Rozpracovan·",
+                                        data_json: { pozn·mka: "zatÌm pr·zdnÈ" },
+                                      };
+                                      if (owner_id != null) newRevision.owner_id = owner_id;
+
+                                      try {
+                                        const response = await fetch(apiUrl(`/revisions`), {
+                                          method: "POST",
+                                          headers: { "Content-Type": "application/json", ...authHeader(token!) },
+                                          body: JSON.stringify(newRevision),
+                                        });
+                                        if (!response.ok) {
+                                          let detail = "";
+                                          try {
+                                            const data = await response.json();
+                                            detail = data?.detail
+                                              ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail))
+                                              : "";
+                                          } catch {}
+                                          throw new Error(`Server error${detail ? `: ${detail}` : ""}`);
+                                        }
+                                        fetchProjects();
+                                      } catch (error) {
+                                        console.error("? Chyba p¯i ukl·d·nÌ revize:", error);
+                                        alert(String(error));
+                                      }
+                                    }}
+                                  >
+                                    {type}
+                                  </li>
+                                ))}
+                              </ul>
+
+                              <button className="mt-4 px-4 py-2 bg-gray-300 rounded w-full" onClick={() => setShowDialog(false)}>
+                                Zruöit
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </main>
+
+      {/* Nov˝ projekt dialog */}
+      {showNewProjectDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded shadow w-96">
+            <h2 className="text-lg font-semibold mb-4">Nov˝ projekt</h2>
+            <input
+              type="text"
+              className="w-full p-2 mb-2 border rounded"
+              placeholder="Adresa"
+              value={newProjectData.address}
+              onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })}
+            />
+            <input
+              type="text"
+              className="w-full p-2 mb-4 border rounded"
+              placeholder="Objednatel"
+              value={newProjectData.client}
+              onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
+            />
+            <div className="flex justify-end gap-2">
+              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
+                Zruöit
+              </button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject} title="Uloûit nov˝ projekt">
+                Uloûit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock modal ñ heslo pro dokonËenou revizi */}
+      {unlockFor.revId !== null && (
+        <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setUnlockFor({ projectId: null, revId: null })}>
+          <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold mb-2">Revize je dokonËen·</h3>
+            <p className="text-sm text-gray-600 mb-3">Pro otev¯enÌ zadej svÈ heslo.</p>
+            <input
+              type="password"
+              className="w-full p-2 border rounded mb-2"
+              placeholder="Heslo"
+              value={unlockPwd}
+              onChange={(e) => setUnlockPwd(e.target.value)}
+              onKeyDown={(e) => (e.key === "Enter" ? submitUnlock() : null)}
+              autoFocus
+            />
+            {unlockErr && <div className="text-red-600 text-sm mb-2">{unlockErr}</div>}
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setUnlockFor({ projectId: null, revId: null })} disabled={unlockBusy}>
+                Zruöit
+              </button>
+              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitUnlock} disabled={unlockBusy || !unlockPwd}>
+                Odemknout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
-router = APIRouter(prefix="/revisions", tags=["revisions"])
-
-
-# ---------- Helpers ----------
-
-def _can_access_project(user: UserModel, prj: Project) -> bool:
-    """Vlastn√≠k projektu, nebo u≈æivatel, se kter√Ωm je projekt sd√≠len."""
-    try:
-        return prj.owner_id == user.id or any(u.id == user.id for u in prj.shared_with_users)
-    except Exception:
-        # kdy≈æ nen√≠ relace shared_with_users, ber jen vlastn√≠ka
-        return prj.owner_id == user.id
-
-
-def _ensure_date(d: Any) -> Optional[date]:
-    if d is None:
-        return None
-    if isinstance(d, date):
-        return d
-    try:
-        # akceptuj i ISO string
-        return date.fromisoformat(str(d))
-    except Exception:
-        return None
-
-
-def _ensure_dict(v: Any) -> Dict[str, Any]:
-    if v is None:
-        return {}
-    if isinstance(v, dict):
-        return v
-    if isinstance(v, str):
-        try:
-            return _json.loads(v)
-        except Exception:
-            return {}
-    try:
-        return dict(v)
-    except Exception:
-        return {}
-
-
-def _to_schema(rev: Revision) -> RevisionRead:
-    """Bezpeƒçn√Ω p≈ôevod ORM -> Pydantic v2 (≈ôe≈°√≠ date/datetime serializaci)."""
-    return RevisionRead.model_validate(rev, from_attributes=True)
-
-
-def _get_user_password_hash(user: UserModel) -> Optional[str]:
-    # Podporuj obƒõ varianty n√°zv≈Ø
-    h = getattr(user, "password_hash", None)
-    if not h:
-        h = getattr(user, "hashed_password", None)
-    return h
-
-
-# ---------- Listing ----------
-
-@router.get("", response_model=List[RevisionRead])
-def list_revisions(
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-    project_id: Optional[int] = Query(None),
-    status_filter: Optional[str] = Query(None, alias="status"),
-):
-    """
-    Vra≈• revize, ke kter√Ωm m√° u≈æivatel p≈ô√≠stup (vlastn√≠ projekty + sd√≠len√©).
-    Podporuje filtrov√°n√≠ `?project_id=` a `?status=`.
-    """
-    q = (
-        db.query(Revision)
-        .join(Project, Revision.project_id == Project.id)
-        .outerjoin(Project.shared_with_users)  # pokud existuje many-to-many
-        .options(joinedload(Revision.project))
-        .filter(or_(Project.owner_id == user.id, UserModel.id == user.id))
-        .distinct()
-        .order_by(Revision.id.desc())
-    )
-
-    if project_id is not None:
-        q = q.filter(Revision.project_id == project_id)
-    if status_filter:
-        q = q.filter(Revision.status == status_filter)
-
-    rows = q.all()
-    return [_to_schema(r) for r in rows]
-
-
-# ---------- Create ----------
-
-@router.post("", response_model=RevisionRead, status_code=status.HTTP_201_CREATED)
-def create_revision(
-    payload: RevisionCreate,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    prj = db.get(Project, payload.project_id)
-    if not prj:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
-    if not _can_access_project(user, prj):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
-
-    # po≈ôad√≠ pro ƒç√≠slov√°n√≠
-    existing_count = (
-        db.query(func.count(Revision.id))
-        .filter(Revision.project_id == payload.project_id)
-        .scalar()
-    ) or 0
-    seq = existing_count + 1
-
-    # datumy (date_done vƒõt≈°inou vy≈æadujeme)
-    d_done = _ensure_date(getattr(payload, "date_done", None))  
-    v_until = _ensure_date(getattr(payload, "valid_until", None))
-    if not d_done:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="date_done is required")
-
-    # evidenƒçn√≠ ƒç√≠slo ‚Äì pou≈æij to z payloadu pokud ho FE poslal, jinak vygeneruj
-    number = getattr(payload, "number", None) or f"RZ-{payload.project_id}-{seq}-{d_done.year}"
-
-    # status ‚Äì fallback, pokud DB vy≈æaduje NOT NULL
-    status_val = getattr(payload, "status", None) or "Rozpracovan√°"
-
-    # data_json ‚Äì p≈ôijmi dict/JSON string, fallback na {}
-    data_json_val = _ensure_dict(getattr(payload, "data_json", None))
-
-    try:
-        rev = Revision(
-            project_id=payload.project_id,
-            type=getattr(payload, "type", None),
-            number=number,
-            date_done=d_done,
-            valid_until=v_until,
-            status=status_val,
-            data_json=data_json_val,
-            conclusion_text=getattr(payload, "conclusion_text", None),
-            conclusion_safety=getattr(payload, "conclusion_safety", None),
-            conclusion_valid_until=_ensure_date(getattr(payload, "conclusion_valid_until", None)),
-
-        )
-        db.add(rev)
-        db.flush()     # vy≈æ√°d√° INSERT, z√≠sk√° ID (kdyby nƒõco chybƒõlo, hod√≠ to error tady)
-        db.commit()
-        db.refresh(rev)
-        return _to_schema(rev)
-
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to create revision: {type(e).__name__}: {str(e)}",
-        )
-
-
-# ---------- Read one ----------
-
-@router.get("/{rev_id}", response_model=RevisionRead)
-def get_revision(
-    rev_id: int,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    rev = (
-        db.query(Revision)
-        .options(joinedload(Revision.project), defer(Revision.data_json))
-        .filter(Revision.id == rev_id)
-        .first()
-    )
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    # Admin m≈Ø≈æe p≈ôistupovat ke v≈°em reviz√≠m
-    if not bool(getattr(user, "is_admin", False)) and not _can_access_project(user, rev.project):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    # bezpeƒçn√© naƒçten√≠ data_json zvl√°≈°≈• (m≈Ø≈æe b√Ωt ulo≈æen jako string)
-    try:
-        raw_value = db.execute(
-            select(Revision.__table__.c.data_json).where(Revision.id == rev_id)
-        ).scalar_one_or_none()
-        from json import loads as _loads
-        if isinstance(raw_value, str):
-            try:
-                rev.data_json = _loads(raw_value)
-            except Exception:
-                rev.data_json = {}
-        elif raw_value is None:
-            rev.data_json = {}
-        else:
-            rev.data_json = raw_value if isinstance(raw_value, dict) else {}
-    except Exception:
-        rev.data_json = {}
-    return _to_schema(rev)
-
-
-# ---------- Update ----------
-
-@router.patch("/{rev_id}", response_model=RevisionRead)
-def patch_revision(
-    rev_id: int,
-    payload: RevisionUpdate,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    rev = db.get(Revision, rev_id)
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    if not _can_access_project(user, rev.project):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
-
-    data = payload.model_dump(exclude_unset=True)
-
-    try:
-        # Date fields
-        if "date_done" in data:
-            nd = _ensure_date(data["date_done"])
-            if nd:
-                rev.date_done = nd
-        if "valid_until" in data:
-            rev.valid_until = _ensure_date(data["valid_until"])
-        if "conclusion_valid_until" in data:
-            rev.conclusion_valid_until = _ensure_date(data["conclusion_valid_until"])
-
-        # Jednoduch√° skal√°rn√≠ pole
-        for k in ("number", "type", "status", "defects", "conclusion_text",
-                  "conclusion_safety", "locked"):
-            if k in data:
-                setattr(rev, k, data[k])
-
-        # data_json parsing
-        if "data_json" in data:
-            setattr(rev, "data_json", _ensure_dict(data["data_json"]))
-
-        db.flush()
-        db.commit()
-        db.refresh(rev)
-        return _to_schema(rev)
-
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to update revision: {type(e).__name__}: {str(e)}",
-        )
-
-
-# ---------- Delete ----------
-
-@router.delete("/{rev_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_revision(
-    rev_id: int,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    rev = db.get(Revision, rev_id)
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    if rev.project.owner_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can delete revision")
-    db.delete(rev)
-    db.commit()
-    # 204 No Content ‚Äì nic nevrac√≠me
-
-
-# ---------- Stav: dokonƒçit / odemknout ----------
-
-class PasswordBody(BaseModel):
-    password: str
-
-
-@router.post("/{rev_id}/complete", response_model=RevisionRead)
-def mark_completed(
-    rev_id: int,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    rev = db.get(Revision, rev_id)
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    if rev.project.owner_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can complete")
-
-    rev.status = "Dokonƒçen√°"
-    db.commit()
-    db.refresh(rev)
-    return _to_schema(rev)
-
-
-@router.post("/{rev_id}/unlock", response_model=RevisionRead)
-def unlock_revision(
-    rev_id: int,
-    payload: PasswordBody,
-    db: Session = Depends(get_db),
-    user: UserModel = Depends(get_current_user),
-):
-    rev = db.get(Revision, rev_id)
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-
-    # jen vlastn√≠k m≈Ø≈æe odemknout (uprav dle sv√© politiky)
-    if rev.project.owner_id != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can unlock")
-
-    # validace vstupu
-    if not payload.password:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password required")
-
-    # zjisti hash hesla z aktu√°ln√≠ho u≈æivatele
-    pwd_hash = _get_user_password_hash(user)
-    if not pwd_hash:
-        # u≈æivatel nem√° nastaven√© heslo
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="User has no password set")
-
-    # ovƒõ≈ôen√≠ hesla ‚Äì o≈°et≈ôi chyby verifik√°toru tak, aby z toho nebyla 500
-    try:
-        ok = verify_password(payload.password, pwd_hash)  # returns bool
-    except Exception as e:
-        raise HTTPException(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Password verification failed: {type(e).__name__}",
-        )
-    if not ok:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
-
-    # odemkni ‚Äì pokud m√°≈° sloupec 'locked', nastav ho na False
-    if hasattr(rev, "locked"):
-        rev.locked = False
-    rev.status = "Rozpracovan√°"
-
-    db.commit()
-    db.refresh(rev)
-    return _to_schema(rev)
 
