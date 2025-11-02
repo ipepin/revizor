@@ -38,6 +38,8 @@ export default function Dashboard() {
   const [vvByProject, setVvByProject] = useState<Record<number, any[]>>({});
   const [vvLoading, setVvLoading] = useState<Record<number, boolean>>({});
 
+  // Načti pro\n  // Dialog mazání s heslem\n  type DeleteKind = 'project' | 'revision' | 'vv';\n  const [deleteDialog, setDeleteDialog] = useState<{\n    open: boolean; kind: DeleteKind; id: number | string | null; projectId?: number | null; password: string; busy: boolean; err: string | null;\n  }>({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });\n\n  const openDelete = (kind: DeleteKind, id: number | string, projectId?: number) => {\n    setDeleteDialog({ open: true, kind, id, projectId: projectId ?? null, password: '', busy: false, err: null });\n  };\n\n  const confirmDelete = async () => {\n    if (!token || !deleteDialog.id) return;\n    setDeleteDialog((d) => ({ ...d, busy: true, err: null }));\n    try {\n      let url = '';\n      if (deleteDialog.kind === 'project') url = apiUrl(`/projects/${deleteDialog.id}`);\n      else if (deleteDialog.kind === 'revision') url = apiUrl(`/revisions/${deleteDialog.id}`);\n      else url = apiUrl(`/vv/${deleteDialog.id}`);\n\n      const res = await fetch(url, {\n        method: 'DELETE',\n        headers: { 'Content-Type': 'application/json', ...authHeader(token!) },\n        body: JSON.stringify({ password: deleteDialog.password })\n      });\n      if (!res.ok) throw new Error(`${res.status}`);\n\n      if (deleteDialog.kind === 'vv' && deleteDialog.projectId) {\n        await loadVvForProject(deleteDialog.projectId);\n      } else {\n        await fetchProjects();\n      }\n      setDeleteDialog({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });\n    } catch (e: any) {\n      setDeleteDialog((d) => ({ ...d, err: 'Mazání selhalo', busy: false }));\n    }\n  };\n
+
   // Načti projekty
   const fetchProjects = async (signal?: AbortSignal) => {
     if (!token) return;
@@ -272,11 +274,7 @@ export default function Dashboard() {
                           </button>
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                            onClick={() => {
-                              const pwd = window.prompt("Pro smazání projektu zadejte své heslo:");
-                              if (!pwd) return;
-                              handleDeleteProject(proj.id, pwd);
-                            }}
+                            onClick={() => openDelete('project', proj.id)}
                           >
                             🗑️ Smazat projekt
                           </button>
@@ -569,3 +567,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

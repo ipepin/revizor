@@ -1,4 +1,4 @@
-// src/pages/SummaryPage.tsx
+﻿// src/pages/SummaryPage.tsx
 import React, { useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -15,7 +15,7 @@ import {
 
 import { dash, listOrDash } from "./summary-utils/text";
 
-// 🔧 utilitky pro rozvaděče (nutné pro vykreslení komponent)
+// đź”§ utilitky pro rozvadÄ›ÄŤe (nutnĂ© pro vykreslenĂ­ komponent)
 import { normalizeComponents, depthPrefix, buildComponentLine } from "./summary-utils/board";
 
 /* =============================== */
@@ -51,7 +51,7 @@ export default function SummaryPage() {
     }
   }, []);
 
-  // Vektorový režim pro tisk
+  // VektorovĂ˝ reĹľim pro tisk
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     if (sp.get("print") === "1" && sp.get("vector") === "1") {
@@ -60,7 +60,7 @@ export default function SummaryPage() {
     }
   }, []);
 
-  // Null-safe formulář
+  // Null-safe formulĂˇĹ™
   const safeForm: any = useMemo(
     () => ({
       evidencni: "",
@@ -104,24 +104,24 @@ export default function SummaryPage() {
     [ctxForm]
   );
 
-  // Revizní technik
+  // ReviznĂ­ technik
   const technician = useMemo(() => {
     const p: any = profile || {};
     const c: any = company || {};
     return {
-      jmeno: p.fullName || p.name || "Chybí informace",
-      firma: c.name || c.companyName || "Chybí informace",
-      cislo_osvedceni: p.certificateNumber || p.certificate_number || "Chybí informace",
-      cislo_opravneni: p.authorizationNumber || p.authorization_number || "Chybí informace",
-      ico: c.ico || c.icoNumber || "Chybí informace",
-      dic: c.dic || c.taxId || "Chybí informace",
-      adresa: c.address || p.address || "Chybí informace",
-      phone: p.phone || c.phone || "Chybí informace",
-      email: p.email || c.email || "Chybí informace",
+      jmeno: p.fullName || p.name || "ChybĂ­ informace",
+      firma: c.name || c.companyName || "ChybĂ­ informace",
+      cislo_osvedceni: p.certificateNumber || p.certificate_number || "ChybĂ­ informace",
+      cislo_opravneni: p.authorizationNumber || p.authorization_number || "ChybĂ­ informace",
+      ico: c.ico || c.icoNumber || "ChybĂ­ informace",
+      dic: c.dic || c.taxId || "ChybĂ­ informace",
+      adresa: c.address || p.address || "ChybĂ­ informace",
+      phone: p.phone || c.phone || "ChybĂ­ informace",
+      email: p.email || c.email || "ChybĂ­ informace",
     };
   }, [profile, company]);
 
-  // Normy = normy + vlastní texty
+  // Normy = normy + vlastnĂ­ texty
   const normsAll = useMemo(() => {
     const extra = [safeForm.customNorm1, safeForm.customNorm2, safeForm.customNorm3].filter(
       (x: any) => x && String(x).trim().length > 0
@@ -129,7 +129,7 @@ export default function SummaryPage() {
     return [...(safeForm.norms || []), ...extra];
   }, [safeForm.norms, safeForm.customNorm1, safeForm.customNorm2, safeForm.customNorm3]);
 
-  // Zkoušky
+  // ZkouĹˇky
   const testsRows = useMemo(() => {
     const obj = (safeForm.tests || {}) as Record<string, any>;
     return Object.entries(obj).map(([name, val]) => {
@@ -145,13 +145,13 @@ export default function SummaryPage() {
 
   const safetyLabel = useMemo(() => {
     const s = safeForm.conclusion?.safety;
-    if (!s) return "Chybí informace";
-    if (s === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-    if (s === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+    if (!s) return "ChybĂ­ informace";
+    if (s === "able") return "ElektrickĂˇ instalace je z hlediska bezpeÄŤnosti schopna provozu";
+    if (s === "not_able") return "ElektrickĂˇ instalace nenĂ­ z hlediska bezpeÄŤnosti schopna provozu";
     return String(s);
   }, [safeForm.conclusion?.safety]);
 
-  // Přístroje (checked)
+  // PĹ™Ă­stroje (checked)
   const usedInstruments = useMemo(() => {
     const arr: any[] =
       Array.isArray(safeForm.measuringInstruments) && safeForm.measuringInstruments.length
@@ -174,7 +174,7 @@ export default function SummaryPage() {
     }));
   }, [safeForm.measuringInstruments, safeForm.instruments]);
 
-  // Export PDF (vektorový tisk)
+  // Export PDF (vektorovĂ˝ tisk)
   const handleGeneratePDF = () => {
     const fileId = String(safeForm.evidencni || revId || "vystup");
     const url = new URL(window.location.href);
@@ -186,16 +186,16 @@ export default function SummaryPage() {
     window.open(url.toString(), "_blank", "noopener,noreferrer");
   };
 
-  // Export DOCX (původní generátor)
+  // Export DOCX (pĹŻvodnĂ­ generĂˇtor)
   const handleGenerateWord = async () => {
     try {
       await generateSummaryDocx({ safeForm, technician, normsAll, usedInstruments, revId });
     } catch (e: any) {
-      alert(`Nepodařilo se vygenerovat DOCX: ${e?.message || e}`);
+      alert(`NepodaĹ™ilo se vygenerovat DOCX: ${e?.message || e}`);
     }
   };
 
-  // NOVÉ: vyplnění Word ŠABLONY placeholdery
+  // NOVĂ‰: vyplnÄ›nĂ­ Word Ĺ ABLONY placeholdery
   const handleGenerateFromTemplate = async () => {
     await renderAndDownloadRzDocxFromTemplate({
       safeForm,
@@ -203,7 +203,7 @@ export default function SummaryPage() {
       normsAll,
       usedInstruments,
       revId,
-      templateUrl: "/templates/rz_template.docx", // umísti do /public/templates
+      templateUrl: "/templates/rz_template.docx", // umĂ­sti do /public/templates
     });
   };
 
@@ -219,7 +219,7 @@ export default function SummaryPage() {
           {!isPrintView && (
             <div className="flex justify-end gap-3 mb-4 print:hidden">
               <button onClick={handleGenerateFromTemplate} className="px-4 py-2 rounded bg-indigo-700 text-white">
-                …do šablony
+                â€¦do Ĺˇablony
               </button>
               <button onClick={handleGenerateWord} className="px-4 py-2 rounded bg-indigo-600 text-white">
                 Generovat Word
@@ -290,23 +290,23 @@ export default function SummaryPage() {
 
               <hr className="my-5 border-slate-200" />
 
-              {/* Revidovaný objekt (stručně) */}
+              {/* RevidovanĂ˝ objekt (struÄŤnÄ›) */}
               <section className="mt-3" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Revidovaný objekt</h2>
+                <h2 className="font-semibold text-lg mb-2">RevidovanĂ˝ objekt</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <KV label="Adresa stavby" value={safeForm.adresa} />
-                  <KV label="Předmět revize" value={safeForm.objekt} />
+                  <KV label="PĹ™edmÄ›t revize" value={safeForm.objekt} />
                   <KV label="Objednatel revize" value={safeForm.objednatel} />
                 </div>
               </section>
 
               {/* Přístroje */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Použité měřicí přístroje</h2>
+                <h2 className="font-semibold text-lg mb-2">PouĹľitĂ© mÄ›Ĺ™icĂ­ pĹ™Ă­stroje</h2>
                 <table className="w-full text-sm border">
                   <thead>
                     <tr className="text-left">
-                      <Th>Přístroj</Th>
+                      <Th>PĹ™Ă­stroj</Th>
                       <Th>Výrobní číslo</Th>
                       <Th>Kalibrační list</Th>
                     </tr>
@@ -329,9 +329,9 @@ export default function SummaryPage() {
                         ))
                       ) : (
                         <tr>
-                          <Td>—</Td>
-                          <Td>—</Td>
-                          <Td>—</Td>
+                          <Td>â€”</Td>
+                          <Td>â€”</Td>
+                          <Td>â€”</Td>
                         </tr>
                       );
                     })()}
@@ -339,17 +339,51 @@ export default function SummaryPage() {
                 </table>
               </section>
 
-              {/* Termín další revize */}
+              {/* Měřicí přístroje (rozšířený výpis) */}
+              <section className="mt-4" style={{ breakInside: "avoid" }}>
+                <h2 className="font-semibold text-lg mb-2">Měřicí přístroje (použité)</h2>
+                <div className="w-[80%] mx-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left">
+                        <Th>Přístroj</Th>
+                        <Th>Co měří</Th>
+                        <Th>Kal. list</Th>
+                        <Th>Sériové číslo</Th>
+                        <Th>Platnost</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usedInstruments.length ? (
+                        usedInstruments.map((i: any, idx: number) => (
+                          <tr key={i.id || idx} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                            <Td>{i.name}</Td>
+                            <Td>{i.measurement_text}</Td>
+                            <Td>{i.calibration}</Td>
+                            <Td>{i.serial}</Td>
+                            <Td>{i.calibration_valid_until}</Td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <Td colSpan={5}>—</Td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              {/* TermĂ­n dalĹˇĂ­ revize */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
                 <div className="text-sm text-center">
-                  <p>Doporučený termín příští revize dle ČSN&nbsp;332000-6 ed.2 čl.&nbsp;6.5.2:</p>
+                  <p>DoporuÄŤenĂ˝ termĂ­n pĹ™Ă­ĹˇtĂ­ revize dle ÄŚSN&nbsp;332000-6 ed.2 ÄŤl.&nbsp;6.5.2:</p>
                   <p><strong>{dash(safeForm.conclusion?.validUntil)}</strong></p>
                 </div>
               </section>
 
-              {/* Posudek */}
+              {/* Přístroje */}
               <section className="mt-3" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Celkový posudek</h2>
+                <h2 className="font-semibold text-lg mb-2">CelkovĂ˝ posudek</h2>
                 <div className="border-2 border-slate-700 rounded-md p-3 mt-1 mb-4" style={{ breakInside: "avoid" }}>
                   <div className="whitespace-pre-line text-base font-semibold text-center">
                     {safetyLabel}
@@ -357,12 +391,12 @@ export default function SummaryPage() {
                 </div>
               </section>
 
-              {/* Rozdělovník + podpisy */}
+              {/* RozdÄ›lovnĂ­k + podpisy */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-sm mb-2">Rozdělovník</h2>
+                <h2 className="font-semibold text-sm mb-2">RozdÄ›lovnĂ­k</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 text-sm gap-2">
-                  <div>Provozovatel – 1×</div>
-                  <div>Revizní technik – 1×</div>
+                  <div>Provozovatel â€“ 1Ă—</div>
+                  <div>ReviznĂ­ technik â€“ 1Ă—</div>
                 </div>
                 <div className="text-sm mt-2">
                   <div>....................................................</div>
@@ -376,60 +410,60 @@ export default function SummaryPage() {
                       <div className="border-t border-slate-300 pt-1">Podpis provozovatele</div>
                     </div>
                     <div className="text-right">
-                      <div className="border-t border-slate-300 pt-1 inline-block">Podpis revizního technika</div>
+                      <div className="border-t border-slate-300 pt-1 inline-block">Podpis reviznĂ­ho technika</div>
                     </div>
                   </div>
                 </div>
               </section>
             </section>
 
-            {/* ===== A4 #2 – IDENTIFIKACE + PROHLÍDKA ===== */}
+            {/* ===== A4 #2 â€“ IDENTIFIKACE + PROHLĂŤDKA ===== */}
             <section className="a4">
               <H1>1. Identifikace</H1>
 
               <section className="mb-4">
-                <h2 className="font-semibold mb-2">Montážní firma</h2>
+                <h2 className="font-semibold mb-2">MontĂˇĹľnĂ­ firma</h2>
                 <div className="grid md:grid-cols-2 gap-2 text-sm">
                   <KV label="Firma" value={safeForm.montFirma} />
-                  <KV label="Oprávnění firmy" value={safeForm.montFirmaAuthorization} />
+                  <KV label="OprĂˇvnÄ›nĂ­ firmy" value={safeForm.montFirmaAuthorization} />
                 </div>
               </section>
 
               <section className="mb-4">
-                <h2 className="font-semibold mb-2">Ochranná opatření</h2>
+                <h2 className="font-semibold mb-2">OchrannĂˇ opatĹ™enĂ­</h2>
                 <div className="space-y-1 text-sm">
-                  <KV label="Základní ochrana" value={listOrDash(safeForm.protection_basic)} />
-                  <KV label="Ochrana při poruše" value={listOrDash(safeForm.protection_fault)} />
-                  <KV label="Doplňková ochrana" value={listOrDash(safeForm.protection_additional)} />
+                  <KV label="ZĂˇkladnĂ­ ochrana" value={listOrDash(safeForm.protection_basic)} />
+                  <KV label="Ochrana pĹ™i poruĹˇe" value={listOrDash(safeForm.protection_fault)} />
+                  <KV label="DoplĹkovĂˇ ochrana" value={listOrDash(safeForm.protection_additional)} />
                 </div>
               </section>
 
               <section className="mb-4">
-                <h2 className="font-semibold mb-2">Popis a rozsah revidovaného objektu</h2>
+                <h2 className="font-semibold mb-2">Popis a rozsah revidovanĂ©ho objektu</h2>
                 <Rich value={safeForm.inspectionDescription} />
               </section>
 
               <section className="mb-4 text-sm space-y-1">
-                <KV label="Jmenovité napětí" value={safeForm.voltage} />
-                <KV label="Druh sítě" value={safeForm.sit} />
-                <KV label="Předložená dokumentace" value={safeForm.documentation} />
+                <KV label="JmenovitĂ© napÄ›tĂ­" value={safeForm.voltage} />
+                <KV label="Druh sĂ­tÄ›" value={safeForm.sit} />
+                <KV label="PĹ™edloĹľenĂˇ dokumentace" value={safeForm.documentation} />
               </section>
 
               <section className="mb-4">
-                <h2 className="font-semibold mb-2">Vnější vlivy</h2>
+                <h2 className="font-semibold mb-2">VnÄ›jĹˇĂ­ vlivy</h2>
                 <div className="text-sm whitespace-pre-line">{dash(safeForm.environment)}</div>
               </section>
 
               <section>
-                <h2 className="font-semibold mb-2">Přílohy</h2>
+                <h2 className="font-semibold mb-2">PĹ™Ă­lohy</h2>
                 <div className="text-sm whitespace-pre-line">{dash(safeForm.extraNotes)}</div>
               </section>
 
               <hr className="my-6 border-slate-200" />
 
-              <H1>2. Prohlídka</H1>
+              <H1>2. ProhlĂ­dka</H1>
               <section className="mb-2">
-                <div className="font-medium mb-1">Soupis provedených úkonů dle ČSN 33 2000-6 čl. 6.4.2.3</div>
+                <div className="font-medium mb-1">Soupis provedenĂ˝ch ĂşkonĹŻ dle ÄŚSN 33 2000-6 ÄŤl. 6.4.2.3</div>
                 {safeForm.performedTasks?.length ? (
                   <ul className="list-disc ml-6 text-sm">
                     {safeForm.performedTasks.map((t: string, i: number) => (
@@ -437,21 +471,21 @@ export default function SummaryPage() {
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-sm italic text-slate-400">—</div>
+                  <div className="text-sm italic text-slate-400">â€”</div>
                 )}
               </section>
             </section>
 
-            {/* ===== A4 #3 – ZKOUŠENÍ + MĚŘENÍ (rozvaděče) ===== */}
+            {/* ===== A4 #3 â€“ ZKOUĹ ENĂŤ + MÄšĹENĂŤ (rozvadÄ›ÄŤe) ===== */}
             <section className="a4">
-              <H1>3. Zkoušení</H1>
+              <H1>3. ZkouĹˇenĂ­</H1>
               <section className="mb-6">
                 <div className="w-[80%] mx-auto" style={{ breakInside: "avoid" }}>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left">
-                        <Th>Název zkoušky</Th>
-                        <Th>Poznámka / výsledek</Th>
+                        <Th>NĂˇzev zkouĹˇky</Th>
+                        <Th>PoznĂˇmka / vĂ˝sledek</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -464,7 +498,7 @@ export default function SummaryPage() {
                         ))
                       ) : (
                         <tr>
-                          <Td>—</Td>
+                          <Td>â€”</Td>
                           <Td></Td>
                         </tr>
                       )}
@@ -473,27 +507,27 @@ export default function SummaryPage() {
                 </div>
               </section>
 
-              <H1>4. Měření – rozvaděče</H1>
+              <H1>4. MÄ›Ĺ™enĂ­ â€“ rozvadÄ›ÄŤe</H1>
               {safeForm.boards?.length ? (
                 <div className="space-y-6">
                   {safeForm.boards.map((board: any, bIdx: number) => {
                     const flat = normalizeComponents(board?.komponenty || []);
                     return (
                       <div key={bIdx} className="mt-6">
-                        <div className="font-semibold">Rozvaděč: {dash(board?.name) || `#${bIdx + 1}`}</div>
+                        <div className="font-semibold">RozvadÄ›ÄŤ: {dash(board?.name) || `#${bIdx + 1}`}</div>
                         <div className="text-sm text-slate-600">
-                          Výrobce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | Umístění: {dash(board?.umisteni)} | S/N:{" "}
-                          {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP:{" "}
+                          VĂ˝robce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | UmĂ­stÄ›nĂ­: {dash(board?.umisteni)} | S/N:{" "}
+                          {dash(board?.vyrobniCislo)} | NapÄ›tĂ­: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP:{" "}
                           {dash(board?.ip)}
                         </div>
 
-                        {/* Řádky komponent */}
+                        {/* ĹĂˇdky komponent */}
                         <div className="mt-2 border border-slate-200 rounded divide-y" data-paginate="board-box">
-                          {(flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any, i: number) => {
+                          {(flat.length ? flat : [{ _level: 0, nazev: "â€”" }]).map((c: any, i: number) => {
                             const prefix = depthPrefix(c._level);
                             const name = dash(c?.nazev || c?.name);
                             const desc = dash(c?.popis || c?.description || "");
-                            const line = buildComponentLine(c); // typ, póly, dim., Riso, Zs, t, IΔ, pozn.
+                            const line = buildComponentLine(c); // typ, pĂłly, dim., Riso, Zs, t, IÎ”, pozn.
 
                             return (
                               <div
@@ -507,7 +541,7 @@ export default function SummaryPage() {
                                     {name}
                                   </div>
                                   <div className="text-xs text-slate-600 mt-0.5">
-                                    {desc !== "Chybí informace" && <span className="mr-2">{desc}</span>}
+                                    {desc !== "ChybĂ­ informace" && <span className="mr-2">{desc}</span>}
                                     {line}
                                   </div>
                                 </div>
@@ -520,28 +554,28 @@ export default function SummaryPage() {
                   })}
                 </div>
               ) : (
-                <div className="italic text-slate-400">—</div>
+                <div className="italic text-slate-400">â€”</div>
               )}
             </section>
 
-            {/* ===== A4 #4 – Místnosti + Závady + Závěr ===== */}
+            {/* ===== A4 #4 â€“ MĂ­stnosti + ZĂˇvady + ZĂˇvÄ›r ===== */}
             <section className="a4">
-              <H1>4. Měření – místnosti</H1>
+              <H1>4. MÄ›Ĺ™enĂ­ â€“ mĂ­stnosti</H1>
               {safeForm.rooms?.length ? (
                 <div className="space-y-6">
                   {safeForm.rooms.map((room: any, rIdx: number) => (
                     <div key={rIdx} className="mt-6">
-                      <div className="font-semibold">Místnost: {dash(room?.name) || `#${rIdx + 1}`}</div>
-                      <div className="text-sm text-slate-600">Poznámka: {dash(room?.details)}</div>
+                      <div className="font-semibold">MĂ­stnost: {dash(room?.name) || `#${rIdx + 1}`}</div>
+                      <div className="text-sm text-slate-600">PoznĂˇmka: {dash(room?.details)}</div>
                       <table className="w-full text-sm border mt-2" style={{ breakInside: "avoid" }}>
                         <thead>
                           <tr className="text-left">
                             <Th>Typ</Th>
-                            <Th>Počet</Th>
+                            <Th>PoÄŤet</Th>
                             <Th>Dimenze</Th>
-                            <Th>Riso [MΩ]</Th>
-                            <Th>Ochrana [Ω]</Th>
-                            <Th>Poznámka</Th>
+                            <Th>Riso [MÎ©]</Th>
+                            <Th>Ochrana [Î©]</Th>
+                            <Th>PoznĂˇmka</Th>
                           </tr>
                         </thead>
                         <tbody>
@@ -558,7 +592,7 @@ export default function SummaryPage() {
                             ))
                           ) : (
                             <tr>
-                              <Td colSpan={6}>—</Td>
+                              <Td colSpan={6}>â€”</Td>
                             </tr>
                           )}
                         </tbody>
@@ -567,20 +601,20 @@ export default function SummaryPage() {
                   ))}
                 </div>
               ) : (
-                <div className="italic text-slate-400">—</div>
+                <div className="italic text-slate-400">â€”</div>
               )}
 
-              {/* silnější oddělení a "pevný" zlom před závadami i v tisku */}
+              {/* silnÄ›jĹˇĂ­ oddÄ›lenĂ­ a "pevnĂ˝" zlom pĹ™ed zĂˇvadami i v tisku */}
               <hr className="my-10 border-slate-200" />
               <section className="break-before-page">
-                <H1>5. Závady</H1>
+                <H1>5. ZĂˇvady</H1>
                 {safeForm.defects?.length ? (
                   <table className="w-full text-sm" style={{ breakInside: "avoid" }}>
                     <thead>
                       <tr className="text-left">
-                        <Th>Popis závady</Th>
-                        <Th>ČSN</Th>
-                        <Th>Článek</Th>
+                        <Th>Popis zĂˇvady</Th>
+                        <Th>ÄŚSN</Th>
+                        <Th>ÄŚlĂˇnek</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -594,13 +628,13 @@ export default function SummaryPage() {
                     </tbody>
                   </table>
                 ) : (
-                  <div className="italic text-slate-400">—</div>
+                  <div className="italic text-slate-400">â€”</div>
                 )}
               </section>
 
               <hr className="my-6 border-slate-200" />
 
-              <H1>6. Závěr</H1>
+              <H1>6. ZĂˇvÄ›r</H1>
               <section style={{ breakInside: "avoid" }}>
                 <div className="space-y-4 text-sm">
                   <div className="whitespace-pre-line">{dash(safeForm.conclusion?.text)}</div>
@@ -610,7 +644,7 @@ export default function SummaryPage() {
                     </div>
                   </div>
                   <div>
-                    Další revize: <strong>{dash(safeForm.conclusion?.validUntil)}</strong>
+                    DalĹˇĂ­ revize: <strong>{dash(safeForm.conclusion?.validUntil)}</strong>
                   </div>
                 </div>
               </section>
@@ -621,3 +655,4 @@ export default function SummaryPage() {
     </div>
   );
 }
+

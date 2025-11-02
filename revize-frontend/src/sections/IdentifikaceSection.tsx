@@ -1,4 +1,4 @@
-import React, { useContext, ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useContext, ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Tooltip from "../components/Tooltip";
 import NormsSection from "../components/NormsSection";
 import { RevisionFormContext, RevisionForm } from "../context/RevisionFormContext";
@@ -8,30 +8,30 @@ import { authHeader } from "../api/auth";
 import { apiUrl } from "../api/base";
 
 const voltageOptions = ["230V", "400V", "230V/400V", "12V", "24V"];
-const revisionTypes = ["Výchozí", "Pravidelná", "Mimořádná"];
+const revisionTypes = ["VĂ˝chozĂ­", "PravidelnĂˇ", "MimoĹ™ĂˇdnĂˇ"];
 const networkTypes = ["TN-C", "TN-S", "TN-C-S", "TT", "IT"];
 
 const protectionOptions = {
   basic: [
-    { label: "Základní izolace", tooltip: "Izolace živých částí, která brání přímému dotyku." },
-    { label: "Přepážky a kryty", tooltip: "Fyzické bariéry k živým částem." },
-    { label: "Zábrany", tooltip: "Brání neúmyslnému dotyku." },
-    { label: "Ochrana polohou", tooltip: "Živé části nejsou běžně přístupné." },
-    { label: "Omezení napětí (ELV)", tooltip: "Napětí sníženo na bezpečnou úroveň." },
-    { label: "Omezení proudu", tooltip: "Omezení proudu a náboje při dotyku." },
-    { label: "Srovnání potenciálů", tooltip: "Vyrovnání potenciálů mezi částmi." },
+    { label: "ZĂˇkladnĂ­ izolace", tooltip: "Izolace ĹľivĂ˝ch ÄŤĂˇstĂ­, kterĂˇ brĂˇnĂ­ pĹ™Ă­mĂ©mu dotyku." },
+    { label: "PĹ™epĂˇĹľky a kryty", tooltip: "FyzickĂ© bariĂ©ry k ĹľivĂ˝m ÄŤĂˇstem." },
+    { label: "ZĂˇbrany", tooltip: "BrĂˇnĂ­ neĂşmyslnĂ©mu dotyku." },
+    { label: "Ochrana polohou", tooltip: "Ĺ˝ivĂ© ÄŤĂˇsti nejsou bÄ›ĹľnÄ› pĹ™Ă­stupnĂ©." },
+    { label: "OmezenĂ­ napÄ›tĂ­ (ELV)", tooltip: "NapÄ›tĂ­ snĂ­Ĺľeno na bezpeÄŤnou ĂşroveĹ." },
+    { label: "OmezenĂ­ proudu", tooltip: "OmezenĂ­ proudu a nĂˇboje pĹ™i dotyku." },
+    { label: "SrovnĂˇnĂ­ potenciĂˇlĹŻ", tooltip: "VyrovnĂˇnĂ­ potenciĂˇlĹŻ mezi ÄŤĂˇstmi." },
   ],
   fault: [
-    { label: "Automatické odpojení od zdroje", tooltip: "Odpojení při poruše, aby se zabránilo dotykovému napětí." },
-    { label: "Ochranné pospojování", tooltip: "Spojení všech neživých částí a uzemnění." },
-    { label: "Elektrické oddělení", tooltip: "Izolace obvodu od země a jiných obvodů." },
-    { label: "Přídavná izolace", tooltip: "Další vrstva izolace." },
-    { label: "Ochranné stínění", tooltip: "Kovový kryt nebo síť proti rušení." },
-    { label: "Nevodivé okolí", tooltip: "Použití materiálů s nízkou vodivostí." },
+    { label: "AutomatickĂ© odpojenĂ­ od zdroje", tooltip: "OdpojenĂ­ pĹ™i poruĹˇe, aby se zabrĂˇnilo dotykovĂ©mu napÄ›tĂ­." },
+    { label: "OchrannĂ© pospojovĂˇnĂ­", tooltip: "SpojenĂ­ vĹˇech neĹľivĂ˝ch ÄŤĂˇstĂ­ a uzemnÄ›nĂ­." },
+    { label: "ElektrickĂ© oddÄ›lenĂ­", tooltip: "Izolace obvodu od zemÄ› a jinĂ˝ch obvodĹŻ." },
+    { label: "PĹ™Ă­davnĂˇ izolace", tooltip: "DalĹˇĂ­ vrstva izolace." },
+    { label: "OchrannĂ© stĂ­nÄ›nĂ­", tooltip: "KovovĂ˝ kryt nebo sĂ­ĹĄ proti ruĹˇenĂ­." },
+    { label: "NevodivĂ© okolĂ­", tooltip: "PouĹľitĂ­ materiĂˇlĹŻ s nĂ­zkou vodivostĂ­." },
   ],
   additional: [
-    { label: "Proudové chrániče (RCD)", tooltip: "Vypínají obvod při rozdílu proudu." },
-    { label: "Doplňkové pospojování", tooltip: "Spojuje vodivé části v místnosti kvůli bezpečnosti." },
+    { label: "ProudovĂ© chrĂˇniÄŤe (RCD)", tooltip: "VypĂ­najĂ­ obvod pĹ™i rozdĂ­lu proudu." },
+    { label: "DoplĹkovĂ© pospojovĂˇnĂ­", tooltip: "Spojuje vodivĂ© ÄŤĂˇsti v mĂ­stnosti kvĹŻli bezpeÄŤnosti." },
   ],
 };
 
@@ -90,7 +90,7 @@ export default function IdentifikaceSection() {
         });
       } catch (e: any) {
         if (!alive) return;
-        setInstError(e?.message || "Nepodařilo se načíst měřicí přístroje.");
+        setInstError(e?.message || "NepodaĹ™ilo se naÄŤĂ­st mÄ›Ĺ™icĂ­ pĹ™Ă­stroje.");
       } finally {
         if (alive) setInstLoading(false);
       }
@@ -120,14 +120,14 @@ export default function IdentifikaceSection() {
     <div className="space-y-5 text-sm text-gray-800">
       <h2 className="text-xl font-semibold text-blue-800">Identifikace</h2>
 
-      {/* Základní pole */}
+      {/* ZĂˇkladnĂ­ pole */}
       <div className="grid gap-3 md:grid-cols-2">
         <div>
-          <label className="font-semibold">Evidenční číslo</label>
+          <label className="font-semibold">EvidenÄŤnĂ­ ÄŤĂ­slo</label>
           <input type="text" value={form.evidencni || ""} readOnly className="p-2 border rounded w-full bg-gray-100" />
         </div>
         <div>
-          <label className="font-semibold">Revidovaný objekt</label>
+          <label className="font-semibold">RevidovanĂ˝ objekt</label>
           <input type="text" className="p-2 border rounded w-full" value={form.objekt || ""} onChange={onField("objekt")} />
         </div>
         <div>
@@ -142,7 +142,7 @@ export default function IdentifikaceSection() {
           <label className="font-semibold">Typ revize</label>
           <select className="p-2 border rounded w-full" value={form.typRevize || ""} onChange={onField("typRevize")}>
             <option value="" disabled>
-              — vyberte —
+              â€” vyberte â€”
             </option>
             {revisionTypes.map((opt) => (
               <option key={opt} value={opt}>
@@ -152,10 +152,10 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Druh sítě</label>
+          <label className="font-semibold">Druh sĂ­tÄ›</label>
           <select className="p-2 border rounded w-full" value={form.sit || ""} onChange={onField("sit")}>
             <option value="" disabled>
-              — vyberte —
+              â€” vyberte â€”
             </option>
             {networkTypes.map((opt) => (
               <option key={opt} value={opt}>
@@ -165,7 +165,7 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Jmenovité napětí</label>
+          <label className="font-semibold">JmenovitĂ© napÄ›tĂ­</label>
           <input list="voltages" className="p-2 border rounded w-full" value={form.voltage || ""} onChange={onField("voltage")} />
           <datalist id="voltages">
             {voltageOptions.map((v) => (
@@ -175,16 +175,16 @@ export default function IdentifikaceSection() {
         </div>
       </div>
 
-      {/* Měřicí přístroje */}
+      {/* MÄ›Ĺ™icĂ­ pĹ™Ă­stroje */}
       <section>
-        <h3 className="text-lg font-semibold mb-2">Měřicí přístroje</h3>
+        <h3 className="text-lg font-semibold mb-2">MÄ›Ĺ™icĂ­ pĹ™Ă­stroje</h3>
         <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="p-2 w-10 text-center">✓</th>
-                <th className="p-2 text-left">Název</th>
-                <th className="p-2 text-left">Měření</th>
+                <th className="p-2 w-10 text-center">âś“</th>
+                <th className="p-2 text-left">NĂˇzev</th>
+                <th className="p-2 text-left">MÄ›Ĺ™enĂ­</th>
                 <th className="p-2 text-left">Kal. list</th>
                 <th className="p-2 text-left">S/N</th>
                 <th className="p-2 text-left">Platnost do</th>
@@ -195,7 +195,7 @@ export default function IdentifikaceSection() {
               {instLoading && (
                 <tr>
                   <td colSpan={7} className="p-3 text-center text-gray-500">
-                    Načítám přístroje…
+                    NaÄŤĂ­tĂˇm pĹ™Ă­strojeâ€¦
                   </td>
                 </tr>
               )}
@@ -209,7 +209,7 @@ export default function IdentifikaceSection() {
               {!instLoading && !instError && instCatalog.length === 0 && (
                 <tr>
                   <td colSpan={7} className="p-3 text-center text-gray-500">
-                    V katalogu zatím nejsou žádné přístroje.
+                    V katalogu zatĂ­m nejsou ĹľĂˇdnĂ© pĹ™Ă­stroje.
                   </td>
                 </tr>
               )}
@@ -235,20 +235,20 @@ export default function IdentifikaceSection() {
         </div>
       </section>
 
-      {/* Montážní firma */}
+      {/* MontĂˇĹľnĂ­ firma */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <label className="font-semibold">Montážní firma</label>
+          <label className="font-semibold">MontĂˇĹľnĂ­ firma</label>
           <input type="text" className="p-2 border rounded w-full" value={form.montFirma || ""} onChange={onField("montFirma")} />
         </div>
         <div>
-          <label className="font-semibold">Oprávnění montážní firmy</label>
+          <label className="font-semibold">OprĂˇvnÄ›nĂ­ montĂˇĹľnĂ­ firmy</label>
           <input
             type="text"
             className="p-2 border rounded w-full"
             value={form.montFirmaAuthorization || ""}
             onChange={onField("montFirmaAuthorization")}
-            placeholder="např. 12345/XX/EZ"
+            placeholder="napĹ™. 12345/XX/EZ"
           />
         </div>
       </div>
@@ -256,15 +256,15 @@ export default function IdentifikaceSection() {
       {/* Data */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="font-semibold">Zahájená revize</label>
+          <label className="font-semibold">ZahĂˇjenĂˇ revize</label>
           <input type="date" className="p-2 border rounded w-full" value={(form as any).date_start || ""} onChange={onField("date_start") as any} />
         </div>
         <div>
-          <label className="font-semibold">Ukončená revize</label>
+          <label className="font-semibold">UkonÄŤenĂˇ revize</label>
           <input type="date" className="p-2 border rounded w-full" value={(form as any).date_end || ""} onChange={onField("date_end") as any} />
         </div>
         <div>
-          <label className="font-semibold">Vypracovaná revize</label>
+          <label className="font-semibold">VypracovanĂˇ revize</label>
           <input type="date" className="p-2 border rounded w-full" value={(form as any).date_created || ""} onChange={onField("date_created") as any} />
         </div>
       </div>
@@ -280,23 +280,23 @@ export default function IdentifikaceSection() {
             readOnly
             aria-readonly
             tabIndex={-1}
-            placeholder="(nenastaveno – klikni na „Načíst aktivní subjekt“)"
+            placeholder="(nenastaveno â€“ klikni na â€žNaÄŤĂ­st aktivnĂ­ subjektâ€ś)"
           />
         </div>
         <div className="flex md:justify-end">
-          <button onClick={applyActiveCompanyToForm} className="h-[42px] px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded w-full md:w-auto" title="Propíše IČO/DIČ/Adresu aktivního subjektu do této revize">
-            {loadingCompanies ? "Načítám…" : "Načíst aktivní subjekt"}
+          <button onClick={applyActiveCompanyToForm} className="h-[42px] px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded w-full md:w-auto" title="PropĂ­Ĺˇe IÄŚO/DIÄŚ/Adresu aktivnĂ­ho subjektu do tĂ©to revize">
+            {loadingCompanies ? "NaÄŤĂ­tĂˇmâ€¦" : "NaÄŤĂ­st aktivnĂ­ subjekt"}
           </button>
         </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
         <div>
-          <label className="font-semibold">IČO (revize)</label>
+          <label className="font-semibold">IÄŚO (revize)</label>
           <input type="text" className="p-2 border rounded w-full bg-gray-100 cursor-not-allowed" value={form.technicianCompanyIco || ""} readOnly aria-readonly tabIndex={-1} />
         </div>
         <div>
-          <label className="font-semibold">DIČ (revize)</label>
+          <label className="font-semibold">DIÄŚ (revize)</label>
           <input type="text" className="p-2 border rounded w-full bg-gray-100 cursor-not-allowed" value={form.technicianCompanyDic || ""} readOnly aria-readonly tabIndex={-1} />
         </div>
         <div>
@@ -305,18 +305,18 @@ export default function IdentifikaceSection() {
         </div>
       </div>
 
-      {/* Revizní technik */}
+      {/* ReviznĂ­ technik */}
       <div className="grid md:grid-cols-3 gap-4">
         <div>
-          <label className="font-semibold">Revizní technik</label>
+          <label className="font-semibold">ReviznĂ­ technik</label>
           <input type="text" className="p-2 border rounded w-full bg-gray-100 cursor-not-allowed" value={profile?.fullName || ""} readOnly aria-readonly tabIndex={-1} />
         </div>
         <div>
-          <label className="font-semibold">Č. osvědčení</label>
+          <label className="font-semibold">ÄŚ. osvÄ›dÄŤenĂ­</label>
           <input type="text" className="p-2 border rounded w-full bg-gray-100 cursor-not-allowed" value={profile?.certificateNumber || ""} readOnly aria-readonly tabIndex={-1} />
         </div>
         <div>
-          <label className="font-semibold">Č. oprávnění</label>
+          <label className="font-semibold">ÄŚ. oprĂˇvnÄ›nĂ­</label>
           <input type="text" className="p-2 border rounded w-full bg-gray-100 cursor-not-allowed" value={profile?.authorizationNumber || ""} readOnly aria-readonly tabIndex={-1} />
         </div>
       </div>
@@ -324,11 +324,11 @@ export default function IdentifikaceSection() {
       {/* Normy */}
       <NormsSection />
 
-      {/* Ochranná opatření */}
+      {/* OchrannĂˇ opatĹ™enĂ­ */}
       {(["basic", "fault", "additional"] as const).map((group) => (
         <div key={group}>
           <label className="font-semibold block mb-2 capitalize">
-            {{ basic: "Základní ochrana", fault: "Ochrana při poruše", additional: "Doplňková ochrana" }[group]}
+            {{ basic: "ZĂˇkladnĂ­ ochrana", fault: "Ochrana pĹ™i poruĹˇe", additional: "DoplĹkovĂˇ ochrana" }[group]}
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {protectionOptions[group].map((p) => (
@@ -343,25 +343,23 @@ export default function IdentifikaceSection() {
         </div>
       ))}
 
-      {/* Další podklady */}
+      {/* DalĹˇĂ­ podklady */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
-          <label className="font-semibold">Projektová dokumentace</label>
+          <label className="font-semibold">ProjektovĂˇ dokumentace</label>
           <input type="text" className="p-2 border rounded w-full" value={form.documentation || ""} onChange={onField("documentation")} />
         </div>
         <div>
-          <label className="font-semibold">Posouzení vnějších vlivů</label>
+          <label className="font-semibold">PosouzenĂ­ vnÄ›jĹˇĂ­ch vlivĹŻ</label>
           <input type="text" className="p-2 border rounded w-full" value={form.environment || ""} onChange={onField("environment")} />
         </div>
       </div>
       <div>
-        <label className="font-semibold">Další písemné podklady</label>
+        <label className="font-semibold">DalĹˇĂ­ pĂ­semnĂ© podklady</label>
         <textarea rows={4} className="p-2 border rounded w-full" value={form.extraNotes || ""} onChange={onField("extraNotes")} />
       </div>
 
-      <div className="text-right">
-        <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Pokračovat →</button>
-      </div>
+      {/* tlačítko pokračovat odstraněno */}
     </div>
   );
 }
