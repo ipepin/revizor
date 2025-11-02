@@ -1,8 +1,8 @@
-# routers/vv.py
+﻿# routers/vv.py
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,10 +13,24 @@ from database import get_db
 from routers.auth import get_current_user
 from models import Project, User as UserModel, VvDoc as VvDocModel
 from schemas import VvDocCreate, VvDocUpdate, VvDocRead
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/vv", tags=["vv"])
 
 SEQ_PAD = 3  # VV-<pid>-<seq:03d>-<year>
+
+# password verify
+try:
+    from utils.security import verify_password  # type: ignore
+except Exception:  # pragma: no cover
+    def verify_password(*args, **kwargs):  # type: ignore
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="verify_password() not available")
+
+class PasswordBody(BaseModel):
+    password: str
+
+def _get_user_password_hash(user: UserModel) -> Optional[str]:
+    return getattr(user, "password_hash", None) or getattr(user, "hashed_password", None)
 
 
 def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Project:
@@ -32,7 +46,7 @@ def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Pro
 def _generate_vv_number(db: Session, project_id: int) -> str:
     """
     Formát: VV-<projectId>-<seq>-<year>
-    - seq je pořadí v rámci (project_id, rok), 1…N
+    - seq je pořadí v rámci (project_id, rok), 1..N
     """
     year = datetime.now().year
     prefix = f"VV-{project_id}-"
@@ -93,7 +107,6 @@ def create_vv(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    # ⬅️ POTŘEBNÉ PŘIŘAZENÍ
     prj = _ensure_project_access_or_404(db, payload.project_id, user)
 
     if db.get(VvDocModel, payload.id):
@@ -105,7 +118,7 @@ def create_vv(
         id=payload.id,
         number=number,
         project_id=payload.project_id,
-        data_json=payload.data_json or _default_protocol_data(prj),  # default seed
+        data_json=payload.data_json or _default_protocol_data(prj),
     )
     db.add(row)
     db.commit()
@@ -138,14 +151,9 @@ def put_vv(
         raise HTTPException(status_code=404, detail="Not found")
     _ensure_project_access_or_404(db, row.project_id, user)
 
-    # změna projektu není povolená
     if payload.project_id is not None and payload.project_id != row.project_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Changing project_id is not allowed. Create a new VV in the target project.",
-        )
+        raise HTTPException(status_code=400, detail="Changing project_id is not allowed. Create a new VV in the target project.")
 
-    # <<< TADY: data_json je volitelné; když nic nepřišlo, nic neměň
     if payload.data_json is not None:
         row.data_json = payload.data_json
 
@@ -174,13 +182,24 @@ def list_vv_for_project(
 @router.delete("/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_vv(
     doc_id: str,
+    payload: PasswordBody,
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
     row = db.get(VvDocModel, doc_id)
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    _ensure_project_access_or_404(db, row.project_id, user)
+    prj = _ensure_project_access_or_404(db, row.project_id, user)
+    if prj.owner_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owner can delete")
+
+    if not payload or not payload.password:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password required")
+    pwd_hash = _get_user_password_hash(user)
+    if not pwd_hash:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User has no password set")
+    if not verify_password(payload.password, pwd_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
     db.delete(row)
     db.commit()

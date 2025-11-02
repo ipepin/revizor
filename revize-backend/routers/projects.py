@@ -1,4 +1,4 @@
-# routers/projects.py
+﻿# routers/projects.py
 from __future__ import annotations
 
 from typing import List, Optional
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Project, User as UserModel
 from routers.auth import get_current_user
-from schemas import ProjectRead  # odpověď (Pydantic v2: má mít model_config = ConfigDict(from_attributes=True))
+from schemas import ProjectRead
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -32,14 +32,30 @@ class ProjectPatchPayload(BaseModel):
     shared_with_user_ids: Optional[List[int]] = None
 
 
+# --------- Password helpers ---------
+try:
+    from utils.security import verify_password  # type: ignore
+except Exception:  # pragma: no cover
+    def verify_password(*args, **kwargs):  # type: ignore
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="verify_password() not available")
+
+
+class PasswordBody(BaseModel):
+    password: str
+
+
+def _get_user_password_hash(user: UserModel) -> Optional[str]:
+    return getattr(user, "password_hash", None) or getattr(user, "hashed_password", None)
+
+
 # --------- Helpers ---------
+
 def _query_user_projects(db: Session, user_id: int):
     """
-    Vrať dotaz na projekty, ke kterým má uživatel přístup:
+    Vrátí dotaz na projekty, ke kterým má uživatel přístup:
     - je vlastníkem (owner_id)
     - je mezi 'shared_with_users'
     """
-    # Pozn.: vztah shared_with_users předpokládá many-to-many mezi Project a User
     return (
         db.query(Project)
         .outerjoin(Project.shared_with_users)  # type: ignore[attr-defined]
@@ -53,7 +69,7 @@ def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Pro
     if not prj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
-    # přístup, pokud je vlastník, nebo je sdílený
+    # přístup, pokud je vlastník, nebo je sdílen
     shared_ids = {u.id for u in getattr(prj, "shared_with_users", [])}
     if prj.owner_id != user.id and user.id not in shared_ids:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
@@ -67,7 +83,7 @@ def list_projects(
     user: UserModel = Depends(get_current_user),
 ):
     """
-    Vrať všechny projekty přihlášeného uživatele (vlastněné i nasdílené).
+    Vrátí všechny projekty přihlášeného uživatele (vlastněné i nasdílené).
     Vrací i vložené revize (dle ProjectRead schématu).
     """
     projects = _query_user_projects(db, user.id).order_by(Project.id.desc()).all()
@@ -94,13 +110,13 @@ def create_project(
     user: UserModel = Depends(get_current_user),
 ):
     """
-    Vytvoř nový projekt. Vlastníkem je aktuální uživatel.
+    Vytvořit nový projekt. Vlastníkem je aktuální uživatel.
     Lze rovnou nasdílet dalším uživatelům.
     """
     prj = Project(
         address=payload.address or "",
         client=payload.client or "",
-        owner_id=user.id,     # ⬅️ nepoužívej payload.owner_id
+        owner_id=user.id,
     )
 
     if payload.shared_with_user_ids:
@@ -122,7 +138,7 @@ def patch_project(
 ):
     """
     Částečná aktualizace projektu. Povoleno vlastníkovi i uživatelům se sdíleným přístupem
-    (můžeš si upravit, pokud patch smí provádět jen vlastník).
+    (můžeš upravit, pokud patch smí provádět jen vlastník).
     """
     prj = _ensure_project_access_or_404(db, pid, user)
 
@@ -149,16 +165,25 @@ def patch_project(
 @router.delete("/{pid}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_project(
     pid: int,
+    payload: PasswordBody,
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
     """
-    Smazání projektu (typicky povol jen vlastníkovi).
+    Smazání projektu (jen vlastník) + ověření hesla.
     """
     prj = _ensure_project_access_or_404(db, pid, user)
 
     if prj.owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owner can delete the project")
+
+    if not payload or not payload.password:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password required")
+    pwd_hash = _get_user_password_hash(user)
+    if not pwd_hash:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User has no password set")
+    if not verify_password(payload.password, pwd_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
     db.delete(prj)
     db.commit()

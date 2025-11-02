@@ -1,4 +1,4 @@
-# routers/revisions.py
+﻿# routers/revisions.py
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -18,7 +18,7 @@ from models import Revision, Project, User as UserModel
 from schemas import RevisionRead, RevisionCreate, RevisionUpdate
 
 try:
-    # očekává se soubor auth/security.py s funkcí verify_password(plain, hashed)
+    # oÄŤekĂˇvĂˇ se soubor auth/security.py s funkcĂ­ verify_password(plain, hashed)
     from utils.security import verify_password  # type: ignore
 except Exception:  # pragma: no cover
     def verify_password(*args, **kwargs):
@@ -34,11 +34,11 @@ router = APIRouter(prefix="/revisions", tags=["revisions"])
 # ---------- Helpers ----------
 
 def _can_access_project(user: UserModel, prj: Project) -> bool:
-    """Vlastník projektu, nebo uživatel, se kterým je projekt sdílen."""
+    """VlastnĂ­k projektu, nebo uĹľivatel, se kterĂ˝m je projekt sdĂ­len."""
     try:
         return prj.owner_id == user.id or any(u.id == user.id for u in prj.shared_with_users)
     except Exception:
-        # když není relace shared_with_users, ber jen vlastníka
+        # kdyĹľ nenĂ­ relace shared_with_users, ber jen vlastnĂ­ka
         return prj.owner_id == user.id
 
 
@@ -71,12 +71,12 @@ def _ensure_dict(v: Any) -> Dict[str, Any]:
 
 
 def _to_schema(rev: Revision) -> RevisionRead:
-    """Bezpečný převod ORM -> Pydantic v2 (řeší date/datetime serializaci)."""
+    """BezpeÄŤnĂ˝ pĹ™evod ORM -> Pydantic v2 (Ĺ™eĹˇĂ­ date/datetime serializaci)."""
     return RevisionRead.model_validate(rev, from_attributes=True)
 
 
 def _get_user_password_hash(user: UserModel) -> Optional[str]:
-    # Podporuj obě varianty názvů
+    # Podporuj obÄ› varianty nĂˇzvĹŻ
     h = getattr(user, "password_hash", None)
     if not h:
         h = getattr(user, "hashed_password", None)
@@ -93,8 +93,8 @@ def list_revisions(
     status_filter: Optional[str] = Query(None, alias="status"),
 ):
     """
-    Vrať revize, ke kterým má uživatel přístup (vlastní projekty + sdílené).
-    Podporuje filtrování `?project_id=` a `?status=`.
+    VraĹĄ revize, ke kterĂ˝m mĂˇ uĹľivatel pĹ™Ă­stup (vlastnĂ­ projekty + sdĂ­lenĂ©).
+    Podporuje filtrovĂˇnĂ­ `?project_id=` a `?status=`.
     """
     q = (
         db.query(Revision)
@@ -129,7 +129,7 @@ def create_revision(
     if not _can_access_project(user, prj):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    # pořadí pro číslování
+    # poĹ™adĂ­ pro ÄŤĂ­slovĂˇnĂ­
     existing_count = (
         db.query(func.count(Revision.id))
         .filter(Revision.project_id == payload.project_id)
@@ -137,19 +137,19 @@ def create_revision(
     ) or 0
     seq = existing_count + 1
 
-    # datumy (date_done většinou vyžadujeme)
+    # datumy (date_done vÄ›tĹˇinou vyĹľadujeme)
     d_done = _ensure_date(getattr(payload, "date_done", None))  
     v_until = _ensure_date(getattr(payload, "valid_until", None))
     if not d_done:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="date_done is required")
 
-    # evidenční číslo – použij to z payloadu pokud ho FE poslal, jinak vygeneruj
+    # evidenÄŤnĂ­ ÄŤĂ­slo â€“ pouĹľij to z payloadu pokud ho FE poslal, jinak vygeneruj
     number = getattr(payload, "number", None) or f"RZ-{payload.project_id}-{seq}-{d_done.year}"
 
-    # status – fallback, pokud DB vyžaduje NOT NULL
-    status_val = getattr(payload, "status", None) or "Rozpracovaná"
+    # status â€“ fallback, pokud DB vyĹľaduje NOT NULL
+    status_val = getattr(payload, "status", None) or "RozpracovanĂˇ"
 
-    # data_json – přijmi dict/JSON string, fallback na {}
+    # data_json â€“ pĹ™ijmi dict/JSON string, fallback na {}
     data_json_val = _ensure_dict(getattr(payload, "data_json", None))
 
     try:
@@ -167,7 +167,7 @@ def create_revision(
 
         )
         db.add(rev)
-        db.flush()     # vyžádá INSERT, získá ID (kdyby něco chybělo, hodí to error tady)
+        db.flush()     # vyĹľĂˇdĂˇ INSERT, zĂ­skĂˇ ID (kdyby nÄ›co chybÄ›lo, hodĂ­ to error tady)
         db.commit()
         db.refresh(rev)
         return _to_schema(rev)
@@ -196,10 +196,10 @@ def get_revision(
     )
     if not rev:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    # Admin může přistupovat ke všem revizím
+    # Admin mĹŻĹľe pĹ™istupovat ke vĹˇem revizĂ­m
     if not bool(getattr(user, "is_admin", False)) and not _can_access_project(user, rev.project):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
-    # bezpečné načtení data_json zvlášť (může být uložen jako string)
+    # bezpeÄŤnĂ© naÄŤtenĂ­ data_json zvlĂˇĹˇĹĄ (mĹŻĹľe bĂ˝t uloĹľen jako string)
     try:
         raw_value = db.execute(
             select(Revision.__table__.c.data_json).where(Revision.id == rev_id)
@@ -247,7 +247,7 @@ def patch_revision(
         if "conclusion_valid_until" in data:
             rev.conclusion_valid_until = _ensure_date(data["conclusion_valid_until"])
 
-        # Jednoduchá skalární pole
+        # JednoduchĂˇ skalĂˇrnĂ­ pole
         for k in ("number", "type", "status", "defects", "conclusion_text",
                   "conclusion_safety", "locked"):
             if k in data:
@@ -275,6 +275,7 @@ def patch_revision(
 @router.delete("/{rev_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_revision(
     rev_id: int,
+    payload: PasswordBody,
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
@@ -283,12 +284,16 @@ def delete_revision(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
     if rev.project.owner_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can delete revision")
+    if not payload or not payload.password:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password required")
+    pwd_hash = _get_user_password_hash(user)
+    if not pwd_hash:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="User has no password set")
+    if not verify_password(payload.password, pwd_hash):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
     db.delete(rev)
     db.commit()
-    # 204 No Content – nic nevracíme
-
-
-# ---------- Stav: dokončit / odemknout ----------
+    # 204 No Content# ---------- Stav: dokonÄŤit / odemknout ----------
 
 class PasswordBody(BaseModel):
     password: str
@@ -306,7 +311,7 @@ def mark_completed(
     if rev.project.owner_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can complete")
 
-    rev.status = "Dokončená"
+    rev.status = "DokonÄŤenĂˇ"
     db.commit()
     db.refresh(rev)
     return _to_schema(rev)
@@ -323,7 +328,7 @@ def unlock_revision(
     if not rev:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
 
-    # jen vlastník může odemknout (uprav dle své politiky)
+    # jen vlastnĂ­k mĹŻĹľe odemknout (uprav dle svĂ© politiky)
     if rev.project.owner_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can unlock")
 
@@ -331,13 +336,13 @@ def unlock_revision(
     if not payload.password:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="password required")
 
-    # zjisti hash hesla z aktuálního uživatele
+    # zjisti hash hesla z aktuĂˇlnĂ­ho uĹľivatele
     pwd_hash = _get_user_password_hash(user)
     if not pwd_hash:
-        # uživatel nemá nastavené heslo
+        # uĹľivatel nemĂˇ nastavenĂ© heslo
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="User has no password set")
 
-    # ověření hesla – ošetři chyby verifikátoru tak, aby z toho nebyla 500
+    # ovÄ›Ĺ™enĂ­ hesla â€“ oĹˇetĹ™i chyby verifikĂˇtoru tak, aby z toho nebyla 500
     try:
         ok = verify_password(payload.password, pwd_hash)  # returns bool
     except Exception as e:
@@ -348,11 +353,12 @@ def unlock_revision(
     if not ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
 
-    # odemkni – pokud máš sloupec 'locked', nastav ho na False
+    # odemkni â€“ pokud mĂˇĹˇ sloupec 'locked', nastav ho na False
     if hasattr(rev, "locked"):
         rev.locked = False
-    rev.status = "Rozpracovaná"
+    rev.status = "RozpracovanĂˇ"
 
     db.commit()
     db.refresh(rev)
     return _to_schema(rev)
+

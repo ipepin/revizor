@@ -1,4 +1,4 @@
-﻿// src/pages/Dashboard.tsx (obnovený původní vzhled + VV)
+﻿// src/pages/Dashboard.tsx (obnovený původní vzhled + VV + mazání s heslem)
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -131,18 +131,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteProject = async (projectId: number) => {
+  const handleDeleteProject = async (projectId: number, password: string) => {
     try {
       const res = await fetch(apiUrl(`/projects/${projectId}`), {
         method: "DELETE",
-        headers: { ...authHeader(token!) },
+        headers: { "Content-Type": "application/json", ...authHeader(token!) },
+        body: JSON.stringify({ password })
       });
       if (!res.ok) throw new Error("Chyba při mazání projektu");
-      alert("✅ Projekt byl úspěšně smazán");
       await fetchProjects();
     } catch (err) {
       console.error("Chyba při mazání projektu:", err);
-      alert("❌ Nepodařilo se projekt smazat");
+      alert("Nepodařilo se projekt smazat");
     }
   };
 
@@ -233,7 +233,9 @@ export default function Dashboard() {
               const expired = proj.revisions?.some((r: any) => isExpired(r.valid_until));
               const isSelected = expandedProjectId === proj.id;
               const sortedRevisions = Array.isArray(proj.revisions)
-                ? [...proj.revisions].sort((a: any, b: any) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime())
+                ? [...proj.revisions].sort(
+                    (a: any, b: any) => new Date(b.date_done).getTime() - new Date(a.date_done).getTime()
+                  )
                 : [];
 
               return (
@@ -251,7 +253,9 @@ export default function Dashboard() {
                     <td className="p-2 font-mono">{proj.id}</td>
                     <td className="p-2">{proj.address}</td>
                     <td className="p-2">{proj.client}</td>
-                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>{expired ? "Revize po platnosti" : "OK"}</td>
+                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
+                      {expired ? "Revize po platnosti" : "OK"}
+                    </td>
                     <td className="p-2">{proj.revisions?.length ?? 0}</td>
                   </tr>
 
@@ -260,13 +264,18 @@ export default function Dashboard() {
                       <td colSpan={5} className="bg-blue-50 p-2">
                         <div className="text-right mb-2 flex justify-between">
                           {/* Přidat: revize + VV */}
-                          <button className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700" onClick={() => handleAdd(proj.id)}>➕ Přidat</button>
+                          <button
+                            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+                            onClick={() => handleAdd(proj.id)}
+                          >
+                            ➕ Přidat
+                          </button>
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                             onClick={() => {
-                              if (window.confirm("Opravdu chcete smazat tento projekt včetně všech revizí?")) {
-                                handleDeleteProject(proj.id);
-                              }
+                              const pwd = window.prompt("Pro smazání projektu zadejte své heslo:");
+                              if (!pwd) return;
+                              handleDeleteProject(proj.id, pwd);
                             }}
                           >
                             🗑️ Smazat projekt
@@ -293,30 +302,46 @@ export default function Dashboard() {
                                   <td className="p-2">{rev.number}</td>
                                   <td className="p-2">{rev.type}</td>
                                   <td className="p-2">{rev.date_done}</td>
-                                  <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>{rev.valid_until}</td>
-                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>{rev.status}</td>
+                                  <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
+                                    {rev.valid_until}
+                                  </td>
+                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
+                                    {rev.status}
+                                  </td>
                                   <td className="p-2 space-x-2">
-                                    <button className="text-blue-600 hover:underline" onClick={() => openRevision(proj.id, rev)} title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}>Otevřít</button>
+                                    <button
+                                      className="text-blue-600 hover:underline"
+                                      onClick={() => openRevision(proj.id, rev)}
+                                      title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
+                                    >
+                                      Otevřít
+                                    </button>
                                     <button
                                       className="text-red-600 hover:underline"
                                       onClick={async () => {
-                                        const confirmDelete = window.confirm("Opravdu chceš smazat tuto revizi?");
-                                        if (!confirmDelete) return;
+                                        const pwd = window.prompt("Pro smazání revize zadejte své heslo:");
+                                        if (!pwd) return;
                                         try {
-                                          const res = await fetch(apiUrl(`/revisions/${rev.id}`), {
+                                          const response = await fetch(apiUrl(`/revisions/${rev.id}`), {
                                             method: "DELETE",
-                                            headers: { ...authHeader(token!) },
+                                            headers: { "Content-Type": "application/json", ...authHeader(token!) },
+                                            body: JSON.stringify({ password: pwd }),
                                           });
-                                          if (!res.ok) throw new Error("Mazání selhalo");
+                                          if (!response.ok) throw new Error("Mazání selhalo");
                                           fetchProjects();
-                                        } catch (err) {
-                                          console.error("❌ Chyba při mazání revize:", err);
+                                        } catch (error) {
+                                          console.error("❌ Chyba při mazání revize:", error);
                                         }
                                       }}
                                     >
                                       Smazat
                                     </button>
-                                    <button onClick={() => navigate(`/summary/${rev.id}`)} className="text-green-600 hover:underline">Souhrn</button>
+                                    <button
+                                      onClick={() => navigate(`/summary/${rev.id}`)}
+                                      className="text-green-600 hover:underline"
+                                    >
+                                      Souhrn
+                                    </button>
                                   </td>
                                 </tr>
                               );
@@ -340,8 +365,12 @@ export default function Dashboard() {
                               </tr>
                             </thead>
                             <tbody>
-                              {vvLoading[proj.id] && <tr><td className="p-2" colSpan={4}>Načítám VV…</td></tr>}
-                              {!vvLoading[proj.id] && (vvByProject[proj.id]?.length ?? 0) === 0 && <tr><td className="p-2" colSpan={4}>Žádné protokoly.</td></tr>}
+                              {vvLoading[proj.id] && (
+                                <tr><td className="p-2" colSpan={4}>Načítám VV…</td></tr>
+                              )}
+                              {!vvLoading[proj.id] && (vvByProject[proj.id]?.length ?? 0) === 0 && (
+                                <tr><td className="p-2" colSpan={4}>Žádné protokoly.</td></tr>
+                              )}
                               {(vvByProject[proj.id] || []).map((vv: any) => {
                                 const spaceName = vv.data_json?.spaces?.[0]?.name ?? "—";
                                 const date = vv.data_json?.date ?? "—";
@@ -354,15 +383,22 @@ export default function Dashboard() {
                                     </td>
                                     <td className="p-2">{date}</td>
                                     <td className="p-2 space-x-3">
-                                      <button className="text-blue-600 hover:underline" onClick={() => navigate(`/vv/${vv.id}`)}>Otevřít</button>
+                                      <button
+                                        className="text-blue-600 hover:underline"
+                                        onClick={() => navigate(`/vv/${vv.id}`)}
+                                      >
+                                        Otevřít
+                                      </button>
                                       <button
                                         className="text-red-600 hover:underline"
                                         onClick={async () => {
-                                          if (!window.confirm("Opravdu chceš smazat tento VV protokol?")) return;
+                                          const pwd = window.prompt("Pro smazání VV protokolu zadejte své heslo:");
+                                          if (!pwd) return;
                                           try {
                                             const res = await fetch(apiUrl(`/vv/${vv.id}`), {
                                               method: "DELETE",
-                                              headers: { ...authHeader(token!) },
+                                              headers: { "Content-Type": "application/json", ...authHeader(token!) },
+                                              body: JSON.stringify({ password: pwd }),
                                             });
                                             if (!res.ok) throw new Error("Mazání selhalo");
                                             loadVvForProject(proj.id);
@@ -420,7 +456,9 @@ export default function Dashboard() {
                                         project_id: proj.id,
                                         type,
                                         date_done: new Date().toISOString().split("T")[0],
-                                        valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 4)).toISOString().split("T")[0],
+                                        valid_until: new Date(new Date().setFullYear(new Date().getFullYear() + 4))
+                                          .toISOString()
+                                          .split("T")[0],
                                         status: "Rozpracovaná",
                                         data_json: { poznámka: "zatím prázdné" },
                                       };
@@ -436,7 +474,9 @@ export default function Dashboard() {
                                           let detail = "";
                                           try {
                                             const data = await response.json();
-                                            detail = data?.detail ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail)) : "";
+                                            detail = data?.detail
+                                              ? (Array.isArray(data.detail) ? JSON.stringify(data.detail) : String(data.detail))
+                                              : "";
                                           } catch {}
                                           throw new Error(`Server error${detail ? `: ${detail}` : ""}`);
                                         }
@@ -473,11 +513,27 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-96">
             <h2 className="text-lg font-semibold mb-4">Nový projekt</h2>
-            <input type="text" className="w-full p-2 mb-2 border rounded" placeholder="Adresa" value={newProjectData.address} onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })} />
-            <input type="text" className="w-full p-2 mb-4 border rounded" placeholder="Objednatel" value={newProjectData.client} onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })} />
+            <input
+              type="text"
+              className="w-full p-2 mb-2 border rounded"
+              placeholder="Adresa"
+              value={newProjectData.address}
+              onChange={(e) => setNewProjectData({ ...newProjectData, address: e.target.value })}
+            />
+            <input
+              type="text"
+              className="w-full p-2 mb-4 border rounded"
+              placeholder="Objednatel"
+              value={newProjectData.client}
+              onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
+            />
             <div className="flex justify-end gap-2">
-              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>Zrušit</button>
-              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject} title="Uložit nový projekt">Uložit</button>
+              <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
+                Zrušit
+              </button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject} title="Uložit nový projekt">
+                Uložit
+              </button>
             </div>
           </div>
         </div>
@@ -489,11 +545,23 @@ export default function Dashboard() {
           <div className="bg-white p-5 rounded shadow w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-semibold mb-2">Revize je dokončená</h3>
             <p className="text-sm text-gray-600 mb-3">Pro otevření zadej své heslo.</p>
-            <input type="password" className="w-full p-2 border rounded mb-2" placeholder="Heslo" value={unlockPwd} onChange={(e) => setUnlockPwd(e.target.value)} onKeyDown={(e) => (e.key === "Enter" ? submitUnlock() : null)} autoFocus />
+            <input
+              type="password"
+              className="w-full p-2 border rounded mb-2"
+              placeholder="Heslo"
+              value={unlockPwd}
+              onChange={(e) => setUnlockPwd(e.target.value)}
+              onKeyDown={(e) => (e.key === "Enter" ? submitUnlock() : null)}
+              autoFocus
+            />
             {unlockErr && <div className="text-red-600 text-sm mb-2">{unlockErr}</div>}
             <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setUnlockFor({ projectId: null, revId: null })} disabled={unlockBusy}>Zrušit</button>
-              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitUnlock} disabled={unlockBusy || !unlockPwd}>Odemknout</button>
+              <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setUnlockFor({ projectId: null, revId: null })} disabled={unlockBusy}>
+                Zrušit
+              </button>
+              <button className="px-3 py-2 bg-blue-600 text-white rounded" onClick={submitUnlock} disabled={unlockBusy || !unlockPwd}>
+                Odemknout
+              </button>
             </div>
           </div>
         </div>
