@@ -333,7 +333,7 @@ export default function Dashboard() {
                           </button>
                         </div>
 
-                        {/* Revizní zprávy */}\n                        <h2 className="text-xl font-semibold text-slate-800 mb-2">Revizní zprávy</h2>
+                        {/* Revizní zprávy */}                        <h2 className="text-xl font-semibold text-slate-800 mb-2">Revizní zprávy</h2>
                         <table className="w-full text-sm bg-white border rounded">
                           <thead className="bg-gray-100">
                             <tr>
@@ -389,7 +389,7 @@ export default function Dashboard() {
                         {/* mezera */}
                         <div className="h-4" />
 
-                        {/* VV Protokoly */}\n                        <h2 className="text-xl font-semibold text-slate-800 mb-2 mt-6">Protokoly o VV</h2>\n                        <div className="bg-white border rounded">
+                        {/* VV Protokoly */}                        <h2 className="text-xl font-semibold text-slate-800 mb-2 mt-6">Protokoly o VV</h2>                        <div className="bg-white border rounded">
                           <table className="w-full text-sm">
                             <thead>
                               <tr>
