@@ -55,9 +55,9 @@ export default function Dashboard() {
     setDeleteDialog((d) => ({ ...d, busy: true, err: null }));
     try {
       let url = '';
-      if (deleteDialog.kind === 'project') url = apiUrl(/projects/);
-      else if (deleteDialog.kind === 'revision') url = apiUrl(/revisions/);
-      else url = apiUrl(/vv/);
+      if (deleteDialog.kind === 'project') url = apiUrl(`/projects/${deleteDialog.id}`);
+      else if (deleteDialog.kind === 'revision') url = apiUrl(`/revisions/${deleteDialog.id}`);
+      else url = apiUrl(`/vv/${deleteDialog.id}`);
 
       const res = await fetch(url, {
         method: 'DELETE',
@@ -608,6 +608,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
