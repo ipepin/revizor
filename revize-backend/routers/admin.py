@@ -1,27 +1,30 @@
 from __future__ import annotations
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session, joinedload, defer
-from sqlalchemy import func, text
 from datetime import datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import text
+from sqlalchemy.orm import Session, joinedload, defer
 
 from database import get_db
-from routers.auth import get_current_user
 from models import User as UserModel, Revision, Defect, Project, VvDoc
-from schemas import RevisionRead, ProjectRead, DefectRead
-from utils.ticr import verify_user_mock
-from utils.ticr_client import verify_against_ticr, TICR_LIVE
-
+from routers.auth import get_current_user
+from schemas import DefectRead
+from utils.security import hash_password
+from utils.ticr_client import verify_against_ticr
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _ensure_admin(user: UserModel) -> None:
     if not bool(getattr(user, "is_admin", False)):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Admin only")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Pouze pro adminy")
 
+# ---------------------------------------------------------------------------
+# Revisions / Projects overview
+# ---------------------------------------------------------------------------
 
 @router.get("/revisions")
 def list_all_revisions(
@@ -31,32 +34,29 @@ def list_all_revisions(
     project_id: Optional[int] = Query(None),
 ):
     _ensure_admin(user)
-    q = (
+    query = (
         db.query(Revision)
-        .options(
-            joinedload(Revision.project),
-            defer(Revision.data_json),  # avoid coercion errors on bad persisted strings
-        )
+        .options(joinedload(Revision.project), defer(Revision.data_json))
         .order_by(Revision.id.desc())
     )
     if status_filter:
-        q = q.filter(Revision.status == status_filter)
+        query = query.filter(Revision.status == status_filter)
     if project_id is not None:
-        q = q.filter(Revision.project_id == project_id)
-    rows = q.all()
-    # Vrať minimalistické serializovatelné dicty, abychom vyloučili problémy s Pydantic/ORM
-    def _d(r: Revision):
-        return {
-            "id": r.id,
-            "project_id": r.project_id,
-            "number": r.number,
-            "type": r.type,
-            "status": r.status,
-            "date_done": r.date_done.isoformat() if getattr(r, "date_done", None) else None,
-            "valid_until": r.valid_until.isoformat() if getattr(r, "valid_until", None) else None,
-        }
-    return [_d(r) for r in rows]
+        query = query.filter(Revision.project_id == project_id)
 
+    rows = query.all()
+    return [
+        {
+            "id": rev.id,
+            "project_id": rev.project_id,
+            "number": rev.number,
+            "type": rev.type,
+            "status": rev.status,
+            "date_done": rev.date_done.isoformat() if getattr(rev, "date_done", None) else None,
+            "valid_until": rev.valid_until.isoformat() if getattr(rev, "valid_until", None) else None,
+        }
+        for rev in rows
+    ]
 
 @router.get("/defects", response_model=List[DefectRead])
 def list_all_defects(
@@ -65,11 +65,10 @@ def list_all_defects(
     status_filter: Optional[str] = Query(None, alias="status"),
 ):
     _ensure_admin(user)
-    q = db.query(Defect)
+    query = db.query(Defect)
     if status_filter:
-        # expects one of: none|pending|rejected
-        q = q.filter(Defect.moderation_status == status_filter)
-    return q.order_by(Defect.id.desc()).all()
+        query = query.filter(Defect.moderation_status == status_filter)
+    return query.order_by(Defect.id.desc()).all()
 
 
 @router.get("/projects")
@@ -79,32 +78,28 @@ def list_all_projects(
     owner_id: Optional[int] = Query(None),
 ):
     _ensure_admin(user)
-    q = db.query(Project).options(
-        joinedload(Project.revisions).defer(Revision.data_json),
-    )
+    query = db.query(Project).options(joinedload(Project.revisions).defer(Revision.data_json))
     if owner_id is not None:
-        q = q.filter(Project.owner_id == owner_id)
-    rows = q.order_by(Project.id.desc()).all()
-    # Vrať lehký payload bez data_json, aby nedocházelo k chybám serializace
-    out = []
-    for p in rows:
-        out.append(
-            {
-                "id": p.id,
-                "address": getattr(p, "address", None),
-                "client": getattr(p, "client", None),
-                "revisions": [
-                    {
-                        "id": r.id,
-                        "number": getattr(r, "number", None),
-                        "type": getattr(r, "type", None),
-                        "status": getattr(r, "status", None),
-                    }
-                    for r in getattr(p, "revisions", []) or []
-                ],
-            }
-        )
-    return out
+        query = query.filter(Project.owner_id == owner_id)
+
+    projects = query.order_by(Project.id.desc()).all()
+    return [
+        {
+            "id": project.id,
+            "address": getattr(project, "address", None),
+            "client": getattr(project, "client", None),
+            "revisions": [
+                {
+                    "id": rev.id,
+                    "number": getattr(rev, "number", None),
+                    "type": getattr(rev, "type", None),
+                    "status": getattr(rev, "status", None),
+                }
+                for rev in getattr(project, "revisions", []) or []
+            ],
+        }
+        for project in projects
+    ]
 
 
 @router.get("/revisions/{rev_id}/technician")
@@ -113,69 +108,155 @@ def get_revision_technician(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    """Vrátí identitu technika (vlastníka projektu), který revizi vypracoval.
-    Pouze pro admina.
-    """
     _ensure_admin(user)
-    rev = db.query(Revision).filter(Revision.id == rev_id).first()
-    if not rev:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
-    prj = db.query(Project).filter(Project.id == rev.project_id).first()
-    if not prj:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Project not found")
-    tech = db.query(UserModel).options(joinedload(UserModel.active_company)).filter(UserModel.id == prj.owner_id).first()
-    if not tech:
-        # fallback: bez technika
-        return {
-            "user": None,
-            "company": None,
-        }
-    comp = getattr(tech, "active_company", None)
+
+    revision = db.query(Revision).filter(Revision.id == rev_id).first()
+    if not revision:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revize nebyla nalezena")
+
+    project = db.query(Project).filter(Project.id == revision.project_id).first()
+    if not project:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Projekt nebyl nalezen")
+
+    technician = (
+        db.query(UserModel)
+        .options(joinedload(UserModel.active_company))
+        .filter(UserModel.id == project.owner_id)
+        .first()
+    )
+    if not technician:
+        return {"user": None, "company": None}
+
+    company = getattr(technician, "active_company", None)
     return {
         "user": {
-            "id": tech.id,
-            "name": getattr(tech, "name", None),
-            "email": getattr(tech, "email", None),
-            "phone": getattr(tech, "phone", None),
-            "address": getattr(tech, "address", None),
-            "certificate_number": getattr(tech, "certificate_number", None),
-            "authorization_number": getattr(tech, "authorization_number", None),
+            "id": technician.id,
+            "name": getattr(technician, "name", None),
+            "email": getattr(technician, "email", None),
+            "phone": getattr(technician, "phone", None),
+            "address": getattr(technician, "address", None),
+            "certificate_number": getattr(technician, "certificate_number", None),
+            "authorization_number": getattr(technician, "authorization_number", None),
         },
         "company": None
-        if comp is None
+        if company is None
         else {
-            "id": comp.id,
-            "name": getattr(comp, "name", None),
-            "ico": getattr(comp, "ico", None),
-            "dic": getattr(comp, "dic", None),
-            "address": getattr(comp, "address", None),
-            "email": getattr(comp, "email", None),
-            "phone": getattr(comp, "phone", None),
+            "id": company.id,
+            "name": getattr(company, "name", None),
+            "ico": getattr(company, "ico", None),
+            "dic": getattr(company, "dic", None),
+            "address": getattr(company, "address", None),
+            "email": getattr(company, "email", None),
+            "phone": getattr(company, "phone", None),
         },
     }
 
 
-@router.get("/projects/{pid}/vv")
+@router.get("/projects/{project_id}/vv")
 def list_vv_for_project(
-    pid: int,
+    project_id: int,
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
     _ensure_admin(user)
-    rows = db.query(VvDoc).filter(VvDoc.project_id == pid).order_by(VvDoc.number.asc()).all()
-    out = []
-    for r in rows:
-        out.append(
-            {
-                "id": getattr(r, "id", None),
-                "number": getattr(r, "number", None),
-                "project_id": getattr(r, "project_id", None),
-            }
-        )
-    return out
+    vv_rows = (
+        db.query(VvDoc)
+        .filter(VvDoc.project_id == project_id)
+        .order_by(VvDoc.number.asc())
+        .all()
+    )
+    return [
+        {
+            "id": getattr(doc, "id", None),
+            "number": getattr(doc, "number", None),
+            "project_id": getattr(doc, "project_id", None),
+        }
+        for doc in vv_rows
+    ]
+
+# ---------------------------------------------------------------------------
+# Users management
+# ---------------------------------------------------------------------------
 
 
-# -------- Users (technicians) management --------
+class AdminUserCreatePayload(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    phone: Optional[str] = None
+    certificate_number: Optional[str] = None
+    authorization_number: Optional[str] = None
+    address: Optional[str] = None
+    ico: Optional[str] = None
+    dic: Optional[str] = None
+    is_admin: bool = False
+    is_verified: bool = True
+    lookup_ticr: bool = False
+
+
+@router.post("/users")
+def create_user(
+    payload: AdminUserCreatePayload,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+
+    existing = db.query(UserModel).filter(UserModel.email == payload.email).first()
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Uzivatel s timto e-mailem uz existuje")
+
+    new_user = UserModel(
+        name=payload.name,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        is_admin=payload.is_admin,
+        is_verified=payload.is_verified,
+        verification_token=None,
+        phone=payload.phone,
+        certificate_number=payload.certificate_number or None,
+        authorization_number=payload.authorization_number or None,
+        address=payload.address,
+        ico=payload.ico,
+        dic=payload.dic,
+        instruments_json="[]",
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    if payload.lookup_ticr and payload.certificate_number:
+        try:
+            result = verify_against_ticr(payload.name, payload.certificate_number)
+        except Exception:
+            result = None
+        if result:
+            now_iso = datetime.utcnow().isoformat()
+            db.execute(
+                text(
+                    "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, "
+                    "rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
+                ),
+                {
+                    "st": result.get("status"),
+                    "rid": result.get("register_id"),
+                    "scope": ",".join(result.get("scope", []) or []),
+                    "vu": result.get("valid_until"),
+                    "snap": str(result.get("snapshot")),
+                    "ts": now_iso,
+                    "id": new_user.id,
+                },
+            )
+            db.commit()
+
+    return {
+        "id": new_user.id,
+        "name": new_user.name,
+        "email": new_user.email,
+        "is_admin": bool(new_user.is_admin),
+        "is_verified": bool(new_user.is_verified),
+    }
+
 
 @router.get("/users")
 def list_users(
@@ -183,17 +264,18 @@ def list_users(
     user: UserModel = Depends(get_current_user),
     q: Optional[str] = Query(None),
     verified: Optional[bool] = Query(None),
-    role: Optional[str] = Query(None),  # 'admin' | 'user'
+    role: Optional[str] = Query(None),
 ):
     _ensure_admin(user)
+
     sql = (
         "SELECT id, name, email, phone, is_verified, is_admin, "
-        "certificate_number, authorization_number, "
-        "rt_status, rt_valid_until, rt_last_checked_at "
+        "certificate_number, authorization_number, rt_status, rt_valid_until, rt_last_checked_at "
         "FROM users"
     )
     where: List[str] = []
-    params: dict = {}
+    params: dict[str, object] = {}
+
     if q:
         where.append("(lower(name) LIKE :q OR lower(email) LIKE :q OR lower(phone) LIKE :q)")
         params["q"] = f"%{q.strip().lower()}%"
@@ -202,14 +284,15 @@ def list_users(
         params["ver"] = 1 if verified else 0
     if role == "admin":
         where.append("is_admin = 1")
-    if role == "user":
+    elif role == "user":
         where.append("(is_admin IS NULL OR is_admin = 0)")
+
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY id DESC"
 
     rows = db.execute(text(sql), params).mappings().all()
-    return [dict(r) for r in rows]
+    return [dict(row) for row in rows]
 
 
 @router.post("/users/{uid}/verify")
@@ -219,14 +302,14 @@ def verify_user(
     user: UserModel = Depends(get_current_user),
 ):
     _ensure_admin(user)
-    target = db.query(UserModel).get(uid)
+    target = db.get(UserModel, uid)
     if not target:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
     target.is_verified = True
     target.verification_token = None
     db.add(target)
     db.commit()
-    return {"id": target.id, "is_verified": target.is_verified}
+    return {"id": target.id, "is_verified": True}
 
 
 @router.post("/users/{uid}/reject")
@@ -236,13 +319,13 @@ def reject_user(
     user: UserModel = Depends(get_current_user),
 ):
     _ensure_admin(user)
-    target = db.query(UserModel).get(uid)
+    target = db.get(UserModel, uid)
     if not target:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
     target.is_verified = False
     db.add(target)
     db.commit()
-    return {"id": target.id, "is_verified": target.is_verified}
+    return {"id": target.id, "is_verified": False}
 
 
 class AdminUserPatchPayload(BaseModel):
@@ -258,21 +341,25 @@ def patch_user(
     user: UserModel = Depends(get_current_user),
 ):
     _ensure_admin(user)
-    target = db.query(UserModel).get(uid)
+    target = db.get(UserModel, uid)
     if not target:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
+
     data = payload.model_dump(exclude_unset=True)
     if "is_admin" in data:
-        target.is_admin = bool(data["is_admin"])  # type: ignore
+        target.is_admin = bool(data["is_admin"])
     if "is_verified" in data:
-        target.is_verified = bool(data["is_verified"])  # type: ignore
+        target.is_verified = bool(data["is_verified"])
+        if target.is_verified:
+            target.verification_token = None
+
     db.add(target)
     db.commit()
     db.refresh(target)
     return {
         "id": target.id,
-        "is_admin": bool(getattr(target, "is_admin", False)),
-        "is_verified": bool(getattr(target, "is_verified", False)),
+        "is_admin": bool(target.is_admin),
+        "is_verified": bool(target.is_verified),
     }
 
 
@@ -282,13 +369,18 @@ def delete_user(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    """Smazat uživatele (admin only).
-    POZOR: Smazání může kaskádně smazat navázané záznamy (projekty, firmy atd.).
-    """
     _ensure_admin(user)
-    target = db.query(UserModel).get(uid)
+    target = db.get(UserModel, uid)
     if not target:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
+
+    projects = db.query(Project).filter(Project.owner_id == uid).all()
+    project_ids = [p.id for p in projects]
+    if project_ids:
+        db.query(Revision).filter(Revision.project_id.in_(project_ids)).delete(synchronize_session=False)
+        db.query(VvDoc).filter(VvDoc.project_id.in_(project_ids)).delete(synchronize_session=False)
+        db.query(Project).filter(Project.id.in_(project_ids)).delete(synchronize_session=False)
+
     db.delete(target)
     db.commit()
     return {"ok": True, "id": uid}
@@ -300,34 +392,18 @@ def rt_verify_user(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    """Mock verify user against TIČR and store result into users table columns (rt_*).
-    Replace with real implementation later.
-    """
     _ensure_admin(user)
-    u: Optional[UserModel] = db.query(UserModel).filter(UserModel.id == uid).first()
-    if not u:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    target = db.get(UserModel, uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
 
-    data = {
-        "id": u.id,
-        "name": getattr(u, "name", None) or "",
-        "certificate_number": getattr(u, "certificate_number", None) or "",
-    }
-    if TICR_LIVE:
-        result = verify_against_ticr(data["name"], data["certificate_number"])  # real attempt
-        if result.get("status") == "error":
-            # fallback to mock to avoid hard failure
-            result = verify_user_mock(data)
-    else:
-        result = verify_user_mock(data)
-
+    result = verify_against_ticr(getattr(target, "name", ""), getattr(target, "certificate_number", ""))
     now_iso = datetime.utcnow().isoformat()
-    sql = text(
-        "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, "
-        "rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
-    )
     db.execute(
-        sql,
+        text(
+            "UPDATE users SET rt_status=:st, rt_register_id=:rid, rt_scope=:scope, "
+            "rt_valid_until=:vu, rt_source_snapshot=:snap, rt_last_checked_at=:ts WHERE id=:id"
+        ),
         {
             "st": result.get("status"),
             "rid": result.get("register_id"),
@@ -346,3 +422,25 @@ def rt_verify_user(
         "match": result.get("matched"),
         "checked_at": now_iso,
     }
+
+
+class DeleteUserPayload(BaseModel):
+    id: int
+
+
+@router.post("/users/{uid}/delete")
+def delete_user_post(
+    uid: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    return delete_user(uid, db, user)
+
+
+@router.post("/users/delete")
+def delete_user_post_body(
+    payload: DeleteUserPayload,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    return delete_user(payload.id, db, user)

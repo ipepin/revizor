@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+﻿from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from routers.auth import router as auth_router, get_current_user
 from routers.catalog   import router as catalog_router
@@ -17,7 +17,7 @@ from routers.admin import router as admin_router
 
 app = FastAPI() 
 
-# ⭐ CORS – povol frontend na 5173
+# â­ CORS â€“ povol frontend na 5173
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -41,10 +41,10 @@ app.add_middleware(
     ],
 )
 
-# veřejné endpointy (auth)
+# veĹ™ejnĂ© endpointy (auth)
 app.include_router(auth_router)
 
-# chráněné endpointy
+# chrĂˇnÄ›nĂ© endpointy
 app.include_router(catalog_router,   dependencies=[Depends(get_current_user)])
 app.include_router(defects_router,   dependencies=[Depends(get_current_user)])
 app.include_router(models_router,    dependencies=[Depends(get_current_user)])
@@ -56,5 +56,39 @@ app.include_router(companies_router, dependencies=[Depends(get_current_user)])
 app.include_router(devices_router,  dependencies=[Depends(get_current_user)])
 app.include_router(export_router,  dependencies=[Depends(get_current_user)])
 app.include_router(vv_router, dependencies=[Depends(get_current_user)])
-# Admin router řeší autorizaci uvnitř handlerů; neblokuj CORS preflight přes globální dependency
+# Admin router Ĺ™eĹˇĂ­ autorizaci uvnitĹ™ handlerĹŻ; neblokuj CORS preflight pĹ™es globĂˇlnĂ­ dependency
 app.include_router(admin_router)
+
+from fastapi import HTTPException, status
+from typing import Optional
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from database import get_db
+from models import User as UserModel
+
+class _DeleteUserPayload(BaseModel):
+    id: int
+
+def _ensure_admin(user: UserModel) -> None:
+    if not bool(getattr(user, "is_admin", False)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Admin only")
+
+@app.delete("/admin/users/{uid}")
+def _delete_user_fallback(uid: int, db: Session = Depends(get_db), user: UserModel = Depends(get_current_user)):
+    _ensure_admin(user)
+    target = db.query(UserModel).get(uid)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    db.delete(target)
+    db.commit()
+    return {"ok": True, "id": uid}
+
+@app.post("/admin/users/delete")
+def _delete_user_post_fallback(payload: _DeleteUserPayload, db: Session = Depends(get_db), user: UserModel = Depends(get_current_user)):
+    _ensure_admin(user)
+    target = db.query(UserModel).get(payload.id)
+    if not target:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+    db.delete(target)
+    db.commit()
+    return {"ok": True, "id": payload.id}

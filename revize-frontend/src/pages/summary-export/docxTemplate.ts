@@ -1,38 +1,7 @@
-// src/pages/summary-export/docxTemplate.ts
+﻿// src/pages/summary-export/docxTemplate.ts
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
-
-/**
- * ŠABLONA: public/templates/rz-modern.docx
- *
- * TAGY (hranaté):
- *   Jednotlivé: [[EVIDENCNI]] [[TYP_REVIZE]] [[NORMY]] ...
- *
- * BLOKY:
- *   [[#PROHLIDKA]]• [[TEXT]][[/PROHLIDKA]]
- *   [[#ZKOUSKY]]• [[NAME]] — [[NOTE]][[/ZKOUSKY]]
- *   [[#INSTRUMENTS]]• [[NAME]] / [[SERIAL]] / [[CAL]][[/INSTRUMENTS]]
- *
- * ROZVADĚČE:
- *   [[#BOARDS]]
- *   ### [[TITLE]]
- *   [[DESC]]
- *   [[#COMPONENTS]][[LINE_LEFT]]	[[LINE_RIGHT]]
- *   [[/COMPONENTS]]
- *   [[/BOARDS]]
- *   (Mezi [[LINE_LEFT]] a [[LINE_RIGHT]] musí být TAB. Ve Wordu si dej tabulátor např. na 11.5 cm.)
- *
- * MÍSTNOSTI:
- *   [[#ROOMS]]
- *   ### [[NAME]] — [[NOTE]]
- *   [[#DEVICES]]• [[TYP]] · [[POCET]] ks · [[DIM]] · Riso [[RISO]] MΩ · Zs [[OCHR]] Ω · [[POZN]]
- *   [[/DEVICES]]
- *   [[/ROOMS]]
- *
- * ZÁVADY:
- *   [[#ZAVADY]]• [[POPIS]] | ČSN [[CSN]] | čl. [[CLANEK]][[/ZAVADY]]
- */
 
 export type GenArgs = {
   safeForm: any;
@@ -50,19 +19,20 @@ export type GenArgs = {
   normsAll: string[];
   usedInstruments: Array<{ id: string; name: string; serial: string; calibration: string }>;
   revId?: string | undefined;
+  templateUrl?: string; // volitelně přepsání cesty k šabloně
 };
 
-const TEMPLATE_URL = "/templates/rz-modern.docx";
+const DEFAULT_TEMPLATE_URL = "/templates/rz-modern.docx";
 
 // ---------- util ----------
 const dash = (v: any) => {
   const s = (v ?? "").toString().trim();
-  return s ? s : "—";
+  return s ? s : "-";
 };
 const nbsp = "\u00A0";
 const repeat = (s: string, n: number) => Array(Math.max(0, n)).fill(s).join("");
 
-// Parser pro [[TAG]]
+// Jednoduchý parser pro [[TAG]]
 function angularParser(tag: string) {
   const expr = tag.trim();
   return {
@@ -76,14 +46,14 @@ function angularParser(tag: string) {
       }
       return cur;
     },
-  };
+  } as any;
 }
 
 // ---------- data builder ----------
 function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: GenArgs) {
-  const EVIDENCNI = dash(safeForm.evidencni || revId);
-  const TYP_REVIZE = dash(safeForm.typRevize);
-  const NORMY = normsAll?.length ? normsAll.join(", ") : "—";
+  const EVIDENCNI = dash(safeForm?.evidencni || revId);
+  const TYP_REVIZE = dash(safeForm?.typRevize);
+  const NORMY = normsAll?.length ? normsAll.join(", ") : "-";
 
   const TECH_JMENO = dash(technician?.jmeno);
   const TECH_FIRMA = dash(technician?.firma);
@@ -95,9 +65,9 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
   const TECH_TEL = dash(technician?.phone);
   const TECH_EMAIL = dash(technician?.email);
 
-  const OBJ_ADRESA = dash(safeForm.adresa);
-  const OBJ_PREDMET = dash(safeForm.objekt);
-  const OBJ_OBJEDNATEL = dash(safeForm.objednatel);
+  const OBJ_ADRESA = dash(safeForm?.adresa);
+  const OBJ_PREDMET = dash(safeForm?.objekt);
+  const OBJ_OBJEDNATEL = dash(safeForm?.objednatel);
 
   let VYSLEDEK_TEXT = "Chybí informace";
   const s = safeForm?.conclusion?.safety;
@@ -111,18 +81,14 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     let note = "";
     if (val == null) note = "";
     else if (typeof val === "string") note = val;
-    else if (typeof val === "object") note = val.note ?? val.result?.note ?? val.result ?? "";
+    else if (typeof val === "object") note = (val as any).note ?? (val as any).result?.note ?? (val as any).result ?? "";
     else note = String(val);
     return { NAME: dash(name), NOTE: dash(note) };
   });
 
-  const INSTRUMENTS = (usedInstruments || []).map((i) => ({
-    NAME: dash(i.name),
-    SERIAL: dash(i.serial),
-    CAL: dash(i.calibration),
-  }));
+  const INSTRUMENTS = (usedInstruments || []).map((i) => ({ NAME: dash(i.name), SERIAL: dash(i.serial), CAL: dash(i.calibration) }));
 
-  // BOARDS – elegantní „strom“ bez tabulek (tab stopa pro zarovnání)
+  // BOARDS – odrážkový „strom“ bez tabulek (tab stopa pro zarovnání)
   const BOARDS = (safeForm?.boards || []).map((b: any, idx: number) => {
     const TITLE = dash(b?.name || `#${idx + 1}`);
     const meta: string[] = [];
@@ -133,14 +99,12 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     if (b?.napeti) meta.push(`Napětí: ${dash(b.napeti)}`);
     if (b?.odpor) meta.push(`Odpor: ${dash(b.odpor)}`);
     if (b?.ip) meta.push(`IP: ${dash(b.ip)}`);
-    const DESC = meta.join("  |  ") || "—";
+    const DESC = meta.join("  |  ") || "-";
 
     const flat: any[] = Array.isArray(b?.komponenty) ? b.komponenty : [];
-
-    const COMPONENTS = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
+    const COMPONENTS = (flat.length ? flat : [{ _level: 0, nazev: "-" }]).map((c: any) => {
       const lvl = Math.max(0, Number(c?._level ?? 0));
-      // hezčí „stromová“ odrážka (pevné mezery kvůli zalamování)
-      const prefix = repeat(nbsp + nbsp, lvl) + (lvl > 0 ? "▸ " : "• ");
+      const prefix = repeat(nbsp + nbsp, lvl) + (lvl > 0 ? "• " : "– ");
       const name = dash(c?.nazev || c?.name);
       const desc = dash(c?.popis || c?.description || "");
 
@@ -149,24 +113,12 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
       const dim = c?.dimenze || c?.dim || c?.prurez;
       const riso = c?.riso ?? c?.Riso ?? c?.izolace ?? c?.insulation;
       const zs = c?.ochrana ?? c?.zs ?? c?.Zs ?? c?.loop_impedance;
-      const tMs =
-        c?.vybavovaciCasMs ??
-        c?.vybavovaci_cas_ms ??
-        c?.rcd_time ??
-        c?.trip_time ??
-        c?.vybavovaciCas ??
-        c?.cas_vybaveni;
-      const iDelta =
-        c?.vybavovaciProudmA ??
-        c?.vybavovaci_proud_ma ??
-        c?.rcd_trip_current ??
-        c?.trip_current ??
-        c?.i_fi ??
-        c?.ifi;
+      const tMs = c?.vybavovaciCasMs ?? c?.vybavovaci_cas_ms ?? c?.rcd_time ?? c?.trip_time ?? c?.vybavovaciCas ?? c?.cas_vybaveni;
+      const iDelta = c?.vybavovaciProudmA ?? c?.vybavovaci_proud_ma ?? c?.rcd_trip_current ?? c?.trip_current ?? c?.i_fi ?? c?.ifi;
       const pozn = c?.poznamka ?? c?.pozn ?? c?.note;
 
       const parts: string[] = [];
-      if (desc && desc !== "—") parts.push(desc);
+      if (desc && desc !== "-") parts.push(desc);
       if (typ) parts.push(`typ: ${typ}`);
       if (poles) parts.push(`póly: ${poles}`);
       if (dim) parts.push(`dim.: ${dim}`);
@@ -176,10 +128,8 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
       if (iDelta || iDelta === 0) parts.push(`IΔ: ${iDelta} mA`);
       if (pozn) parts.push(`Pozn.: ${pozn}`);
 
-      // VLEVO = prefix + název, VPRAVO = parametry; mezi ně dej TAB
       const LINE_LEFT = `${prefix}${name}`;
-      const LINE_RIGHT = parts.join("   •   ") || " ";
-
+      const LINE_RIGHT = parts.join("   ·   ") || " ";
       return { LINE_LEFT, LINE_RIGHT };
     });
 
@@ -204,6 +154,9 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     CSN: dash(d?.standard),
     CLANEK: dash(d?.article),
   }));
+
+  // Dlouhý závěr
+  const ZAVER_TEXT = String(safeForm?.conclusion?.text || "");
 
   return {
     EVIDENCNI,
@@ -233,10 +186,12 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     BOARDS,
     ROOMS,
     ZAVADY,
+
+    ZAVER_TEXT,
   };
 }
 
-// ---------- načtení šablony (fix TS: používáme fetch + arrayBuffer) ----------
+// ---------- načtení šablony ----------
 async function fetchBinary(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} při načítání ${url}`);
@@ -245,14 +200,14 @@ async function fetchBinary(url: string): Promise<ArrayBuffer> {
 
 // ---------- render + download ----------
 export async function renderAndDownloadRzDocxFromTemplate(args: GenArgs) {
-  const buf = await fetchBinary(TEMPLATE_URL);
+  const buf = await fetchBinary(args.templateUrl || DEFAULT_TEMPLATE_URL);
 
   let zip: PizZip;
   try {
     zip = new PizZip(buf);
   } catch (e) {
     console.error("[docxTemplate] PizZip error:", e);
-    throw new Error("Soubor šablony není validní .docx (zip). Otevři ho ve Wordu a ulož znovu.");
+    throw new Error("Soubor šablony není validní .docx (zip). Otevřete ho ve Wordu a uložte znovu.");
   }
 
   const doc = new Docxtemplater(zip, {
@@ -267,16 +222,12 @@ export async function renderAndDownloadRzDocxFromTemplate(args: GenArgs) {
     doc.render(data);
   } catch (e: any) {
     console.error("[docxTemplate] Render error:", e);
-    const multi =
-      e?.properties?.errors?.map((er: any) => {
-        const file = er?.properties?.file ? ` (${er.properties.file})` : "";
-        const tag = er?.properties?.xtag ? ` [${er.properties.xtag}]` : "";
-        return `- ${er?.properties?.explanation || er?.message || "Chyba"}${tag}${file}`;
-      }) || [];
-    const msg =
-      multi.length > 0
-        ? `Šablonu se nepodařilo vyplnit:\n${multi.join("\n")}`
-        : e?.message || "Neznámá chyba při renderu šablony";
+    const multi = e?.properties?.errors?.map((er: any) => {
+      const file = er?.properties?.file ? ` (${er.properties.file})` : "";
+      const tag = er?.properties?.xtag ? ` [${er.properties.xtag}]` : "";
+      return `- ${er?.properties?.explanation || er?.message || "Chyba"}${tag}${file}`;
+    }) || [];
+    const msg = multi.length > 0 ? `Šablonu se nepodařilo vyplnit:\n${multi.join("\n")}` : (e?.message || "Neznámá chyba při renderu šablony");
     throw new Error(msg);
   }
 

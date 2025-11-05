@@ -1,5 +1,5 @@
-// src/api/auth.ts
-// Jednoduchá API vrstva pro autentizaci + uživatele (FastAPI + JWT)
+﻿// src/api/auth.ts
+// JednoduchĂˇ API vrstva pro autentizaci + uĹľivatele (FastAPI + JWT)
 
 import { API_DISPLAY_URL, apiUrl } from "./base";
 
@@ -44,9 +44,9 @@ async function throwIfNotOk(res: Response): Promise<void> {
   }
 }
 
-// --- API volání ---
+// --- API volĂˇnĂ­ ---
 
-/** Přihlášení – FastAPI OAuth2 očekává username+password (form-urlencoded). */
+/** PĹ™ihlĂˇĹˇenĂ­ â€“ FastAPI OAuth2 oÄŤekĂˇvĂˇ username+password (form-urlencoded). */
 export async function loginUser(
   email: string,
   password: string
@@ -64,7 +64,7 @@ export async function loginUser(
   return (await res.json()) as LoginResponse;
 }
 
-/** Registrace – JSON payload (name, email, password, ...). */
+/** Registrace â€“ JSON payload (name, email, password, ...). */
 export async function registerUser(data: RegisterPayload) {
   const res = await fetch(apiUrl("/auth/register"), {
     method: "POST",
@@ -73,13 +73,13 @@ export async function registerUser(data: RegisterPayload) {
   });
   await throwIfNotOk(res);
   const j = await res.json();
-  if (j?.rt_status && j.rt_status !== "verified") {
-    throw new Error("Uvedené číslo oprávnění není nalezeno v databázi TIČR");
-  }
-  return j;
+  // rt_status kontrola dočasně vypnuta (neblokovat registraci)
+  // if (j?.rt_status && j.rt_status !== "verified") {
+  //   throw new Error("Uvedené číslo oprávnění není nalezeno v databázi TIČR");
+  // }
 }
 
-/** Detail přihlášeného uživatele (JWT v Authorization). */
+/** Detail pĹ™ihlĂˇĹˇenĂ©ho uĹľivatele (JWT v Authorization). */
 export async function getCurrentUser(token: string): Promise<User> {
   const res = await fetch(apiUrl("/auth/me"), {
     headers: { ...authHeader(token) },
@@ -88,7 +88,7 @@ export async function getCurrentUser(token: string): Promise<User> {
   return (await res.json()) as User;
 }
 
-/** (Volitelné) Ověření e-mailu tokenem. */
+/** (VolitelnĂ©) OvÄ›Ĺ™enĂ­ e-mailu tokenem. */
 export async function verifyEmail(token: string) {
   const base =
     API_DISPLAY_URL ||
@@ -100,10 +100,10 @@ export async function verifyEmail(token: string) {
   return await res.json();
 }
 
-/** Export „base URL“ jen pro zobrazení/debug. */
+/** Export â€žbase URLâ€ś jen pro zobrazenĂ­/debug. */
 export const API_URL = API_DISPLAY_URL;
 
-// --- TIČR lookup (předběžné ověření) ---
+// --- TIÄŚR lookup (pĹ™edbÄ›ĹľnĂ© ovÄ›Ĺ™enĂ­) ---
 export type RtLookupPayload = {
   name: string;
   certificate_number: string;

@@ -300,7 +300,15 @@ export default function SummaryPage() {
                 </div>
               </section>
 
-              {/* Přístroje */}
+              
+              {/* Závěr (dlouhý text) */}
+              <section className="mt-4" style={{ breakInside: "avoid" }}>
+                <h2 className="font-semibold text-lg mb-2">Závěr</h2>
+                <div className="border rounded-md p-3 bg-white" style={{ breakInside: "avoid" }}>
+                  <div className="whitespace-pre-line text-sm">{safeForm.conclusion?.text || '-'}</div>
+                </div>
+              </section>
+{/* Přístroje */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
                 <h2 className="font-semibold text-lg mb-2">PouĹľitĂ© mÄ›Ĺ™icĂ­ pĹ™Ă­stroje</h2>
                 <table className="w-full text-sm border">
@@ -655,4 +663,6 @@ export default function SummaryPage() {
     </div>
   );
 }
+
+
 
