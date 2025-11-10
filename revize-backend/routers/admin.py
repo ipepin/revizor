@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
@@ -397,7 +397,14 @@ def rt_verify_user(
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
 
-    result = verify_against_ticr(getattr(target, "name", ""), getattr(target, "certificate_number", ""))
+    full_name = (getattr(target, "name", None) or "").strip()
+    cert_no = (getattr(target, "certificate_number", None) or "").strip()
+    if not full_name or not cert_no:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Chybí jméno nebo číslo osvědčení u uživatele")
+
+    # Live-only lookup against TIČR
+    result = verify_against_ticr(full_name, cert_no)
+
     now_iso = datetime.utcnow().isoformat()
     db.execute(
         text(
@@ -444,3 +451,29 @@ def delete_user_post_body(
     user: UserModel = Depends(get_current_user),
 ):
     return delete_user(payload.id, db, user)
+
+
+class AdminRtLookupIn(BaseModel):
+    name: str
+    certificate_number: str
+
+
+@router.post("/rt/lookup")
+def rt_lookup_admin(
+    payload: AdminRtLookupIn,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    """Admin‑only live verification against TIČR. Returns holder info and validity."""
+    _ensure_admin(user)
+    name = (payload.name or "").strip()
+    cert = (payload.certificate_number or "").strip()
+    if not name or not cert:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Vyplňte jméno i číslo osvědčení")
+    try:
+        result = verify_against_ticr(name, cert)
+    except Exception:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="TIČR dočasně nedostupný")
+    return result
+
+

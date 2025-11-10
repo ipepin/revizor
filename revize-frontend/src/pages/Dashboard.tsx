@@ -8,11 +8,19 @@ import { useUser } from "../context/UserContext";
 import { useVvDocs } from "../context/VvDocsContext";
 import { apiUrl } from "../api/base";
 
+function normalizeStatus(s?: string): string {
+  const raw = (s || "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower === "dokončená" || lower === "dokončena" || lower === "dokoncená") return "Dokončená";
+  if (lower === "rozpracovaná" || lower === "rozpracovana" || lower === "rozpracovaná") return "Rozpracovaná";
+  return raw;
+}
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
   const { token } = useAuth();
-  const { profile } = useUser();
-  const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
+  const { profile, company } = useUser();  const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
@@ -193,16 +201,16 @@ export default function Dashboard() {
   });
 
   // jen tyto typy revizí
-  const revisionTypes = ["Elektroinstalace", "FVE"];
+  const revisionTypes = ["Elektroinstalace", "FVE", "LPS"];
 
   // otevření revize
   const openRevision = (projectId: number, rev: any) => {
-    if ((rev.status || "").toLowerCase() === "dokončená") {
+    if (normalizeStatus(rev.status) === "Dokončená") {
       setUnlockFor({ projectId, revId: rev.id });
       setUnlockPwd("");
       setUnlockErr(null);
     } else {
-      navigate(`/revize/${rev.id}`);
+      ((rev?.type||'').toUpperCase()==='LPS' ? navigate(`/revize-lps/${rev.id}`) : navigate(`/revize/${rev.id}`));
     }
   };
 
@@ -234,7 +242,11 @@ export default function Dashboard() {
       const idToOpen = unlockFor.revId;
       setUnlockFor({ projectId: null, revId: null });
       setUnlockPwd("");
-      navigate(`/revize/${idToOpen}`);
+      {
+        const rev = projects.flatMap(p => (p.revisions||[])).find((r:any)=>r.id===idToOpen);
+        const isLps = ((rev?.type||'').toUpperCase()==='LPS');
+        navigate(isLps ? `/revize-lps/${idToOpen}` : `/revize/${idToOpen}`);
+      }
     } catch (e) {
       setUnlockErr("Neplatné heslo.");
     } finally {
@@ -347,7 +359,7 @@ export default function Dashboard() {
                           </thead>
                           <tbody>
                             {sortedRevisions.map((rev: any) => {
-                              const isDone = (rev.status || "").toLowerCase() === "dokončená";
+                              const isDone = normalizeStatus(rev.status) === "Dokončená";
                               return (
                                 <tr key={rev.id} className={`border-t ${isDone ? "bg-green-50" : ""}`}>
                                   <td className="p-2">{rev.number}</td>
@@ -357,7 +369,7 @@ export default function Dashboard() {
                                     {rev.valid_until}
                                   </td>
                                   <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
-                                    {rev.status}
+{normalizeStatus(rev.status)}
                                   </td>
                                   <td className="p-2 space-x-2">
                                     <button
@@ -483,7 +495,26 @@ export default function Dashboard() {
                                         status: "Rozpracovaná",
                                         data_json: { poznámka: "zatím prázdné" },
                                       };
+                                      if (type === "LPS") {
+                                        const prof: any = profile || {};
+                                        const comp: any = company || {};
+                                        newRevision.data_json = {
+                                          ...(newRevision.data_json || {}),
+                                          technicianName: prof.fullName || prof.name || "",
+                                          technicianCertificateNumber: prof.certificateNumber || "",
+                                          technicianAuthorizationNumber: prof.authorizationNumber || "",
+                                          technicianCompanyName: comp.name || "",
+                                          technicianCompanyIco: (comp as any).ico || "",
+                                          technicianCompanyDic: (comp as any).dic || "",
+                                          technicianCompanyAddress: comp.address || "",
+                                        };
+                                      }
                                       if (owner_id != null) newRevision.owner_id = owner_id;
+                                      if (type === "LPS") {
+                                        const existingLps = Array.isArray(proj.revisions) ? proj.revisions.filter((r: any) => (r?.type || "").toUpperCase() === "LPS") : [];
+                                        const seq = (existingLps?.length || 0) + 1;
+                                        newRevision.number = `LPS-${proj.id}-${String(seq).padStart(3, '0')}`;
+                                      }
 
                                       try {
                                         const response = await fetch(apiUrl(`/revisions`), {
@@ -606,6 +637,20 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

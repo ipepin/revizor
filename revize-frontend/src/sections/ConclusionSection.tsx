@@ -17,21 +17,21 @@ type SnipKey =
 
 const ORDER: SnipKey[] = [
   "norms",
-  "insulation",
-  "continuity",
-  "loop",
-  "noDefects",
-  "training",
-  "legal",
-  "fire",
-  "bathrooms",
-  "responsibility",
 ];
 
 export default function ConclusionSection() {
   const { form, setForm } = useContext(RevisionFormContext);
   const conclusion: any = form.conclusion || {};
 
+  const lpsStandardCode: string = (form as any)?.lps?.standard || "";
+  const standardName: string = ((): string => {
+    switch (lpsStandardCode) {
+      case "CSN_EN_62305": return "ČSN EN 62305";
+      case "CSN_34_1390": return "ČSN 34 1390";
+      default: return "zvolené normě";
+    }
+  })();
+  const earthThreshold: number = lpsStandardCode === "CSN_EN_62305" ? 10 : (lpsStandardCode === "CSN_34_1390" ? 15 : 15);
   // Proměnné pro snippety (ukládáme do conclusion.vars)
   const vars = (conclusion.vars || {}) as {
     insulationMinMOhm?: string;
@@ -169,6 +169,40 @@ export default function ConclusionSection() {
     responsibility: "Odpovědnost provozovatele",
   };
 
+  // LPS – exkluzivní věty (jen jedna z každé skupiny)
+  const addLpsSentence = (group: "earth" | "condition" | "spd", variant: string) => {
+    setForm((f: any) => {
+      const cur = String(f?.conclusion?.text || "");
+      const earthYes = `Odpor zemničů je v toleranci stanovené normou (≤ ${earthThreshold} Ω).`;
+      const earthNo  = `Odpor zemničů není v toleranci stanovené normou (> ${earthThreshold} Ω).`;
+      const condYes  = "Hromosvodné zařízení je v dobrém stavu a odpovídá platným normám.";
+      const condNo   = "Hromosvodné zařízení není v dobrém stavu a odpovídá platným normám.";
+      const spdYesOk = "Byly instalovány ochrany SPD, které jsou funkční.";
+      const spdYesNok= "Byly instalovány ochrany SPD, které nejsou funkční.";
+      const spdNo    = "Nebyly instalovány ochrany SPD.";
+      const removeAll = (text: string, arr: string[]) => {
+        let out = text;
+        for (const s of arr) {
+          const re = new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+          out = out.replace(re, "");
+        }
+        return out.replace(/\n\n+/g, "\n\n").trim();
+      };
+      let out = cur;
+      if (group === "earth") {
+        out = removeAll(out, [earthYes, earthNo]);
+        out = (out ? out + "\n\n" : "") + (variant === "yes" ? earthYes : earthNo);
+      } else if (group === "condition") {
+        out = removeAll(out, [condYes, condNo]);
+        out = (out ? out + "\n\n" : "") + (variant === "yes" ? condYes : condNo);
+      } else if (group === "spd") {
+        out = removeAll(out, [spdYesOk, spdYesNok, spdNo]);
+        const v = variant === "yes_ok" ? spdYesOk : (variant === "yes_nok" ? spdYesNok : spdNo);
+        out = (out ? out + "\n\n" : "") + v;
+      }
+      return { ...f, conclusion: { ...(f.conclusion || {}), text: out } };
+    });
+  };
   return (
     <section className="space-y-6 text-sm text-gray-800">
       <h2 className="text-lg font-semibold text-blue-800">Závěr</h2>
@@ -192,6 +226,18 @@ export default function ConclusionSection() {
               {label[k]}
             </button>
           ))}
+        </div>
+        <div className="mt-3 border-t pt-3">
+          <div className="text-xs text-gray-500 mb-2">LPS – rychlé věty</div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("earth","yes")}>Odpor zemničů v toleranci (≤ {earthThreshold} Ω)</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("earth","no")}>Odpor zemničů mimo toleranci</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("condition","yes")}>Zařízení v dobrém stavu</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("condition","no")}>Zařízení není v dobrém stavu</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("spd","yes_ok")}>SPD instalovány – funkční</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("spd","yes_nok")}>SPD instalovány – nefunkční</button>
+            <button type="button" className="border rounded-full px-3 py-1 text-xs" onClick={() => addLpsSentence("spd","no")}>SPD neinstalovány</button>
+          </div>
         </div>
         <div className="grid md:grid-cols-2 gap-3 mt-3">
           <div>
@@ -242,7 +288,7 @@ export default function ConclusionSection() {
             checked={conclusion.safety === "able"}
             onChange={() => setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), safety: "able" } }))}
           />
-          Instalace je schopna provozu
+        Instalované hromosvodné zařízení vyhovuje požadavkům normy {standardName} a jeho součásti jsou ve funkčním stavu.
         </label>
         <label className="inline-flex items-center">
           <input
@@ -252,7 +298,7 @@ export default function ConclusionSection() {
             checked={conclusion.safety === "not_able"}
             onChange={() => setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), safety: "not_able" } }))}
           />
-          <span className="text-red-600">Instalace není schopna provozu</span>
+        <span className="text-red-600">Instalované hromosvodné zařízení nevyhovuje požadavkům normy {standardName} a jeho součásti nejsou ve funkčním stavu.</span>
         </label>
       </fieldset>
 
@@ -273,3 +319,4 @@ export default function ConclusionSection() {
     </section>
   );
 }
+

@@ -1,11 +1,12 @@
 ﻿// src/pages/SummaryPage.tsx
-import React, { useMemo, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
 import { generateSummaryDocx } from "./summary-export/word";
 import { renderAndDownloadRzDocxFromTemplate } from "./summary-export/docxTemplate";
+import LpsSummaryPage from "./LpsSummaryPage";
 
 import {
   HeaderBlock,
@@ -27,6 +28,7 @@ export default function SummaryPage() {
   const { form: ctxForm } = useRevisionForm();
   const pageRef = useRef<HTMLDivElement | null>(null);
   const { profile, company } = useUser();
+  const [lpsActiveTab, setLpsActiveTab] = useState<"lps_info" | "lps_measure">("lps_info");
 
   // Print-view flag
   const sp = new URLSearchParams(window.location.search);
@@ -104,6 +106,10 @@ export default function SummaryPage() {
     [ctxForm]
   );
 
+  const isLpsRevision =
+    Boolean(safeForm?.lps && Object.keys(safeForm.lps).length > 0) ||
+    String(safeForm?.typRevize || "").toLowerCase().includes("lps");
+
   // ReviznĂ­ technik
   const technician = useMemo(() => {
     const p: any = profile || {};
@@ -120,6 +126,30 @@ export default function SummaryPage() {
       email: p.email || c.email || "ChybĂ­ informace",
     };
   }, [profile, company]);
+
+  const handleLpsSelect = useCallback(
+    (key: string) => {
+      if (key === "lps_info" || key === "lps_measure") {
+        setLpsActiveTab(key);
+      }
+      const el = document.getElementById(key);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    []
+  );
+
+  if (isLpsRevision) {
+    return (
+      <div className="flex min-h-screen bg-slate-100 print:bg-white">
+        <Sidebar mode="summary" active={lpsActiveTab} onSelect={handleLpsSelect} />
+        <main className="flex-1 overflow-y-auto print:bg-white">
+          <LpsSummaryPage safeForm={safeForm} technician={technician} isPrintView={isPrintView} />
+        </main>
+      </div>
+    );
+  }
 
   // Normy = normy + vlastnĂ­ texty
   const normsAll = useMemo(() => {

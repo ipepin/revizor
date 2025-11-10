@@ -1,4 +1,9 @@
 ﻿// src/pages/EditRevision.tsx
+
+import LpsIdentifikaceSection from "../sections/LpsIdentifikaceSection";
+import LpsInspectionSection from "../sections/LpsInspectionSection";
+import LpsMeasurementsSection from "../sections/LpsMeasurementsSection";
+// src/pages/EditRevision.tsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -18,13 +23,22 @@ import { authHeader } from "../api/auth";
 export default function EditRevision() {
   const { revId } = useParams();
   const { token } = useAuth();
+  const [revType, setRevType] = useState<string>('');
 
   const [activeSection, setActiveSection] = useState("identifikace");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const sectionMap: Record<string, React.ReactNode> = {
+    const isLps = (revType || '').toUpperCase() === 'LPS';
+  const sectionMap: Record<string, React.ReactNode> = isLps ? {
+    identifikace: <LpsIdentifikaceSection />,
+    prohlidka: <LpsInspectionSection />,
+    zkousky: <div className="p-2 text-sm text-gray-600">Zkoušky nejsou pro LPS použity.</div>,
+    mereni: <LpsMeasurementsSection />,
+    zavady: <DefectsRecommendationsSection />,
+    zaver: <ZaverSection />,
+  } : {
     identifikace: <IdentifikaceSection />,
     prohlidka: <ProhlidkaSection />,
     zkousky: <ZkouskySection />,
@@ -53,7 +67,7 @@ export default function EditRevision() {
           return;
         }
         // data aktuĂˇlnÄ› nikde nepotĹ™ebujeme â€“ jen â€žspotĹ™ebujemeâ€ś stream
-        await res.json();
+        const _data = await res.json(); setRevType(String(_data?.type || ''));
       } catch (e: any) {
         if (e?.name !== "AbortError") setErr("Network error");
       } finally {
@@ -106,4 +120,6 @@ export default function EditRevision() {
     </RevisionFormProvider>
   );
 }
+
+
 

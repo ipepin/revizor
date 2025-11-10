@@ -42,11 +42,25 @@ class UserOut(BaseModel):
 # ---------- Endpoints ----------
 @router.post("/register")
 def register(data: RegisterIn, db: Session = Depends(get_db)):
-    # Live-only verification against TIČR. Registration is not blocked; result is stored.
+    if len((data.password or "")) < 8:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Heslo musi mit alespon 8 znaku",
+        )
+
     try:
         verify = verify_against_ticr(data.name, data.certificate_number)
     except Exception:
-        verify = {"status": "error"}
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Overeni TICR se nepodarilo, zkuste to prosim znovu",
+        )
+
+    if verify.get("status") != "verified":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Cislo osvedceni nebylo nalezeno v TICR",
+        )
 
     # first user convenience: verify immediately
     first_user = db.query(User).count() == 0
@@ -148,3 +162,4 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     user.verification_token = None
     db.commit()
     return {"ok": True}
+

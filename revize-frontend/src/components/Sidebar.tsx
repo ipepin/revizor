@@ -159,7 +159,33 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
             </button>
           )}
 
+          {/* Režim SUMMARY – LPS: přepínač dvou sekcí + Dokončit */}
+          {isSummary && (
+            <div className="mb-4 space-y-2">
+              <button
+                className={`w-full px-4 py-2 rounded text-left transition ${active === "lps_info" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+                onClick={() => onSelect?.("lps_info")}
+              >
+                Identifikace objektu a prohlídka
+              </button>
+              <button
+                className={`w-full px-4 py-2 rounded text-left transition ${active === "lps_measure" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
+                onClick={() => onSelect?.("lps_measure")}
+              >
+                Měření a závěr
+              </button>
+              <button
+                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition"
+                onClick={() => setShowConfirmFinish(true)}
+                title="Označit revizi jako dokončenou"
+              >
+                ✓ Dokončit
+              </button>
+            </div>
+          )}
+
           <hr className="my-4 border-gray-300" />
+
           {profile?.isAdmin && (
             <div className="mt-4">
               <div className="text-xs text-gray-500 mb-2">Admin</div>
@@ -197,7 +223,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
               </div>
             </div>
           )}
-
           {/* Nastavení */}
           <div className="relative mt-4">
             <button
@@ -282,3 +307,4 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     </>
   );
 }
+

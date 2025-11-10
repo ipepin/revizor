@@ -1,10 +1,10 @@
-import React from "react";
+﻿import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
-import { VvDocsProvider } from "./context/VvDocsContext"; // ⬅️ DOPLNĚNO
+import { VvDocsProvider } from "./context/VvDocsContext"; // â¬…ď¸Ź DOPLNÄšNO
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -13,6 +13,15 @@ import EditRevision from "./pages/EditRevision";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+              <Route
+                path="/revize-lps/:revId"
+                element={
+                  <ProtectedRoute>
+                    <LpsEditPage />
+                  </ProtectedRoute>
+                }
+              />
+
 import AdminRoute from "./components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DefectProposalsPage from "./pages/admin/DefectProposalsPage";
@@ -22,6 +31,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
+import LpsEditPage from "./pages/LpsEditPage";
 
 import "./index.css";
 
@@ -31,11 +41,11 @@ const Router: any = routerMode === "hash" ? HashRouter : BrowserRouter;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {/* Globální auth kontext */}
+    {/* GlobĂˇlnĂ­ auth kontext */}
     <AuthProvider>
-      {/* Aplikace si zachovává existující UserContext */}
+      {/* Aplikace si zachovĂˇvĂˇ existujĂ­cĂ­ UserContext */}
       <UserProvider>
-        {/* ⬇️ MUSÍ obalovat Router i všechny stránky, kde voláš useVvDocs() */}
+        {/* â¬‡ď¸Ź MUSĂŤ obalovat Router i vĹˇechny strĂˇnky, kde volĂˇĹˇ useVvDocs() */}
         <VvDocsProvider>
           <Router>
             <Routes>
@@ -60,7 +70,15 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                 }
               />
 
-              {/* Summary může být veřejný, ale klidně ho můžeš taky chránit */}
+              {/* Summary mĹŻĹľe bĂ˝t veĹ™ejnĂ˝, ale klidnÄ› ho mĹŻĹľeĹˇ taky chrĂˇnit */}
+              <Route
+                path="/revize-lps/:revId"
+                element={
+                  <ProtectedRoute>
+                    <LpsEditPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/summary/:revId" element={<SummaryWrapper />} />
 
               <Route
@@ -106,7 +124,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
               <Route path="/admin/defects-editor" element={<AdminRoute><DefectsEditorPage /></AdminRoute>} />
 
-              {/* (volitelné) 404 fallback */}
+              {/* (volitelnĂ©) 404 fallback */}
               {/* <Route path="*" element={<NotFoundPage />} /> */}
             </Routes>
           </Router>

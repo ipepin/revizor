@@ -1,4 +1,5 @@
-import React, { FormEvent, useEffect, useState } from "react";
+﻿import React, { FormEvent, useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import Sidebar from "../../components/Sidebar";
 import api from "../../api/axios";
 
@@ -50,6 +51,7 @@ export default function AdminUsersPage() {
   const [rtDialog, setRtDialog] = useState<{ user?: AdminUser; data?: any } | null>(null);
   const [confirmDel, setConfirmDel] = useState<AdminUser | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [verifyingId, setVerifyingId] = useState<number | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(initialCreateForm);
@@ -129,6 +131,7 @@ export default function AdminUsersPage() {
       await load();
     } finally {
       setBusyId(null);
+      setVerifyingId(null);
     }
   }
 
@@ -139,17 +142,20 @@ export default function AdminUsersPage() {
       await load();
     } finally {
       setBusyId(null);
+      setVerifyingId(null);
     }
   }
 
   async function verifyRt(user: AdminUser) {
     setBusyId(user.id);
+    setVerifyingId(user.id);
     try {
       const resp = await api.post(`/admin/rt/verify/${user.id}`);
       setRtDialog({ user, data: resp.data });
       await load();
     } finally {
       setBusyId(null);
+      setVerifyingId(null);
     }
   }
 
@@ -175,6 +181,7 @@ export default function AdminUsersPage() {
       setToast({ type: "error", message: detail });
     } finally {
       setBusyId(null);
+      setVerifyingId(null);
     }
   }
 
@@ -373,12 +380,12 @@ export default function AdminUsersPage() {
                 <div className="col-span-2 text-xs text-gray-600">
                   {user.rt_status === "verified" ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-green-600 text-2xl leading-none">✓</span>
+                      <span className="text-green-600 text-2xl leading-none">âś“</span>
                       <span className="font-medium">Overeno TICR</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-red-600 text-2xl leading-none">✕</span>
+                      <span className="text-red-600 text-2xl leading-none">âś•</span>
                       <span className="font-medium">Neni v databazi TICR</span>
                     </div>
                   )}
@@ -404,10 +411,17 @@ export default function AdminUsersPage() {
                   </button>
                   <button
                     className="px-2 py-1 text-sm bg-blue-600 text-white rounded"
-                    disabled={busyId === user.id}
+                    disabled={verifyingId === user.id}
                     onClick={() => verifyRt(user)}
                   >
-                    Overit v TICR
+                    {verifyingId === user.id ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Overuji...
+                      </span>
+                    ) : (
+                      "Overit v TICR"
+                    )}
                   </button>
                   <button
                     className="px-2 py-1 text-sm bg-red-600 text-white rounded"
@@ -436,7 +450,7 @@ export default function AdminUsersPage() {
               {rtDialog.data?.rt_status === "verified" ? (
                 <div className="text-sm text-gray-700 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-green-600">✓</span>
+                    <span className="text-green-600">âś“</span>
                     <span>Byl v databazi TICR nalezen revizni technik:</span>
                   </div>
                   <div>
@@ -512,3 +526,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
