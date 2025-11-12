@@ -1,4 +1,4 @@
-﻿import React, { useContext, useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { RevisionFormContext, RevisionForm } from "../context/RevisionFormContext";
 
 type Earth = { label: string; valueOhm: number | string; instrumentId?: string; note?: string };
@@ -28,7 +28,7 @@ export default function LpsMeasurementsSection() {
 
   const addEarth = () => {
     const idx = earth.length + 1;
-    setEarth([ ...earth, { label: `Zemnič č. ${idx}`, valueOhm: "" } ]);
+    setEarth([ ...earth, { label: `ZemniÄŤ ÄŤ. ${idx}`, valueOhm: "" } ]);
   };
   const addSpd  = () => setSpd([ ...spd, { location: "", type: "", result: "" } ]);
 
@@ -39,29 +39,29 @@ export default function LpsMeasurementsSection() {
 
   return (
     <div className="space-y-6 text-sm text-gray-800">
-      <h2 className="text-xl font-semibold text-blue-800">LPS – Měření</h2>
+      <h2 className="text-xl font-semibold text-blue-800">LPS â€“ MÄ›Ĺ™enĂ­</h2>
 
       <section>
-        <h3 className="font-semibold mb-2">Zemní odpor (jednotlivé zemniče)</h3>
+        <h3 className="font-semibold mb-2">ZemnĂ­ odpor (jednotlivĂ© zemniÄŤe)</h3>
         <div className="bg-white rounded shadow border">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="p-2 text-left">Zemnič</th>
-                <th className="p-2 text-left">Rz (Ω)</th>
-                <th className="p-2 text-left">Přístroj</th>
+                <th className="p-2 text-left">ZemniÄŤ</th>
+                <th className="p-2 text-left">Rz (Î©)</th>
+                <th className="p-2 text-left">PĹ™Ă­stroj</th>
                 <th className="p-2 text-left">Pozn.</th>
                 <th className="p-2 text-left">Akce</th>
               </tr>
             </thead>
             <tbody>
               {earth.length === 0 && (
-                <tr><td colSpan={5} className="p-3 text-center text-gray-500">Žádné záznamy</td></tr>
+                <tr><td colSpan={5} className="p-3 text-center text-gray-500">Ĺ˝ĂˇdnĂ© zĂˇznamy</td></tr>
               )}
               {earth.map((row, idx) => (
                 <tr key={idx} className="border-t">
                   <td className="p-2"><input className="w-full p-2 border rounded" value={row.label} onChange={e=>setEarthField(idx,'label',e.target.value)} /></td>
-                  <td className="p-2"><input className="w-32 p-2 border rounded" value={row.valueOhm} onChange={e=>setEarthField(idx,'valueOhm',e.target.value)} placeholder="např. 10" /></td>
+                  <td className="p-2"><input className="w-32 p-2 border rounded" value={row.valueOhm} onChange={e=>setEarthField(idx,'valueOhm',e.target.value)} placeholder="napĹ™. 10" /></td>
                   <td className="p-2">
                     <select className="p-2 border rounded" value={row.instrumentId || ""} onChange={e=>setEarthField(idx,'instrumentId',e.target.value)}>
                       <option value="">- vyberte -</option>
@@ -75,31 +75,31 @@ export default function LpsMeasurementsSection() {
             </tbody>
           </table>
         </div>
-        <button className="mt-2 px-3 py-2 bg-blue-600 text-white rounded" onClick={addEarth}>+ Přidat zemnič</button>
+        <button className="mt-2 px-3 py-2 bg-blue-600 text-white rounded" onClick={addEarth}>+ PĹ™idat zemniÄŤ</button>
       </section>
 
       {hasSPD && (
         <section>
-          <h3 className="font-semibold mb-2">SPD / Přepěťová ochrana – měření</h3>
+          <h3 className="font-semibold mb-2">SPD / PĹ™epÄ›ĹĄovĂˇ ochrana â€“ mÄ›Ĺ™enĂ­</h3>
           <div className="bg-white rounded shadow border">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-left">Místo</th>
+                  <th className="p-2 text-left">MĂ­sto</th>
                   <th className="p-2 text-left">Typ (T1/T2/T3)</th>
-                  <th className="p-2 text-left">Výsledek</th>
-                  <th className="p-2 text-left">Přístroj</th>
+                  <th className="p-2 text-left">VĂ˝sledek</th>
+                  <th className="p-2 text-left">PĹ™Ă­stroj</th>
                   <th className="p-2 text-left">Pozn.</th>
                   <th className="p-2 text-left">Akce</th>
                 </tr>
               </thead>
               <tbody>
                 {spd.length === 0 && (
-                  <tr><td colSpan={6} className="p-3 text-center text-gray-500">Žádné záznamy</td></tr>
+                  <tr><td colSpan={6} className="p-3 text-center text-gray-500">Ĺ˝ĂˇdnĂ© zĂˇznamy</td></tr>
                 )}
                 {spd.map((row, idx) => (
                   <tr key={idx} className="border-t">
-                    <td className="p-2"><input className="w-full p-2 border rounded" value={row.location} onChange={e=>setSpdField(idx,'location',e.target.value)} placeholder="rozvaděč, přívod apod." /></td>
+                    <td className="p-2"><input className="w-full p-2 border rounded" value={row.location} onChange={e=>setSpdField(idx,'location',e.target.value)} placeholder="rozvadÄ›ÄŤ, pĹ™Ă­vod apod." /></td>
                     <td className="p-2">
                       <select className="p-2 border rounded" value={row.type} onChange={e=>setSpdField(idx,'type',e.target.value)}>
                         <option value="">- vyberte -</option>
@@ -128,7 +128,7 @@ export default function LpsMeasurementsSection() {
               </tbody>
             </table>
           </div>
-          <button className="mt-2 px-3 py-2 bg-blue-600 text-white rounded" onClick={addSpd}>+ Přidat záznam SPD</button>
+          <button className="mt-2 px-3 py-2 bg-blue-600 text-white rounded" onClick={addSpd}>+ PĹ™idat zĂˇznam SPD</button>
         </section>
       )}
     </div>

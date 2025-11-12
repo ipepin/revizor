@@ -45,7 +45,7 @@ export default function LpsIdentifikaceSection() {
         });
       } catch (e: any) {
         if (!alive) return;
-        setInstError(e?.message || "Nepodařilo se načíst měřicí přístroje.");
+        setInstError(e?.message || "NepodaĹ™ilo se naÄŤĂ­st mÄ›Ĺ™icĂ­ pĹ™Ă­stroje.");
       } finally {
         if (alive) setInstLoading(false);
       }
@@ -67,14 +67,14 @@ export default function LpsIdentifikaceSection() {
   
   return (
     <div className="space-y-5 text-sm text-gray-800">      <section>
-        <h3 className="text-lg font-semibold mb-2">Měřicí přístroje</h3>
+        <h3 className="text-lg font-semibold mb-2">MÄ›Ĺ™icĂ­ pĹ™Ă­stroje</h3>
         <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="p-2 w-10 text-center"></th>
-                <th className="p-2 text-left">Název</th>
-                <th className="p-2 text-left">Co měří</th>
+                <th className="p-2 text-left">NĂˇzev</th>
+                <th className="p-2 text-left">Co mÄ›Ĺ™Ă­</th>
                 <th className="p-2 text-left">Kal. list</th>
                 <th className="p-2 text-left">S/N</th>
                 <th className="p-2 text-left">Platnost do</th>
@@ -83,13 +83,13 @@ export default function LpsIdentifikaceSection() {
             </thead>
             <tbody>
               {instLoading && (
-                <tr><td colSpan={7} className="p-3 text-center text-gray-500">Načítám…</td></tr>
+                <tr><td colSpan={7} className="p-3 text-center text-gray-500">NaÄŤĂ­tĂˇmâ€¦</td></tr>
               )}
               {!instLoading && instError && (
                 <tr><td colSpan={7} className="p-3 text-center text-red-600">Chyba: {String(instError)}</td></tr>
               )}
               {!instLoading && !instError && instCatalog.length === 0 && (
-                <tr><td colSpan={7} className="p-3 text-center text-gray-500">V katalogu zatím nejsou žádné přístroje.</td></tr>
+                <tr><td colSpan={7} className="p-3 text-center text-gray-500">V katalogu zatĂ­m nejsou ĹľĂˇdnĂ© pĹ™Ă­stroje.</td></tr>
               )}
               {!instLoading && !instError && instCatalog.map((it) => {
                 const checked = selectedIds.has(it.id);

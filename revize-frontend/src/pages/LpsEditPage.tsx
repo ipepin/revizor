@@ -1,4 +1,4 @@
-﻿// src/pages/LpsEditPage.tsx
+// src/pages/LpsEditPage.tsx
 import React, { useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";

@@ -1,11 +1,11 @@
 ﻿// src/pages/SummaryPage.tsx
-import React, { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import React, { useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
 import { generateSummaryDocx } from "./summary-export/word";
-import { renderAndDownloadRzDocxFromTemplate } from "./summary-export/docxTemplate";
+import { renderAndDownloadLpsDocx } from "./summary-export/lpsDocxTemplate";
 import LpsSummaryPage from "./LpsSummaryPage";
 
 import {
@@ -28,8 +28,6 @@ export default function SummaryPage() {
   const { form: ctxForm } = useRevisionForm();
   const pageRef = useRef<HTMLDivElement | null>(null);
   const { profile, company } = useUser();
-  const [lpsActiveTab, setLpsActiveTab] = useState<"lps_info" | "lps_measure">("lps_info");
-
   // Print-view flag
   const sp = new URLSearchParams(window.location.search);
   const isPrintView = sp.get("print") === "1";
@@ -140,17 +138,6 @@ export default function SummaryPage() {
     []
   );
 
-  if (isLpsRevision) {
-    return (
-      <div className="flex min-h-screen bg-slate-100 print:bg-white">
-        <Sidebar mode="summary" active={lpsActiveTab} onSelect={handleLpsSelect} />
-        <main className="flex-1 overflow-y-auto print:bg-white">
-          <LpsSummaryPage safeForm={safeForm} technician={technician} isPrintView={isPrintView} />
-        </main>
-      </div>
-    );
-  }
-
   // Normy = normy + vlastnĂ­ texty
   const normsAll = useMemo(() => {
     const extra = [safeForm.customNorm1, safeForm.customNorm2, safeForm.customNorm3].filter(
@@ -204,20 +191,8 @@ export default function SummaryPage() {
     }));
   }, [safeForm.measuringInstruments, safeForm.instruments]);
 
-  // Export PDF (vektorovĂ˝ tisk)
-  const handleGeneratePDF = () => {
-    const fileId = String(safeForm.evidencni || revId || "vystup");
-    const url = new URL(window.location.href);
-    url.searchParams.set("print", "1");
-    url.searchParams.set("auto", "1");
-    url.searchParams.set("close", "1");
-    url.searchParams.set("vector", "1");
-    url.searchParams.set("fname", `revizni_zprava_${fileId}.pdf`);
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
-  };
-
   // Export DOCX (pĹŻvodnĂ­ generĂˇtor)
-  const handleGenerateWord = async () => {
+  const handleGenerateDocx = async () => {
     try {
       await generateSummaryDocx({ safeForm, technician, normsAll, usedInstruments, revId });
     } catch (e: any) {
@@ -225,17 +200,39 @@ export default function SummaryPage() {
     }
   };
 
-  // NOVĂ‰: vyplnÄ›nĂ­ Word Ĺ ABLONY placeholdery
-  const handleGenerateFromTemplate = async () => {
-    await renderAndDownloadRzDocxFromTemplate({
-      safeForm,
-      technician,
-      normsAll,
-      usedInstruments,
+  const handleGenerateLpsDocx = async () => {
+    await renderAndDownloadLpsDocx({
+      form: safeForm,
       revId,
-      templateUrl: "/templates/rz_template.docx", // umĂ­sti do /public/templates
+      templateUrl: "/templates/lps_report.docx",
     });
   };
+
+  if (isLpsRevision) {
+    return (
+      <div className={isPrintView ? "min-h-screen bg-white text-slate-900" : "min-h-screen bg-white text-slate-900"}>
+        <div className="flex" id="app-chrome">
+          {!isPrintView && (
+            <div className="print:hidden">
+              <Sidebar mode="summary" />
+            </div>
+          )}
+          <main className={isPrintView ? "flex-1" : "flex-1 p-6 md:p-10"}>
+            {!isPrintView && (
+              <div className="flex justify-end gap-3 mb-4 print:hidden">
+                <button onClick={handleGenerateLpsDocx} className="px-4 py-2 rounded bg-indigo-700 text-white">
+                  Export do Wordu
+                </button>
+              </div>
+            )}
+            <LpsSummaryPage safeForm={safeForm} technician={technician} isPrintView={isPrintView} />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className={isPrintView ? "min-h-screen bg-white text-slate-900" : "min-h-screen bg-white text-slate-900"}>
@@ -248,14 +245,8 @@ export default function SummaryPage() {
         <main className={isPrintView ? "flex-1" : "flex-1 p-6 md:p-10"}>
           {!isPrintView && (
             <div className="flex justify-end gap-3 mb-4 print:hidden">
-              <button onClick={handleGenerateFromTemplate} className="px-4 py-2 rounded bg-indigo-700 text-white">
-                â€¦do Ĺˇablony
-              </button>
-              <button onClick={handleGenerateWord} className="px-4 py-2 rounded bg-indigo-600 text-white">
-                Generovat Word
-              </button>
-              <button onClick={handleGeneratePDF} className="px-4 py-2 rounded bg-emerald-600 text-white">
-                Generovat PDF
+              <button onClick={handleGenerateDocx} className="px-4 py-2 rounded bg-indigo-600 text-white">
+                Export do Wordu
               </button>
             </div>
           )}
@@ -693,6 +684,13 @@ export default function SummaryPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

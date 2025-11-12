@@ -19,7 +19,7 @@ export type GenArgs = {
   normsAll: string[];
   usedInstruments: Array<{ id: string; name: string; serial: string; calibration: string }>;
   revId?: string | undefined;
-  templateUrl?: string; // volitelně přepsání cesty k šabloně
+  templateUrl?: string; // volitelnÄ› pĹ™epsĂˇnĂ­ cesty k ĹˇablonÄ›
 };
 
 const DEFAULT_TEMPLATE_URL = "/templates/rz-modern.docx";
@@ -32,7 +32,7 @@ const dash = (v: any) => {
 const nbsp = "\u00A0";
 const repeat = (s: string, n: number) => Array(Math.max(0, n)).fill(s).join("");
 
-// Jednoduchý parser pro [[TAG]]
+// JednoduchĂ˝ parser pro [[TAG]]
 function angularParser(tag: string) {
   const expr = tag.trim();
   return {
@@ -69,10 +69,10 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
   const OBJ_PREDMET = dash(safeForm?.objekt);
   const OBJ_OBJEDNATEL = dash(safeForm?.objednatel);
 
-  let VYSLEDEK_TEXT = "Chybí informace";
+  let VYSLEDEK_TEXT = "ChybĂ­ informace";
   const s = safeForm?.conclusion?.safety;
-  if (s === "able") VYSLEDEK_TEXT = "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-  if (s === "not_able") VYSLEDEK_TEXT = "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+  if (s === "able") VYSLEDEK_TEXT = "ElektrickĂˇ instalace je z hlediska bezpeÄŤnosti schopna provozu";
+  if (s === "not_able") VYSLEDEK_TEXT = "ElektrickĂˇ instalace nenĂ­ z hlediska bezpeÄŤnosti schopna provozu";
   const DALSIREVIZE = dash(safeForm?.conclusion?.validUntil);
 
   const PROHLIDKA = (safeForm?.performedTasks || []).map((t: any) => ({ TEXT: dash(t) }));
@@ -88,15 +88,15 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
 
   const INSTRUMENTS = (usedInstruments || []).map((i) => ({ NAME: dash(i.name), SERIAL: dash(i.serial), CAL: dash(i.calibration) }));
 
-  // BOARDS – odrážkový „strom“ bez tabulek (tab stopa pro zarovnání)
+  // BOARDS â€“ odrĂˇĹľkovĂ˝ â€žstromâ€ś bez tabulek (tab stopa pro zarovnĂˇnĂ­)
   const BOARDS = (safeForm?.boards || []).map((b: any, idx: number) => {
     const TITLE = dash(b?.name || `#${idx + 1}`);
     const meta: string[] = [];
-    if (b?.vyrobce) meta.push(`Výrobce: ${dash(b.vyrobce)}`);
+    if (b?.vyrobce) meta.push(`VĂ˝robce: ${dash(b.vyrobce)}`);
     if (b?.typ) meta.push(`Typ: ${dash(b.typ)}`);
-    if (b?.umisteni) meta.push(`Umístění: ${dash(b.umisteni)}`);
+    if (b?.umisteni) meta.push(`UmĂ­stÄ›nĂ­: ${dash(b.umisteni)}`);
     if (b?.vyrobniCislo) meta.push(`S/N: ${dash(b.vyrobniCislo)}`);
-    if (b?.napeti) meta.push(`Napětí: ${dash(b.napeti)}`);
+    if (b?.napeti) meta.push(`NapÄ›tĂ­: ${dash(b.napeti)}`);
     if (b?.odpor) meta.push(`Odpor: ${dash(b.odpor)}`);
     if (b?.ip) meta.push(`IP: ${dash(b.ip)}`);
     const DESC = meta.join("  |  ") || "-";
@@ -104,7 +104,7 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     const flat: any[] = Array.isArray(b?.komponenty) ? b.komponenty : [];
     const COMPONENTS = (flat.length ? flat : [{ _level: 0, nazev: "-" }]).map((c: any) => {
       const lvl = Math.max(0, Number(c?._level ?? 0));
-      const prefix = repeat(nbsp + nbsp, lvl) + (lvl > 0 ? "• " : "– ");
+      const prefix = repeat(nbsp + nbsp, lvl) + (lvl > 0 ? "â€˘ " : "â€“ ");
       const name = dash(c?.nazev || c?.name);
       const desc = dash(c?.popis || c?.description || "");
 
@@ -120,16 +120,16 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
       const parts: string[] = [];
       if (desc && desc !== "-") parts.push(desc);
       if (typ) parts.push(`typ: ${typ}`);
-      if (poles) parts.push(`póly: ${poles}`);
+      if (poles) parts.push(`pĂłly: ${poles}`);
       if (dim) parts.push(`dim.: ${dim}`);
-      if (riso || riso === 0) parts.push(`Riso: ${riso} MΩ`);
-      if (zs || zs === 0) parts.push(`Zs: ${zs} Ω`);
+      if (riso || riso === 0) parts.push(`Riso: ${riso} MÎ©`);
+      if (zs || zs === 0) parts.push(`Zs: ${zs} Î©`);
       if (tMs || tMs === 0) parts.push(`t: ${tMs} ms`);
-      if (iDelta || iDelta === 0) parts.push(`IΔ: ${iDelta} mA`);
+      if (iDelta || iDelta === 0) parts.push(`IÎ”: ${iDelta} mA`);
       if (pozn) parts.push(`Pozn.: ${pozn}`);
 
       const LINE_LEFT = `${prefix}${name}`;
-      const LINE_RIGHT = parts.join("   ·   ") || " ";
+      const LINE_RIGHT = parts.join("   Â·   ") || " ";
       return { LINE_LEFT, LINE_RIGHT };
     });
 
@@ -155,7 +155,7 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
     CLANEK: dash(d?.article),
   }));
 
-  // Dlouhý závěr
+  // DlouhĂ˝ zĂˇvÄ›r
   const ZAVER_TEXT = String(safeForm?.conclusion?.text || "");
 
   return {
@@ -191,10 +191,10 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
   };
 }
 
-// ---------- načtení šablony ----------
+// ---------- naÄŤtenĂ­ Ĺˇablony ----------
 async function fetchBinary(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} při načítání ${url}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} pĹ™i naÄŤĂ­tĂˇnĂ­ ${url}`);
   return await res.arrayBuffer();
 }
 
@@ -207,7 +207,7 @@ export async function renderAndDownloadRzDocxFromTemplate(args: GenArgs) {
     zip = new PizZip(buf);
   } catch (e) {
     console.error("[docxTemplate] PizZip error:", e);
-    throw new Error("Soubor šablony není validní .docx (zip). Otevřete ho ve Wordu a uložte znovu.");
+    throw new Error("Soubor Ĺˇablony nenĂ­ validnĂ­ .docx (zip). OtevĹ™ete ho ve Wordu a uloĹľte znovu.");
   }
 
   const doc = new Docxtemplater(zip, {
@@ -227,7 +227,7 @@ export async function renderAndDownloadRzDocxFromTemplate(args: GenArgs) {
       const tag = er?.properties?.xtag ? ` [${er.properties.xtag}]` : "";
       return `- ${er?.properties?.explanation || er?.message || "Chyba"}${tag}${file}`;
     }) || [];
-    const msg = multi.length > 0 ? `Šablonu se nepodařilo vyplnit:\n${multi.join("\n")}` : (e?.message || "Neznámá chyba při renderu šablony");
+    const msg = multi.length > 0 ? `Ĺ ablonu se nepodaĹ™ilo vyplnit:\n${multi.join("\n")}` : (e?.message || "NeznĂˇmĂˇ chyba pĹ™i renderu Ĺˇablony");
     throw new Error(msg);
   }
 

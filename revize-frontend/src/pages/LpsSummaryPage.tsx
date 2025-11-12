@@ -1,5 +1,4 @@
-import React, { useMemo } from "react";
-import { dash } from "./summary-utils/text";
+﻿import React, { useMemo } from "react";
 
 type TechnicianInfo = {
   jmeno: string;
@@ -22,8 +21,16 @@ type Props = {
 const pageBaseStyle: React.CSSProperties = {
   width: "210mm",
   minHeight: "297mm",
-  padding: "18mm",
+  padding: "18mm 24mm 24mm",
   background: "#fff",
+};
+
+const scopeLabels: Record<string, string> = {
+  vnejsi: "Vnější ochrana před bleskem",
+  vnitrni: "Vnitřní ochrana před bleskem",
+  uzemneni: "Uzemnění",
+  pospojovani: "Ekvipotenciální pospojování",
+  spd: "SPD / přepěťová ochrana",
 };
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -33,16 +40,18 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex flex-col">
     <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
-    <span className="text-sm font-medium text-slate-900">{value || "-"}</span>
+    <span className="text-sm font-medium text-slate-900">{value || "—"}</span>
   </div>
 );
 
 const Table = ({
   headers,
   rows,
+  emptyText,
 }: {
   headers: string[];
   rows: Array<React.ReactNode[]>;
+  emptyText: string;
 }) => (
   <div className="overflow-hidden rounded-2xl border border-slate-200">
     <table className="w-full text-sm">
@@ -59,7 +68,7 @@ const Table = ({
         {rows.length === 0 ? (
           <tr>
             <td colSpan={headers.length} className="px-3 py-4 text-center text-slate-400 text-sm">
-              Žádné záznamy
+              {emptyText}
             </td>
           </tr>
         ) : (
@@ -78,272 +87,255 @@ const Table = ({
   </div>
 );
 
+const formatDate = (value?: string) => {
+  if (!value) return "—";
+  const [y, m, d] = value.split("-");
+  if (y && m && d) return `${d}.${m}.${y}`;
+  return value;
+};
+
+const formatStandardName = (code?: string) => {
+  const normalized = (code || "").toLowerCase();
+  if (!normalized) return "—";
+  if (normalized.includes("62305")) return "ČSN EN 62305-3 ed.2";
+  if (normalized.includes("341390")) return "ČSN 34 1390";
+  return code || "—";
+};
+
+const valueOrDash = (value: any) => {
+  if (value === 0) return "0";
+  if (!value) return "—";
+  const str = String(value).trim();
+  return str.length > 0 ? str : "—";
+};
+
 export default function LpsSummaryPage({ safeForm, technician, isPrintView }: Props) {
   const lps = safeForm?.lps || {};
-  const measurements: any[] = Array.isArray(lps?.earthResistance) ? lps.earthResistance : [];
-  const visualChecks: any[] = Array.isArray(lps?.visualChecks) ? lps.visualChecks : [];
+  const measuringInstruments: any[] = useMemo(
+    () => (Array.isArray(safeForm?.measuringInstruments) ? safeForm.measuringInstruments : []),
+    [safeForm?.measuringInstruments]
+  );
+  const scopeChecks: string[] = Array.isArray(lps?.scopeChecks) ? lps.scopeChecks : [];
+  const earthMeasurements: any[] = Array.isArray(lps?.earthResistance) ? lps.earthResistance : [];
+  const continuityChecks: any[] = Array.isArray(lps?.continuity) ? lps.continuity : [];
   const spdTests: any[] = Array.isArray(lps?.spdTests) ? lps.spdTests : [];
-  const measuringInstruments: any[] = Array.isArray(safeForm?.measuringInstruments)
-    ? safeForm.measuringInstruments
-    : [];
+  const visualChecks: any[] = Array.isArray(lps?.visualChecks) ? lps.visualChecks : [];
+  const defects: any[] = Array.isArray(safeForm?.defects) ? safeForm.defects : [];
 
   const instrumentMap = useMemo(() => {
     const map: Record<string, any> = {};
     measuringInstruments.forEach((inst) => {
-      if (!inst?.id) return;
-      map[String(inst.id)] = inst;
+      if (inst?.id != null) map[String(inst.id)] = inst;
     });
     return map;
   }, [measuringInstruments]);
 
   const findInstrument = (id?: string) => {
-    if (!id) return "-";
+    if (!id) return "—";
     const inst = instrumentMap[String(id)];
-    if (!inst) return "-";
-    return `${inst.name}${inst.calibration_code ? ` (${inst.calibration_code})` : ""}`;
+    if (!inst) return "—";
+    return inst.name || inst.measurement_text || "—";
   };
 
-  const scopeList: string[] = Array.isArray(lps?.scopeChecks) ? lps.scopeChecks : [];
-  const defects: any[] = Array.isArray(safeForm?.defects) ? safeForm.defects : [];
-  const stringOrDash = (value: any) => (value && String(value).trim().length > 0 ? value : "–");
+  const measuringRows = measuringInstruments.map((inst, idx) => [
+    <span key={`inst-${idx}-name`} className="font-medium text-slate-900">{valueOrDash(inst.name)}</span>,
+    <span key={`inst-${idx}-serial`}>{valueOrDash(inst.serial)}</span>,
+    <span key={`inst-${idx}-cal`}>{valueOrDash(inst.calibration_code)}</span>,
+  ]);
 
-  const pageStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
+  const earthRows = earthMeasurements.map((row, idx) => [
+    valueOrDash(row?.label || `Zemnič ${idx + 1}`),
+    row?.valueOhm ? `${row.valueOhm} Ω` : "—",
+    valueOrDash(row?.note),
+  ]);
+
+  const continuityRows = continuityChecks.map((row, idx) => [
+    valueOrDash(row?.conductor || `Svod ${idx + 1}`),
+    row?.valueMilliOhm ? `${row.valueMilliOhm} mΩ` : "—",
+    valueOrDash(row?.note),
+  ]);
+
+  const spdRows = spdTests.map((row, idx) => [
+    valueOrDash(row?.location || `Stanoviště ${idx + 1}`),
+    valueOrDash(row?.type),
+    valueOrDash(row?.result),
+    valueOrDash(row?.note),
+  ]);
+
+  const visualRows = visualChecks.map((row, idx) => [
+    valueOrDash(row?.text || `Kontrola ${idx + 1}`),
+    row?.ok ? "OK" : "NOK",
+    valueOrDash(row?.note),
+  ]);
+
+  const defectRows = defects.map((row, idx) => [
+    <span key={`def-${idx}-text`} className="font-medium text-slate-900">{valueOrDash(row?.description)}</span>,
+    valueOrDash(row?.standard || row?.article),
+    valueOrDash(row?.recommendation || row?.remedy),
+  ]);
+
+  const scopeTextItems = scopeChecks.map((key) => scopeLabels[key] || key);
+  const revisionType = valueOrDash(safeForm?.typRevize);
+  const spdProtection = lps?.spdProtectionUsed === "yes" ? "Je použita" : lps?.spdProtectionUsed === "no" ? "Není použita" : "Neuvedeno";
+
+  const pageStyle: React.CSSProperties = {
     ...pageBaseStyle,
-    boxShadow: isPrintView ? "none" : "0 30px 80px rgba(15,23,42,0.15)",
-    borderRadius: isPrintView ? 0 : 24,
-    marginBottom: isPrintView ? "12mm" : "2.5rem",
+    boxShadow: isPrintView ? "none" : "0 30px 80px rgba(15,23,42,0.18)",
+    borderRadius: isPrintView ? 0 : 28,
+    marginBottom: isPrintView ? "0" : "3rem",
     pageBreakAfter: "always",
-    ...extra,
-  });
+  };
 
-  const conclusionText = dash(safeForm?.conclusion?.text) || dash(lps?.reportText);
+  const conclusionText = valueOrDash(safeForm?.conclusion?.text || lps?.reportTextConclusion || "");
+  const nextRevision = valueOrDash(safeForm?.conclusion?.validUntil || lps?.nextRevision || "");
 
   return (
     <div className="flex justify-center bg-slate-100/60 py-8 print:bg-white print:py-0">
-      <div className="flex flex-col items-center gap-8">
-        <article id="lps_info" style={pageStyle()}>
-          <header className="flex items-start justify-between border-b border-slate-200 pb-4 mb-6">
-            <div>
-              <p className="uppercase text-xs tracking-[0.2em] text-slate-500">Souhrnná zpráva LPS</p>
-              <h1 className="text-2xl font-semibold text-slate-900 mt-1">{safeForm?.objekt || "Projekt bez názvu"}</h1>
-              <p className="text-sm text-slate-500">{safeForm?.adresa || "-"}</p>
-            </div>
-            <div className="text-right text-sm text-slate-600">
-              <div>
-                <span className="font-semibold text-slate-900">Evidence:</span> {stringOrDash(safeForm?.evidencni)}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-900">Datum:</span>{" "}
-                {dash(safeForm?.date_end || safeForm?.date_created)}
-              </div>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-200">
-              <SectionTitle>Identifikace objektu</SectionTitle>
-              <InfoRow label="Objekt" value={stringOrDash(safeForm?.objekt)} />
-              <InfoRow label="Adresa" value={stringOrDash(safeForm?.adresa)} />
-              <InfoRow label="Objednatel" value={stringOrDash(safeForm?.objednatel)} />
-              <InfoRow label="Typ revize" value={stringOrDash(safeForm?.typRevize || "LPS")} />
-              <InfoRow label="Norma" value={stringOrDash(lps?.standard || safeForm?.norms?.join(", "))} />
-              <InfoRow label="Třída LPS" value={stringOrDash(lps?.class)} />
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-200">
-              <SectionTitle>Revizní technik</SectionTitle>
-              <InfoRow label="Jméno" value={technician.jmeno} />
-              <InfoRow label="Subjekt" value={technician.firma} />
-              <InfoRow label="Číslo osvědčení" value={technician.cislo_osvedceni} />
-              <InfoRow label="Číslo oprávnění" value={technician.cislo_opravneni} />
-              <InfoRow label="IČO / DIČ" value={`${technician.ico} / ${technician.dic}`} />
-              <InfoRow label="Adresa" value={technician.adresa} />
+      <article style={pageStyle} className="text-slate-900">
+        <header className="border-b border-slate-200 pb-4 mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="uppercase text-xs tracking-[0.35em] text-slate-500">Revizní zpráva</p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-slate-900">Zpráva o revizi LPS</h1>
+            <div className="mt-2 text-sm text-slate-600">Typ revize: {revisionType}</div>
+          </div>
+          <div className="text-right">
+            <span className="text-xs uppercase tracking-wide text-slate-500">Evidenční číslo</span>
+            <div className="text-2xl font-bold text-slate-900">{valueOrDash(safeForm?.evidencni)}</div>
+            <div className="mt-4 text-xs text-slate-600 space-y-1">
+              <div>Datum zahájení: {formatDate(safeForm?.date_start)}</div>
+              <div>Datum ukončení: {formatDate(safeForm?.date_end)}</div>
+              <div>Datum vyhotovení: {formatDate(safeForm?.date_created)}</div>
             </div>
           </div>
+        </header>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
-              <SectionTitle>Rozsah revize</SectionTitle>
-              {scopeList.length === 0 ? (
-                <p className="text-sm text-slate-500">Nejsou vybrány žádné kontrolované části.</p>
+        <section className="mb-6">
+          <SectionTitle>Identifikace objektu</SectionTitle>
+          <div className="grid md:grid-cols-2 gap-4 text-sm mb-4">
+            <InfoRow label="Revidovaný objekt" value={valueOrDash(safeForm?.objekt)} />
+            <InfoRow label="Adresa objektu" value={valueOrDash(safeForm?.adresa)} />
+            <InfoRow label="Objednatel revize" value={valueOrDash(safeForm?.objednatel)} />
+            <InfoRow label="Majitel / provozovatel" value={valueOrDash(lps?.owner)} />
+            <InfoRow label="Projekt zpracoval" value={valueOrDash(lps?.projectBy)} />
+            <InfoRow label="Číslo projektu" value={valueOrDash(lps?.projectNo)} />
+          </div>
+          <SectionTitle>Identifikace revizního technika</SectionTitle>
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
+            <InfoRow label="Revizní technik" value={valueOrDash(technician.jmeno)} />
+            <InfoRow label="Firma" value={valueOrDash(technician.firma)} />
+            <InfoRow label="Ev. č. osvědčení" value={valueOrDash(technician.cislo_osvedceni)} />
+            <InfoRow label="Ev. č. oprávnění" value={valueOrDash(technician.cislo_opravneni)} />
+            <InfoRow label="IČ" value={valueOrDash(technician.ico)} />
+            <InfoRow label="DIČ" value={valueOrDash(technician.dic)} />
+            <InfoRow label="Kontakt" value={valueOrDash(technician.phone || technician.email || technician.adresa)} />
+            <InfoRow label="Adresa" value={valueOrDash(technician.adresa)} />
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <SectionTitle>Použité měřicí přístroje</SectionTitle>
+          <Table
+            headers={["Přístroj", "Výrobní číslo", "Kalibrační list"]}
+            rows={measuringRows}
+            emptyText="Nejsou uvedeny žádné přístroje."
+          />
+        </section>
+
+        <section className="mb-6">
+          <SectionTitle>Normy, rozsah a základní údaje</SectionTitle>
+          <div className="grid md:grid-cols-2 gap-4 text-sm">
+            <InfoRow label="Primární norma" value={formatStandardName(lps?.standard)} />
+            <InfoRow label="Třída LPS" value={valueOrDash(lps?.class)} />
+            <InfoRow label="SPD ochrana" value={spdProtection} />
+            <InfoRow label="Typ střechy" value={valueOrDash(lps?.roofTypeOther || lps?.roofType)} />
+            <InfoRow label="Střešní krytina" value={valueOrDash(lps?.roofCoverOther || lps?.roofCover)} />
+            <InfoRow label="Počet svodů" value={valueOrDash(lps?.downConductorsCountOther || lps?.downConductorsCount)} />
+          </div>
+          <div className="mt-4">
+            <span className="text-xs uppercase tracking-wide text-slate-500">Rozsah revize</span>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {scopeTextItems.length === 0 ? (
+                <span className="text-sm text-slate-500">Neuvedeno</span>
               ) : (
-                <ul className="text-sm text-slate-800 list-disc pl-4 space-y-1">
-                  {scopeList.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+                scopeTextItems.map((text) => (
+                  <span key={text} className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+                    {text}
+                  </span>
+                ))
               )}
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
-              <SectionTitle>Základní parametry LPS</SectionTitle>
-              <dl className="grid grid-cols-1 gap-1 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Typ objektu</dt>
-                  <dd className="font-medium text-slate-900">{stringOrDash(lps?.objectType || lps?.objectTypeOther)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Počet podlaží</dt>
-                  <dd className="font-medium text-slate-900">
-                    {stringOrDash(lps?.floorsCountOther || lps?.floorsCount)}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Jímací soustava</dt>
-                  <dd className="font-medium text-slate-900">{stringOrDash(lps?.airTerminationType)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Počet svodů</dt>
-                  <dd className="font-medium text-slate-900">
-                    {stringOrDash(lps?.downConductorsCountOther || lps?.downConductorsCount)}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Zemnění</dt>
-                  <dd className="font-medium text-slate-900">{stringOrDash(lps?.earthingType)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">Krytina / střecha</dt>
-                  <dd className="font-medium text-slate-900">
-                    {stringOrDash(lps?.roofTypeOther || lps?.roofType)} / {stringOrDash(lps?.roofCoverOther || lps?.roofCover)}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-500">SPD ochrana</dt>
-                  <dd className="font-medium text-slate-900">{stringOrDash(lps?.spdProtectionUsed)}</dd>
-                </div>
-              </dl>
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <SectionTitle>Popis objektu a poznámky</SectionTitle>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-800 min-h-[80px]">
+            {valueOrDash(lps?.reportText || safeForm?.extraNotes || "—")}
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <SectionTitle>Měření zemních odporů</SectionTitle>
+          <Table headers={["Zemnič", "Odpor [Ω]", "Poznámka"]} rows={earthRows} emptyText="Záznam o měření není k dispozici." />
+        </section>
+
+        {continuityRows.length > 0 && (
+          <section className="mb-6">
+            <SectionTitle>Kontinuita svodů</SectionTitle>
+            <Table headers={["Svod", "Hodnota [mΩ]", "Poznámka"]} rows={continuityRows} emptyText="Kontinuita nebyla zadána." />
+          </section>
+        )}
+
+        {spdRows.length > 0 && (
+          <section className="mb-6">
+            <SectionTitle>SPD / přepěťová ochrana</SectionTitle>
+            <Table headers={["Místo", "Typ", "Výsledek", "Poznámka"]} rows={spdRows} emptyText="Bez záznamu o SPD." />
+          </section>
+        )}
+
+        {visualRows.length > 0 && (
+          <section className="mb-6">
+            <SectionTitle>Vizuální kontrola</SectionTitle>
+            <Table headers={["Položka", "Stav", "Poznámka"]} rows={visualRows} emptyText="Nebyla zadána žádná kontrola." />
+          </section>
+        )}
+
+        {defectRows.length > 0 && (
+          <section className="mb-6">
+            <SectionTitle>Zjištěné závady</SectionTitle>
+            <Table headers={["Popis", "Norma / čl.", "Doporučené opatření"]} rows={defectRows} emptyText="Nebyla zadána žádná závada." />
+          </section>
+        )}
+
+        <section className="mb-6">
+          <SectionTitle>Celkový posudek</SectionTitle>
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-800 space-y-3">
+            <p>{conclusionText}</p>
+            <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <InfoRow label="Doporučený termín příští revize" value={formatDate(nextRevision)} />
+              <InfoRow label="Rozdělovník" value={valueOrDash(lps?.distributionList || "Provozovatel 2x, Revizní technik 1x")}/> 
             </div>
           </div>
+        </section>
 
-          {lps?.reportText && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-4">
-              <SectionTitle>Popis objektu a poznámky</SectionTitle>
-              <p className="text-sm leading-relaxed whitespace-pre-line text-slate-800">{lps.reportText}</p>
+        <section className="mb-0">
+          <SectionTitle>Nákres LPS</SectionTitle>
+          {lps?.sketchPng ? (
+            <img
+              src={lps.sketchPng}
+              alt="Skica LPS"
+              className="w-full max-h-[220mm] object-contain rounded-2xl border border-slate-200 bg-white"
+            />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 text-sm p-6 text-center">
+              Skica LPS zatím není k dispozici.
             </div>
           )}
-        </article>
-
-        <article id="lps_measure" style={pageStyle({ pageBreakAfter: "auto" })}>
-          <div className="grid gap-6">
-            <div className="bg-white rounded-2xl border border-slate-200 p-4">
-              <SectionTitle>Vizuální kontrola</SectionTitle>
-              <Table
-                headers={["Položka", "Stav", "Poznámka"]}
-                rows={visualChecks.map((row) => [
-                  row.text || "-",
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      row.ok ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                    }`}
-                  >
-                    {row.ok ? "Vyhovuje" : "Nevyhovuje"}
-                  </span>,
-                  row.note || "–",
-                ])}
-              />
-            </div>
-
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
-              <SectionTitle>Měření zemních odporů</SectionTitle>
-              <Table
-                headers={["Zemnič", "Rz [Ω]", "Přístroj", "Poznámka"]}
-                rows={measurements.map((row) => [
-                  row.label || "-",
-                  row.valueOhm || "–",
-                  findInstrument(row.instrumentId),
-                  row.note || "–",
-                ])}
-              />
-            </div>
-
-            {spdTests.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
-                <SectionTitle>SPD / Přepěťová ochrana</SectionTitle>
-                <Table
-                  headers={["Místo", "Typ", "Výsledek", "Přístroj", "Poznámka"]}
-                  rows={spdTests.map((row) => [
-                    row.location || "-",
-                    row.type || "-",
-                    row.result || "-",
-                    findInstrument(row.instrumentId),
-                    row.note || "–",
-                  ])}
-                />
-              </div>
-            )}
-
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-              <SectionTitle>Použité měřicí přístroje</SectionTitle>
-              <Table
-                headers={["Název", "Měření", "Kal. list", "Platnost", "Poznámka"]}
-                rows={measuringInstruments.map((inst) => [
-                  inst.name || "-",
-                  inst.measurement_text || "-",
-                  inst.calibration_code || "-",
-                  inst.calibration_valid_until || "-",
-                  inst.note || "–",
-                ])}
-              />
-            </div>
-
-            {defects.length > 0 && (
-              <div className="bg-white rounded-2xl border border-amber-200 p-4 space-y-2">
-                <SectionTitle>Zjištěné závady</SectionTitle>
-                <ul className="list-disc pl-4 text-sm text-slate-800 space-y-1">
-                  {defects.map((def, idx) => (
-                    <li key={idx}>
-                      <span className="font-medium">{def.description || "-"}</span>
-                      {def.standard && (
-                        <span className="text-slate-500 text-xs ml-2">
-                          ({def.standard} {def.article || ""})
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="grid lg:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3">
-                <SectionTitle>Celkový závěr</SectionTitle>
-                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">
-                  {conclusionText || "Závěr nebyl vyplněn."}
-                </p>
-                <div className="text-sm text-slate-600">
-                  <span className="font-semibold text-slate-900">Bezpečnost zařízení: </span>
-                  {safeForm?.conclusion?.safety === "not_able"
-                    ? "Nevyhovuje"
-                    : safeForm?.conclusion?.safety === "able"
-                    ? "Vyhovuje"
-                    : "Neuvedeno"}
-                </div>
-                {safeForm?.conclusion?.validUntil && (
-                  <div className="text-sm text-slate-600">
-                    <span className="font-semibold text-slate-900">Doporučený termín příští revize: </span>
-                    {safeForm.conclusion.validUntil}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col">
-                <SectionTitle>Skica LPS</SectionTitle>
-                {lps?.sketchPng ? (
-                  <img
-                    src={lps.sketchPng}
-                    alt="Skica LPS"
-                    className="rounded-xl border border-slate-200 w-full object-contain max-h-[210mm]"
-                  />
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
-                    Skica zatím nebyla vytvořena.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </article>
-      </div>
+        </section>
+      </article>
     </div>
   );
 }
+
+
+
