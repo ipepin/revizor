@@ -1,10 +1,12 @@
 import {
+  AlignmentType,
   BorderStyle,
   Document,
   Header,
   ImageRun,
-  Paragraph,
+  PageNumber,
   Packer,
+  Paragraph,
   Table,
   TableCell,
   TableRow,
@@ -32,7 +34,6 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   const continuity: any[] = Array.isArray(lps.continuity) ? lps.continuity : [];
   const spd: any[] = Array.isArray(lps.spdTests) ? lps.spdTests : [];
   const visual: any[] = Array.isArray(lps.visualChecks) ? lps.visualChecks : [];
-  const defects: any[] = Array.isArray(safe.defects) ? safe.defects : [];
 
   const scopeChecks: string[] = Array.isArray(lps.scopeChecks) ? lps.scopeChecks : [];
   const scopeLabels: Record<string, string> = {
@@ -43,7 +44,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     spd: "SPD / přepěťová ochrana",
   };
 
-  const children: (Paragraph | Table)[] = [
+  const children: Paragraph[] | (Paragraph | Table)[] = [
     headerBlock(safe, lps),
     spacer(60),
     sectionHeading("Identifikace objektu"),
@@ -72,7 +73,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
       ],
       SMALL_PADDING
     ),
-    spacer(140),
+    spacer(120),
     sectionHeading("Použité měřicí přístroje"),
     styledTable(
       ["Přístroj", "Výrobní číslo", "Kalibrační list"],
@@ -96,7 +97,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
       true
     ),
     spacer(40),
-    ...signatureBlock(safe, lps),
+    signatureBlock(safe, lps),
     spacer(120),
     sectionHeading("Normy, rozsah a základní údaje"),
     infoGrid([
@@ -167,26 +168,6 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     );
   }
 
-  if (defects.length) {
-    children.push(spacer(120));
-    children.push(sectionHeading("Zjištěné závady"));
-    children.push(
-      styledTable(
-        ["Popis", "Norma / čl.", "Doporučené opatření"],
-        defects.map((row) => [
-          dash(row?.description),
-          dash(row?.standard && row?.article ? `${row.standard} / ${row.article}` : row?.standard || row?.article),
-          dash(row?.recommendation || row?.remedy),
-        ]),
-        "Nebyla zadána žádná závada."
-      )
-    );
-  }
-
-  children.push(spacer(140));
-  children.push(sectionHeading("Závěr"));
-  children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
-
   children.push(spacer(140));
   children.push(sectionHeading("Nákres LPS"));
   children.push(
@@ -197,6 +178,22 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
         })
       : cardParagraph("Skica LPS není k dispozici.")
   );
+
+  children.push(spacer(120));
+  children.push(sectionHeading("Zjištěné závady"));
+  children.push(
+    styledTable(
+      ["Popis", "Norma / čl.", "Doporučené opatření"],
+      [],
+      "Data pro závady nejsou zatím v editoru k dispozici.",
+      false,
+      SMALL_PADDING
+    )
+  );
+
+  children.push(spacer(120));
+  children.push(sectionHeading("Závěr"));
+  children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
 
   const doc = new Document({
     styles: {
@@ -250,7 +247,14 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
           default: new Header({
             children: [
               new Paragraph({
-                children: [new TextRun({ text: `Evidenční číslo: ${dash(safe.evidencni || lps.projectNo)}`, bold: true })],
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: `Evidenční číslo: ${dash(safe.evidencni || lps.projectNo)}`, bold: true }),
+                  new TextRun({ text: "    Strana " }),
+                  PageNumber.CURRENT,
+                  new TextRun({ text: " / " }),
+                  PageNumber.TOTAL_PAGES,
+                ],
               }),
             ],
           }),
@@ -287,6 +291,7 @@ function headerBlock(safe: any, lps: any) {
                 children: [new TextRun({ text: `Typ revize: ${dash(safe.typRevize)}`, italics: true })],
               }),
               new Paragraph({
+                alignment: AlignmentType.CENTER,
                 style: "Muted",
                 children: [
                   new TextRun({ text: `Zahájení: ${formatDate(safe.date_start)}` }),
@@ -520,6 +525,7 @@ function twoColumnRows(rows: Array<[string, string]>, padding = CELL_PADDING) {
         children,
         spacing: { after: 60 },
         leftTabStop: 4500,
+        margins: padding,
       })
     );
   }
@@ -529,11 +535,32 @@ function twoColumnRows(rows: Array<[string, string]>, padding = CELL_PADDING) {
 function signatureBlock(safe: any, lps: any) {
   const city = dash(lps.signatureCity || safe.signatureCity);
   const date = formatDate(safe.date_created);
-  return [
-    new Paragraph({ text: `V ${city} dne ${date}`, spacing: { after: 120 } }),
-    new Paragraph({ text: "Podpis provozovatele:", spacing: { after: 40 } }),
-    new Paragraph({ text: "______________________________", spacing: { after: 120 } }),
-    new Paragraph({ text: "Podpis revizního technika:", spacing: { after: 40 } }),
-    new Paragraph({ text: "______________________________", spacing: { after: 200 } }),
-  ];
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: noTableBorders(),
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: noCellBorders(),
+            children: [
+              new Paragraph({ text: `V ${city} dne ${date}`, spacing: { after: 80 } }),
+              new Paragraph({ text: "Podpis provozovatele:", spacing: { after: 20 } }),
+              new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
+              new Paragraph({ text: "Razítko:", spacing: { after: 20 } }),
+              new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
+            ],
+          }),
+          new TableCell({
+            borders: noCellBorders(),
+            children: [
+              new Paragraph({ text: "", spacing: { after: 80 } }),
+              new Paragraph({ text: "Podpis revizního technika:", spacing: { after: 20 } }),
+              new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
 }
