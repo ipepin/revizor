@@ -1,4 +1,17 @@
-import { BorderStyle, Document, ImageRun, Paragraph, Packer, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import {
+  BorderStyle,
+  Document,
+  Header,
+  ImageRun,
+  Paragraph,
+  Packer,
+  Table,
+  TableCell,
+  TableRow,
+  TabStopType,
+  TextRun,
+  WidthType,
+} from "docx";
 
 const EMU_PER_PIXEL = 9525;
 const MAX_IMAGE_WIDTH_PX = 650;
@@ -32,27 +45,33 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
 
   const children: (Paragraph | Table)[] = [
     headerBlock(safe, lps),
-    spacer(160),
+    spacer(60),
     sectionHeading("Identifikace objektu"),
-    infoGrid([
-      ["Revidovaný objekt", dash(safe.objekt)],
-      ["Adresa objektu", dash(safe.adresa)],
-      ["Objednatel revize", dash(safe.objednatel)],
-      ["Majitel / provozovatel", dash(lps.owner)],
-      ["Projekt zpracoval", dash(lps.projectBy)],
-      ["Číslo projektu", dash(lps.projectNo)],
-    ], SMALL_PADDING),
-    spacer(140),
+    ...twoColumnRows(
+      [
+        ["Revidovaný objekt", dash(safe.objekt)],
+        ["Adresa objektu", dash(safe.adresa)],
+        ["Objednatel revize", dash(safe.objednatel)],
+        ["Majitel / provozovatel", dash(lps.owner)],
+        ["Projekt zpracoval", dash(lps.projectBy)],
+        ["Číslo projektu", dash(lps.projectNo)],
+      ],
+      SMALL_PADDING
+    ),
+    spacer(60),
     sectionHeading("Identifikace revizního technika"),
-    infoGrid([
-      ["Revizní technik", dash(safe.technicianName)],
-      ["Firma", dash(safe.technicianCompanyName)],
-      ["Ev. č. osvědčení", dash(safe.technicianCertificateNumber)],
-      ["Ev. č. oprávnění", dash(safe.technicianAuthorizationNumber)],
-      ["IČO / DIČ", `${dash(safe.technicianCompanyIco)} / ${dash(safe.technicianCompanyDic)}`],
-      ["Kontakt", dash(safe.technicianPhone || safe.technicianEmail || safe.technicianCompanyAddress)],
-      ["Adresa", dash(safe.technicianCompanyAddress)],
-    ], SMALL_PADDING),
+    ...twoColumnRows(
+      [
+        ["Revizní technik", dash(safe.technicianName)],
+        ["Firma", dash(safe.technicianCompanyName)],
+        ["Ev. č. osvědčení", dash(safe.technicianCertificateNumber)],
+        ["Ev. č. oprávnění", dash(safe.technicianAuthorizationNumber)],
+        ["IČO / DIČ", `${dash(safe.technicianCompanyIco)} / ${dash(safe.technicianCompanyDic)}`],
+        ["Kontakt", dash(safe.technicianPhone || safe.technicianEmail || safe.technicianCompanyAddress)],
+        ["Adresa", dash(safe.technicianCompanyAddress)],
+      ],
+      SMALL_PADDING
+    ),
     spacer(140),
     sectionHeading("Použité měřicí přístroje"),
     styledTable(
@@ -69,15 +88,16 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     spacer(120),
     sectionHeading("Celkový posudek"),
     cardParagraph(safetyAssessment(safe), true),
-    spacer(100),
-    infoGrid(
-      [
-        ["Doporučený termín příští revize", formatDate(safe.conclusion?.validUntil || lps.nextRevision)],
-        ["Rozdělovník", dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")],
-      ],
-      SMALL_PADDING
+    spacer(80),
+    sectionHeading("Rozdělovník a podpisy"),
+    cardParagraph(
+      `Rozdělovník: ${dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")}\n` +
+        `V ${dash(lps.signatureCity || safe.signatureCity)} dne ${formatDate(safe.date_created)}`,
+      true
     ),
-    spacer(140),
+    spacer(40),
+    ...signatureBlock(safe, lps),
+    spacer(120),
     sectionHeading("Normy, rozsah a základní údaje"),
     infoGrid([
       ["Primární norma", formatStandardName(lps.standard)],
@@ -223,7 +243,21 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
         },
       ],
     },
-    sections: [{ properties: {}, children }],
+    sections: [
+      {
+        properties: {},
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: `Evidenční číslo: ${dash(safe.evidencni || lps.projectNo)}`, bold: true })],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
   });
 
   return await Packer.toBlob(doc);
@@ -252,16 +286,16 @@ function headerBlock(safe: any, lps: any) {
                 style: "Subtitle",
                 children: [new TextRun({ text: `Typ revize: ${dash(safe.typRevize)}`, italics: true })],
               }),
-            ],
-          }),
-          new TableCell({
-            borders: noCellBorders(),
-            children: [
-              new Paragraph({ text: "Evidenční číslo", style: "Muted" }),
-              new Paragraph({ children: [new TextRun({ text: dash(safe.evidencni || lps.projectNo), bold: true, size: 32 })] }),
-              new Paragraph({ text: `Zahájení: ${formatDate(safe.date_start)}`, style: "Muted" }),
-              new Paragraph({ text: `Dokončení: ${formatDate(safe.date_end)}`, style: "Muted" }),
-              new Paragraph({ text: `Vyhotoveno: ${formatDate(safe.date_created)}`, style: "Muted" }),
+              new Paragraph({
+                style: "Muted",
+                children: [
+                  new TextRun({ text: `Zahájení: ${formatDate(safe.date_start)}` }),
+                  new TextRun({ text: "   " }),
+                  new TextRun({ text: `Dokončení: ${formatDate(safe.date_end)}` }),
+                  new TextRun({ text: "   " }),
+                  new TextRun({ text: `Vyhotoveno: ${formatDate(safe.date_created)}` }),
+                ],
+              }),
             ],
           }),
         ],
@@ -460,4 +494,46 @@ function safetyAssessment(safe: any) {
   if (safety === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
   if (safety === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
   return dash(safety || safe?.conclusion?.safetyText);
+}
+
+function twoColumnRows(rows: Array<[string, string]>, padding = CELL_PADDING) {
+  const tabStops = [
+    { type: TabStopType.LEFT, position: 4500 },
+    { type: TabStopType.LEFT, position: 9000 },
+  ];
+  const paragraphs: Paragraph[] = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const pair = rows.slice(i, i + 2);
+    const children: TextRun[] = [];
+    if (pair[0]) {
+      children.push(new TextRun({ text: `${pair[0][0]}: `, bold: true, color: COLOR_MUTED }));
+      children.push(new TextRun({ text: valueOrDash(pair[0][1]) }));
+    }
+    if (pair[1]) {
+      children.push(new TextRun({ text: "\t" }));
+      children.push(new TextRun({ text: `${pair[1][0]}: `, bold: true, color: COLOR_MUTED }));
+      children.push(new TextRun({ text: valueOrDash(pair[1][1]) }));
+    }
+    paragraphs.push(
+      new Paragraph({
+        tabStops,
+        children,
+        spacing: { after: 60 },
+        leftTabStop: 4500,
+      })
+    );
+  }
+  return paragraphs;
+}
+
+function signatureBlock(safe: any, lps: any) {
+  const city = dash(lps.signatureCity || safe.signatureCity);
+  const date = formatDate(safe.date_created);
+  return [
+    new Paragraph({ text: `V ${city} dne ${date}`, spacing: { after: 120 } }),
+    new Paragraph({ text: "Podpis provozovatele:", spacing: { after: 40 } }),
+    new Paragraph({ text: "______________________________", spacing: { after: 120 } }),
+    new Paragraph({ text: "Podpis revizního technika:", spacing: { after: 40 } }),
+    new Paragraph({ text: "______________________________", spacing: { after: 200 } }),
+  ];
 }
