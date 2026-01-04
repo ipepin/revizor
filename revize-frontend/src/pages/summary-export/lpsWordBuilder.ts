@@ -8,6 +8,7 @@ const COLOR_BORDER = "E2E8F0";
 const COLOR_HEADER = "F8FAFC";
 const COLOR_STRIPE = "F1F5F9";
 const CELL_PADDING = { top: 120, bottom: 120, left: 120, right: 120 };
+const SMALL_PADDING = { top: 80, bottom: 80, left: 90, right: 90 };
 
 export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sketchSize?: { width: number; height: number }) {
   const safe = form || {};
@@ -40,7 +41,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
       ["Majitel / provozovatel", dash(lps.owner)],
       ["Projekt zpracoval", dash(lps.projectBy)],
       ["Číslo projektu", dash(lps.projectNo)],
-    ]),
+    ], SMALL_PADDING),
     spacer(140),
     sectionHeading("Identifikace revizního technika"),
     infoGrid([
@@ -51,7 +52,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
       ["IČO / DIČ", `${dash(safe.technicianCompanyIco)} / ${dash(safe.technicianCompanyDic)}`],
       ["Kontakt", dash(safe.technicianPhone || safe.technicianEmail || safe.technicianCompanyAddress)],
       ["Adresa", dash(safe.technicianCompanyAddress)],
-    ]),
+    ], SMALL_PADDING),
     spacer(140),
     sectionHeading("Použité měřicí přístroje"),
     styledTable(
@@ -62,7 +63,19 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
         dash(inst?.calibration_code || inst?.calibration_list || inst?.calibration),
       ]),
       "Nejsou uvedeny žádné přístroje.",
-      true
+      true,
+      SMALL_PADDING
+    ),
+    spacer(120),
+    sectionHeading("Celkový posudek"),
+    cardParagraph(safetyAssessment(safe), true),
+    spacer(100),
+    infoGrid(
+      [
+        ["Doporučený termín příští revize", formatDate(safe.conclusion?.validUntil || lps.nextRevision)],
+        ["Rozdělovník", dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")],
+      ],
+      SMALL_PADDING
     ),
     spacer(140),
     sectionHeading("Normy, rozsah a základní údaje"),
@@ -151,14 +164,8 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   }
 
   children.push(spacer(140));
-  children.push(sectionHeading("Celkový posudek"));
-  children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText), true));
-  children.push(
-    infoGrid([
-      ["Doporučený termín příští revize", formatDate(safe.conclusion?.validUntil || lps.nextRevision)],
-      ["Rozdělovník", dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")],
-    ])
-  );
+  children.push(sectionHeading("Závěr"));
+  children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
 
   children.push(spacer(140));
   children.push(sectionHeading("Nákres LPS"));
@@ -263,7 +270,7 @@ function headerBlock(safe: any, lps: any) {
   });
 }
 
-function infoGrid(rows: Array<[string, string]>) {
+function infoGrid(rows: Array<[string, string]>, padding = CELL_PADDING) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: rows.map(([label, value]) =>
@@ -273,13 +280,13 @@ function infoGrid(rows: Array<[string, string]>) {
             width: { size: 35, type: WidthType.PERCENTAGE },
             shading: { fill: COLOR_HEADER },
             borders: noCellBorders(),
-            margins: CELL_PADDING,
+            margins: padding,
             children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, color: COLOR_MUTED })] })],
           }),
           new TableCell({
             width: { size: 65, type: WidthType.PERCENTAGE },
             borders: noCellBorders(),
-            margins: CELL_PADDING,
+            margins: padding,
             children: [new Paragraph({ text: valueOrDash(value) })],
           }),
         ],
@@ -288,13 +295,13 @@ function infoGrid(rows: Array<[string, string]>) {
   });
 }
 
-function styledTable(headers: string[], rows: string[][], emptyText: string, withBorders = false) {
+function styledTable(headers: string[], rows: string[][], emptyText: string, withBorders = false, padding = CELL_PADDING) {
   const headerRow = new TableRow({
     children: headers.map((header) =>
       new TableCell({
         shading: { fill: COLOR_HEADER },
         borders: withBorders ? tableBorders() : noCellBorders(),
-        margins: CELL_PADDING,
+        margins: padding,
         children: [new Paragraph({ text: header, style: "TableHeader" })],
       })
     ),
@@ -308,7 +315,7 @@ function styledTable(headers: string[], rows: string[][], emptyText: string, wit
               new TableCell({
                 columnSpan: headers.length,
                 borders: withBorders ? tableBorders() : noCellBorders(),
-                margins: CELL_PADDING,
+                margins: padding,
                 children: [new Paragraph({ text: emptyText, style: "Muted" })],
               }),
             ],
@@ -320,7 +327,7 @@ function styledTable(headers: string[], rows: string[][], emptyText: string, wit
               new TableCell({
                 shading: idx % 2 === 1 ? { fill: COLOR_STRIPE } : undefined,
                 borders: withBorders ? tableBorders() : noCellBorders(),
-                margins: CELL_PADDING,
+                margins: padding,
                 children: [new Paragraph({ text: valueOrDash(cell) })],
               })
             ),
@@ -446,4 +453,11 @@ export function getSketchSize(dataUrl?: string) {
 function calculateTransformation(size?: { width: number; height: number }) {
   if (!size) return { width: MAX_IMAGE_WIDTH_PX, height: MAX_IMAGE_WIDTH_PX * 0.6 };
   return { width: size.width, height: size.height };
+}
+
+function safetyAssessment(safe: any) {
+  const safety = safe?.conclusion?.safety;
+  if (safety === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
+  if (safety === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+  return dash(safety || safe?.conclusion?.safetyText);
 }
