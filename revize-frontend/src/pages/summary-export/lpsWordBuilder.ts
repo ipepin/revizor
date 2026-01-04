@@ -16,7 +16,8 @@ import {
 } from "docx";
 
 const EMU_PER_PIXEL = 9525;
-const MAX_IMAGE_WIDTH_PX = 650;
+const MAX_IMAGE_WIDTH_PX = 750;
+const MAX_IMAGE_HEIGHT_PX = 520;
 const COLOR_TEXT = "0F172A";
 const COLOR_MUTED = "475569";
 const COLOR_BORDER = "E2E8F0";
@@ -24,6 +25,7 @@ const COLOR_HEADER = "F8FAFC";
 const COLOR_STRIPE = "F1F5F9";
 const CELL_PADDING = { top: 120, bottom: 120, left: 120, right: 120 };
 const SMALL_PADDING = { top: 80, bottom: 80, left: 90, right: 90 };
+const EARTH_PADDING = { top: 60, bottom: 60, left: 80, right: 80 };
 
 export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sketchSize?: { width: number; height: number }) {
   const safe = form || {};
@@ -91,11 +93,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     cardParagraph(safetyAssessment(safe), true),
     spacer(80),
     sectionHeading("Rozdělovník a podpisy"),
-    cardParagraph(
-      `Rozdělovník: ${dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")}\n` +
-        `V ${dash(lps.signatureCity || safe.signatureCity)} dne ${formatDate(safe.date_created)}`,
-      true
-    ),
+    cardParagraph(`Rozdělovník: ${dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")}`, true),
     spacer(40),
     signatureBlock(safe, lps),
     spacer(120),
@@ -118,13 +116,14 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     }),
     sectionHeading("Popis objektu a poznámky"),
     cardParagraph(lps.reportText || safe.extraNotes || "-"),
-    spacer(140),
+    spacer(120),
     sectionHeading("Měření zemních odporů"),
     styledTable(
       ["Zemnič", "Odpor [Ω]", "Poznámka"],
       earth.map((row, idx) => [dash(row?.label || `Zemnič ${idx + 1}`), row?.valueOhm ? `${row.valueOhm} Ω` : "-", dash(row?.note)]),
       "Záznam o měření není k dispozici.",
-      true
+      true,
+      EARTH_PADDING
     ),
   ];
 
@@ -285,14 +284,15 @@ function headerBlock(safe: any, lps: any) {
           new TableCell({
             borders: noCellBorders(),
             children: [
-              new Paragraph({ text: "Zpráva o revizi LPS", style: "Title" }),
+              new Paragraph({ text: "Zpráva o revizi LPS", style: "Title", alignment: AlignmentType.CENTER }),
               new Paragraph({
                 style: "Subtitle",
+                alignment: AlignmentType.CENTER,
                 children: [new TextRun({ text: `Typ revize: ${dash(safe.typRevize)}`, italics: true })],
               }),
               new Paragraph({
-                alignment: AlignmentType.CENTER,
                 style: "Muted",
+                alignment: AlignmentType.CENTER,
                 children: [
                   new TextRun({ text: `Zahájení: ${formatDate(safe.date_start)}` }),
                   new TextRun({ text: "   " }),
@@ -481,7 +481,7 @@ export function getSketchSize(dataUrl?: string) {
     img.onload = () => {
       const ratio = img.naturalHeight / img.naturalWidth || 0.7;
       const widthPx = Math.min(img.naturalWidth, MAX_IMAGE_WIDTH_PX);
-      const heightPx = widthPx * ratio;
+      const heightPx = Math.min(widthPx * ratio, MAX_IMAGE_HEIGHT_PX);
       resolve({ width: widthPx, height: heightPx });
     };
     img.onerror = () => resolve(undefined);
@@ -490,8 +490,10 @@ export function getSketchSize(dataUrl?: string) {
 }
 
 function calculateTransformation(size?: { width: number; height: number }) {
-  if (!size) return { width: MAX_IMAGE_WIDTH_PX, height: MAX_IMAGE_WIDTH_PX * 0.6 };
-  return { width: size.width, height: size.height };
+  if (!size) return { width: MAX_IMAGE_WIDTH_PX, height: Math.min(MAX_IMAGE_WIDTH_PX * 0.6, MAX_IMAGE_HEIGHT_PX) };
+  const width = Math.min(size.width, MAX_IMAGE_WIDTH_PX);
+  const height = Math.min(size.height, MAX_IMAGE_HEIGHT_PX);
+  return { width, height };
 }
 
 function safetyAssessment(safe: any) {
@@ -547,8 +549,6 @@ function signatureBlock(safe: any, lps: any) {
               new Paragraph({ text: `V ${city} dne ${date}`, spacing: { after: 80 } }),
               new Paragraph({ text: "Podpis provozovatele:", spacing: { after: 20 } }),
               new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
-              new Paragraph({ text: "Razítko:", spacing: { after: 20 } }),
-              new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
             ],
           }),
           new TableCell({
@@ -557,6 +557,8 @@ function signatureBlock(safe: any, lps: any) {
               new Paragraph({ text: "", spacing: { after: 80 } }),
               new Paragraph({ text: "Podpis revizního technika:", spacing: { after: 20 } }),
               new Paragraph({ text: "______________________________", spacing: { after: 60 } }),
+              new Paragraph({ text: "Razítko:", spacing: { after: 20 } }),
+              new Paragraph({ text: "○", spacing: { after: 60 }, alignment: AlignmentType.CENTER }),
             ],
           }),
         ],
