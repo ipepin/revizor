@@ -36,6 +36,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   const continuity: any[] = Array.isArray(lps.continuity) ? lps.continuity : [];
   const spd: any[] = Array.isArray(lps.spdTests) ? lps.spdTests : [];
   const visual: any[] = Array.isArray(lps.visualChecks) ? lps.visualChecks : [];
+  const defects: any[] = Array.isArray(safe.defects) ? safe.defects : [];
 
   const scopeChecks: string[] = Array.isArray(lps.scopeChecks) ? lps.scopeChecks : [];
   const scopeLabels: Record<string, string> = {
@@ -179,19 +180,18 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   );
 
   children.push(spacer(120));
-  children.push(sectionHeading("Zjištěné závady"));
+  children.push(sectionHeading("Zjistene zavady"));
+  const defectRows = defects.map((row) => [
+    dash(row?.description),
+    dash(row?.standard && row?.article ? `${row.standard} / ${row.article}` : row?.standard || row?.article),
+    dash(row?.recommendation || row?.remedy),
+  ]);
   children.push(
-    styledTable(
-      ["Popis", "Norma / čl.", "Doporučené opatření"],
-      [],
-      "Data pro závady nejsou zatím v editoru k dispozici.",
-      false,
-      SMALL_PADDING
-    )
+    styledTable(["Popis", "Norma / cl.", "Doporucene opatreni"], defectRows, "Zadne zavady.", false, SMALL_PADDING)
   );
 
   children.push(spacer(120));
-  children.push(sectionHeading("Závěr"));
+sectionHeading("Závěr"));
   children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
 
   const doc = new Document({
