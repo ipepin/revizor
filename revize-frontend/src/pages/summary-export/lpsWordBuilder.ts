@@ -2,6 +2,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   Header,
   ImageRun,
   PageNumber,
@@ -128,32 +129,24 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
     ),
   ];
 
-  if (continuity.length) {
-    children.push(spacer(120));
-    children.push(sectionHeading("Kontinuita svodů"));
-    children.push(
-      styledTable(
-        ["Svod", "Hodnota [mΩ]", "Poznámka"],
-        continuity.map((row, idx) => [
-          dash(row?.conductor || row?.label || `Svod ${idx + 1}`),
-          row?.valueMilliOhm ? `${row.valueMilliOhm} mΩ` : dash(row?.value),
-          dash(row?.note),
-        ]),
-        "Kontrola kontinuity nebyla zadána."
-      )
-    );
-  }
+  // Kontinuita svodů se v LPS výstupu nezobrazuje
 
-  if (spd.length) {
-    children.push(spacer(120));
-    children.push(sectionHeading("SPD / přepěťová ochrana"));
-    children.push(
-      styledTable(
-        ["Místo", "Typ", "Výsledek", "Poznámka"],
-        spd.map((row, idx) => [dash(row?.location || `Stanoviště ${idx + 1}`), dash(row?.type), dash(row?.result), dash(row?.note)]),
-        "Bez záznamu o SPD."
-      )
-    );
+  if (Array.isArray(lps.scopeChecks) && lps.scopeChecks.includes("spd")) {
+    if (lps?.spdProtectionUsed === "no") {
+      children.push(spacer(120));
+      children.push(sectionHeading("SPD / přepěťová ochrana"));
+      children.push(cardParagraph("SPD není použita."));
+    } else if (spd.length) {
+      children.push(spacer(120));
+      children.push(sectionHeading("SPD / přepěťová ochrana"));
+      children.push(
+        styledTable(
+          ["Místo", "Typ", "Výsledek", "Poznámka"],
+          spd.map((row, idx) => [dash(row?.location || `Stanoviště ${idx + 1}`), dash(row?.type), dash(row?.result), dash(row?.note)]),
+          "Bez záznamu o SPD."
+        )
+      );
+    }
   }
 
   if (visual.length) {
@@ -191,7 +184,7 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   );
 
   children.push(spacer(120));
-sectionHeading("Závěr"));
+  children.push(sectionHeading("Závěr"));
   children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
 
   const doc = new Document({
@@ -250,6 +243,21 @@ sectionHeading("Závěr"));
                 children: [
                   new TextRun({ text: `Evidenční číslo: ${dash(safe.evidencni || lps.projectNo)}`, bold: true }),
                   new TextRun({ text: "    Strana " }),
+                  PageNumber.CURRENT,
+                  new TextRun({ text: " / " }),
+                  PageNumber.TOTAL_PAGES,
+                ],
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "Strana " }),
                   PageNumber.CURRENT,
                   new TextRun({ text: " / " }),
                   PageNumber.TOTAL_PAGES,
@@ -498,8 +506,15 @@ function calculateTransformation(size?: { width: number; height: number }) {
 
 function safetyAssessment(safe: any) {
   const safety = safe?.conclusion?.safety;
-  if (safety === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-  if (safety === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+  const standardCode = (safe as any)?.lps?.standard;
+  const stdName =
+    standardCode === "CSN_EN_62305"
+      ? "ČSN EN 62305"
+      : standardCode === "CSN_34_1390"
+      ? "ČSN 34 1390"
+      : "zvolené normě";
+  if (safety === "able") return `Instalované hromosvodné zařízení vyhovuje požadavkům normy ${stdName} a jeho součásti jsou ve funkčním stavu.`;
+  if (safety === "not_able") return `Instalované hromosvodné zařízení nevyhovuje požadavkům normy ${stdName} a jeho součásti nejsou ve funkčním stavu.`;
   return dash(safety || safe?.conclusion?.safetyText);
 }
 

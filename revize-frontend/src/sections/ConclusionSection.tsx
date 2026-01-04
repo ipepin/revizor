@@ -26,12 +26,15 @@ export default function ConclusionSection() {
   const lpsStandardCode: string = (form as any)?.lps?.standard || "";
   const standardName: string = ((): string => {
     switch (lpsStandardCode) {
-      case "CSN_EN_62305": return "ČSN EN 62305";
-      case "CSN_34_1390": return "ČSN 34 1390";
-      default: return "zvolené normě";
+      case "CSN_EN_62305":
+        return "ČSN EN 62305";
+      case "CSN_34_1390":
+        return "ČSN 34 1390";
+      default:
+        return "zvolené normě";
     }
   })();
-  const earthThreshold: number = lpsStandardCode === "CSN_EN_62305" ? 10 : (lpsStandardCode === "CSN_34_1390" ? 15 : 15);
+  const earthThreshold: number = lpsStandardCode === "CSN_EN_62305" ? 10 : lpsStandardCode === "CSN_34_1390" ? 15 : 15;
   // Proměnné pro snippety (ukládáme do conclusion.vars)
   const vars = (conclusion.vars || {}) as {
     insulationMinMOhm?: string;

@@ -13,15 +13,6 @@ import EditRevision from "./pages/EditRevision";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import CatalogPage from "./pages/CatalogPage";
 import ProtectedRoute from "./components/ProtectedRoute";
-              <Route
-                path="/revize-lps/:revId"
-                element={
-                  <ProtectedRoute>
-                    <LpsEditPage />
-                  </ProtectedRoute>
-                }
-              />
-
 import AdminRoute from "./components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DefectProposalsPage from "./pages/admin/DefectProposalsPage";

@@ -541,6 +541,7 @@ export default function LpsEditPage() {
               <>
                 <LpsInspectionSection />
                 <LpsMeasurementsSection />
+                <DefectsRecommendationsSection />
                 <ConclusionSection />
                 <section className="bg-white rounded shadow p-4">
                   <h2 className="text-lg font-semibold mb-3">Náčrt LPS</h2>

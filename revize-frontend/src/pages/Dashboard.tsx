@@ -12,8 +12,10 @@ function normalizeStatus(s?: string): string {
   const raw = (s || "").trim();
   if (!raw) return "";
   const lower = raw.toLowerCase();
-  if (lower === "dokončená" || lower === "dokončena" || lower === "dokoncená") return "Dokončená";
-  if (lower === "rozpracovaná" || lower === "rozpracovana" || lower === "rozpracovaná") return "Rozpracovaná";
+  const done = ["dokončeno", "dokončené", "dokončená", "dokoncená"];
+  const inProgress = ["rozpracovaná", "rozpracovana", "rozpracovaný", "rozpracovane"];
+  if (done.includes(lower)) return "Dokončeno";
+  if (inProgress.includes(lower)) return "Rozpracovaná";
   return raw;
 }
 
