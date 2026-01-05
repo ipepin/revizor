@@ -4,7 +4,7 @@ import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
-import { VvDocsProvider } from "./context/VvDocsContext"; // â¬…ď¸Ź DOPLNÄšNO
+import { VvDocsProvider } from "./context/VvDocsContext";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -23,6 +23,7 @@ import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
 import LpsEditPage from "./pages/LpsEditPage";
+import AdminSnippetsPage from "./pages/AdminSnippetsPage";
 
 import "./index.css";
 
@@ -32,11 +33,8 @@ const Router: any = routerMode === "hash" ? HashRouter : BrowserRouter;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {/* GlobĂˇlnĂ­ auth kontext */}
     <AuthProvider>
-      {/* Aplikace si zachovĂˇvĂˇ existujĂ­cĂ­ UserContext */}
       <UserProvider>
-        {/* â¬‡ď¸Ź MUSĂŤ obalovat Router i vĹˇechny strĂˇnky, kde volĂˇĹˇ useVvDocs() */}
         <VvDocsProvider>
           <Router>
             <Routes>
@@ -61,7 +59,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                 }
               />
 
-              {/* Summary mĹŻĹľe bĂ˝t veĹ™ejnĂ˝, ale klidnÄ› ho mĹŻĹľeĹˇ taky chrĂˇnit */}
               <Route
                 path="/revize-lps/:revId"
                 element={
@@ -70,6 +67,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                   </ProtectedRoute>
                 }
               />
+
               <Route path="/summary/:revId" element={<SummaryWrapper />} />
 
               <Route
@@ -114,8 +112,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <Route path="/admin/defects" element={<AdminRoute><DefectProposalsPage /></AdminRoute>} />
               <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
               <Route path="/admin/defects-editor" element={<AdminRoute><DefectsEditorPage /></AdminRoute>} />
+              <Route path="/admin/snippets" element={<AdminRoute><AdminSnippetsPage /></AdminRoute>} />
 
-              {/* (volitelnĂ©) 404 fallback */}
               {/* <Route path="*" element={<NotFoundPage />} /> */}
             </Routes>
           </Router>

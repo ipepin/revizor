@@ -1,4 +1,4 @@
-﻿// src/components/Sidebar.tsx
+﻿﻿// src/components/Sidebar.tsx
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
@@ -220,6 +220,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 >
                   Revize všech uživatelů
                 </button>
+                <button
+                  className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
+                  onClick={() => navigate("/admin/snippets")}
+                >
+                  Čipy (správa a schvalování)
+                </button>
               </div>
             </div>
           )}
@@ -307,4 +313,3 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
     </>
   );
 }
-
