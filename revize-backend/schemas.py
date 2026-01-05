@@ -376,6 +376,42 @@ class VvDocRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# ==========================
+# SNIPPETS
+# ==========================
+class SnippetBase(BaseModel):
+    scope: Literal["EI", "LPS"]
+    label: constr(min_length=1)
+    body: constr(min_length=1)
+
+
+class SnippetCreate(SnippetBase):
+    pass
+
+
+class SnippetUpdate(BaseModel):
+    label: Optional[constr(min_length=1)] = None
+    body: Optional[constr(min_length=1)] = None
+    scope: Optional[Literal["EI", "LPS"]] = None
+
+
+class SnippetRead(SnippetBase):
+    id: int
+    user_id: Optional[int] = None
+    is_default: bool
+    visible: Optional[bool] = None  # doplňuje API dle preferencí
+    order_index: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SnippetVisibilityPayload(BaseModel):
+    visible: bool
+    order_index: Optional[int] = None
+
 # ==========================
 # (Volitelné) aliasy pro zpětnou kompatibilitu
 # ==========================

@@ -14,6 +14,7 @@ from routers.companies import router as companies_router
 from routers.export_pdf import router as export_router
 from routers.vv import router as vv_router
 from routers.admin import router as admin_router
+from routers.snippets import router as snippets_router
 
 app = FastAPI() 
 
@@ -56,6 +57,7 @@ app.include_router(companies_router, dependencies=[Depends(get_current_user)])
 app.include_router(devices_router,  dependencies=[Depends(get_current_user)])
 app.include_router(export_router,  dependencies=[Depends(get_current_user)])
 app.include_router(vv_router, dependencies=[Depends(get_current_user)])
+app.include_router(snippets_router, dependencies=[Depends(get_current_user)])
 # Admin router Ĺ™eĹˇĂ­ autorizaci uvnitĹ™ handlerĹŻ; neblokuj CORS preflight pĹ™es globĂˇlnĂ­ dependency
 app.include_router(admin_router)
 

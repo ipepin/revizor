@@ -9,7 +9,7 @@ import LpsIdentifikaceSection from "../sections/LpsIdentifikaceSection";
 import LpsInspectionSection from "../sections/LpsInspectionSection";
 import LpsMeasurementsSection from "../sections/LpsMeasurementsSection";
 import DefectsRecommendationsSection from "../sections/DefectsRecommendationsSection";
-import ConclusionSection from "../sections/ConclusionSection";
+import LpsConclusionSection from "../sections/LpsConclusionSection";
 import LpsSketchCanvas from "../components/LpsSketchCanvas";
 
 function Field({ label, children }: React.PropsWithChildren<{ label: string }>) {
@@ -542,7 +542,7 @@ export default function LpsEditPage() {
                 <LpsInspectionSection />
                 <LpsMeasurementsSection />
                 <DefectsRecommendationsSection />
-                <ConclusionSection />
+                <LpsConclusionSection />
                 <section className="bg-white rounded shadow p-4">
                   <h2 className="text-lg font-semibold mb-3">Náčrt LPS</h2>
                   <p className="text-sm text-gray-600 mb-2">Nakreslete schéma LPS / situaci. Kreslení probíhá na mřížce, vhodné i pro tablet.</p>

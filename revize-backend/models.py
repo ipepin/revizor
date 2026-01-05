@@ -173,6 +173,51 @@ class Defect(Base):
     approved_at = Column(DateTime, nullable=True)
 
 
+# Snippet scope for EI/LPS quick sentences
+class SnippetScope(str, _enum.Enum):
+    EI  = "EI"
+    LPS = "LPS"
+
+
+class Snippet(Base):
+    __tablename__ = "snippets"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    scope       = Column(Enum(SnippetScope), nullable=False)
+    label       = Column(String, nullable=False)
+    body        = Column(Text, nullable=False)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_default  = Column(Boolean, nullable=False, default=False, server_default="0")
+    created_at  = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at  = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    preferences = relationship("SnippetPreference", back_populates="snippet", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "scope", "label", name="uq_snippet_label_per_user_scope"),
+    )
+
+
+class SnippetPreference(Base):
+    __tablename__ = "snippet_preferences"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    snippet_id  = Column(Integer, ForeignKey("snippets.id", ondelete="CASCADE"), nullable=False)
+    visible     = Column(Boolean, nullable=False, default=True, server_default="1")
+    order_index = Column(Integer, nullable=True)
+    created_at  = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at  = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    snippet = relationship("Snippet", back_populates="preferences")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "snippet_id", name="uq_snippet_pref_unique"),
+    )
+
+
 # 🛠️ Component hierarchy
 class ComponentType(Base):
     __tablename__ = "component_types"
