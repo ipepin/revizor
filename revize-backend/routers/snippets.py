@@ -1,4 +1,4 @@
-# routers/snippets.py
+﻿# routers/snippets.py
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -48,7 +48,11 @@ def list_snippets(
 ):
     q = db.query(SnippetModel).filter(
         SnippetModel.scope == SnippetScope(scope),
-        or_(SnippetModel.user_id == None, SnippetModel.user_id == user.id),  # noqa: E711
+        or_(
+            SnippetModel.user_id == None,  # noqa: E711
+            SnippetModel.user_id == user.id,
+            SnippetModel.is_default == True,  # výchozí jsou viditelné všem
+        ),
     )
     snippets = q.order_by(SnippetModel.is_default.desc(), SnippetModel.label.asc()).all()
 
@@ -179,3 +183,51 @@ def set_visibility(
     s.visible = payload.visible  # type: ignore[attr-defined]
     s.order_index = payload.order_index  # type: ignore[attr-defined]
     return s
+
+
+# ---------------- Admin ----------------
+def _ensure_admin(user: UserModel) -> None:
+    if not bool(getattr(user, "is_admin", False)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Pouze administrátor.")
+
+
+@router.get("/admin/all", response_model=list[SnippetRead])
+def admin_list_snippets(
+    scope: str | None = Query(None, description="Filtr podle scope"),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    q = db.query(SnippetModel)
+    if scope:
+        q = q.filter(SnippetModel.scope == SnippetScope(scope))
+    return q.order_by(SnippetModel.scope.asc(), SnippetModel.label.asc()).all()
+
+
+@router.post("/{snippet_id}/promote", response_model=SnippetRead)
+def admin_promote_snippet(
+    snippet_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    src = db.query(SnippetModel).get(snippet_id)
+    if not src:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Čip nenalezen.")
+    existing = (
+        db.query(SnippetModel)
+        .filter(
+            SnippetModel.scope == src.scope,
+            SnippetModel.label == src.label,
+            SnippetModel.is_default == True,  # noqa: E712
+        )
+        .first()
+    )
+    if existing:
+        return existing
+    new_snip = SnippetModel(scope=src.scope, label=src.label, body=src.body, user_id=None, is_default=True)
+    db.add(new_snip)
+    db.commit()
+    db.refresh(new_snip)
+    new_snip.visible = True  # type: ignore[attr-defined]
+    return new_snip
