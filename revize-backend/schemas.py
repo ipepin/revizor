@@ -412,6 +412,41 @@ class SnippetVisibilityPayload(BaseModel):
     visible: bool
     order_index: Optional[int] = None
 
+
+# ==========================
+# NORMS
+# ==========================
+class NormBase(BaseModel):
+    scope: Literal["EI", "LPS"]
+    label: constr(min_length=1)
+
+
+class NormCreate(NormBase):
+    status: Optional[str] = None
+    issued_on: Optional[str] = None
+    canceled_on: Optional[str] = None
+
+
+class NormUpdate(BaseModel):
+    scope: Optional[Literal["EI", "LPS"]] = None
+    label: Optional[constr(min_length=1)] = None
+    status: Optional[str] = None
+    issued_on: Optional[str] = None
+    canceled_on: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+class NormRead(NormBase):
+    id: int
+    is_default: bool
+    status: Optional[str] = None
+    issued_on: Optional[str] = None
+    canceled_on: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 # ==========================
 # (Volitelné) aliasy pro zpětnou kompatibilitu
 # ==========================

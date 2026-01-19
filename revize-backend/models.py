@@ -179,6 +179,30 @@ class SnippetScope(str, _enum.Enum):
     LPS = "LPS"
 
 
+# Norm scope for catalogs (start with EI)
+class NormScope(str, _enum.Enum):
+    EI = "EI"
+    LPS = "LPS"
+
+
+class Norm(Base):
+    __tablename__ = "norms"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    scope      = Column(Enum(NormScope), nullable=False)
+    label      = Column(String, nullable=False)
+    status     = Column(String, nullable=True)
+    issued_on  = Column(String, nullable=True)
+    canceled_on = Column(String, nullable=True)
+    is_default = Column(Boolean, nullable=False, default=True, server_default="1")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("scope", "label", name="uq_norm_scope_label"),
+    )
+
+
 class Snippet(Base):
     __tablename__ = "snippets"
 
