@@ -15,6 +15,7 @@ from routers.export_pdf import router as export_router
 from routers.vv import router as vv_router
 from routers.admin import router as admin_router
 from routers.snippets import router as snippets_router
+from routers.norms import router as norms_router
 
 app = FastAPI() 
 
@@ -23,11 +24,13 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://revizor-3.onrender.com",
+    "https://lb-eltech.online",
+    "https://www.lb-eltech.online",
 ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https://.*\.onrender\.com",
+    allow_origin_regex=r"https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=[
@@ -58,6 +61,7 @@ app.include_router(devices_router,  dependencies=[Depends(get_current_user)])
 app.include_router(export_router,  dependencies=[Depends(get_current_user)])
 app.include_router(vv_router, dependencies=[Depends(get_current_user)])
 app.include_router(snippets_router, dependencies=[Depends(get_current_user)])
+app.include_router(norms_router, dependencies=[Depends(get_current_user)])
 # Admin router Ĺ™eĹˇĂ­ autorizaci uvnitĹ™ handlerĹŻ; neblokuj CORS preflight pĹ™es globĂˇlnĂ­ dependency
 app.include_router(admin_router)
 
