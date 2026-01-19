@@ -8,6 +8,9 @@ type AdminUser = {
   name?: string;
   email?: string;
   phone?: string;
+  address?: string | null;
+  ico?: string | null;
+  dic?: string | null;
   is_admin: boolean;
   is_verified: boolean;
   certificate_number?: string | null;
@@ -52,6 +55,10 @@ export default function AdminUsersPage() {
   const [confirmDel, setConfirmDel] = useState<AdminUser | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [verifyingId, setVerifyingId] = useState<number | null>(null);
+  const [editUser, setEditUser] = useState<AdminUser | null>(null);
+  const [editForm, setEditForm] = useState<AdminUser | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(initialCreateForm);
@@ -86,6 +93,13 @@ export default function AdminUsersPage() {
     return (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
       setCreateForm((prev) => ({ ...prev, [key]: value }));
+    };
+  }
+
+  function handleEditChange(key: keyof AdminUser) {
+    return (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+      setEditForm((prev) => (prev ? { ...prev, [key]: value } : prev));
     };
   }
 
@@ -182,6 +196,41 @@ export default function AdminUsersPage() {
     } finally {
       setBusyId(null);
       setVerifyingId(null);
+    }
+  }
+
+  async function submitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editUser || !editForm) return;
+    setEditError(null);
+    if (!editForm.name?.trim() || !editForm.email?.trim()) {
+      setEditError("Vypln prosim jmeno a e-mail.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const payload = {
+        name: editForm.name?.trim(),
+        email: editForm.email?.trim(),
+        phone: editForm.phone?.trim() || null,
+        address: editForm.address?.trim() || null,
+        ico: editForm.ico?.trim() || null,
+        dic: editForm.dic?.trim() || null,
+        certificate_number: editForm.certificate_number?.trim() || null,
+        authorization_number: editForm.authorization_number?.trim() || null,
+        is_admin: !!editForm.is_admin,
+        is_verified: !!editForm.is_verified,
+      };
+      await api.patch(`/admin/users/${editUser.id}`, payload);
+      setToast({ type: "success", message: "Uzivatel byl upraven." });
+      setEditUser(null);
+      setEditForm(null);
+      await load();
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || error?.message || "Uprava se nezdarila.";
+      setEditError(detail);
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -380,12 +429,12 @@ export default function AdminUsersPage() {
                 <div className="col-span-2 text-xs text-gray-600">
                   {user.rt_status === "verified" ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-green-600 text-2xl leading-none">âś“</span>
+                      <span className="text-green-600 text-sm font-semibold leading-none">OK</span>
                       <span className="font-medium">Overeno TICR</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-red-600 text-2xl leading-none">âś•</span>
+                      <span className="text-red-600 text-sm font-semibold leading-none">X</span>
                       <span className="font-medium">Neni v databazi TICR</span>
                     </div>
                   )}
@@ -422,6 +471,17 @@ export default function AdminUsersPage() {
                     ) : (
                       "Overit v TICR"
                     )}
+                  </button>
+                  <button
+                    className="px-2 py-1 text-sm bg-slate-200 rounded"
+                    disabled={busyId === user.id}
+                    onClick={() => {
+                      setEditUser(user);
+                      setEditForm({ ...user });
+                      setEditError(null);
+                    }}
+                  >
+                    Upravit
                   </button>
                   <button
                     className="px-2 py-1 text-sm bg-red-600 text-white rounded"
@@ -477,6 +537,140 @@ export default function AdminUsersPage() {
                   Zavrit
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {editUser && editForm && (
+          <div
+            className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+            onClick={() => {
+              if (!savingEdit) {
+                setEditUser(null);
+                setEditForm(null);
+                setEditError(null);
+              }
+            }}
+          >
+            <div
+              className="bg-white p-6 rounded shadow w-full max-w-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-3">Upravit technika</h3>
+              <form className="space-y-3" onSubmit={submitEdit}>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <label className="flex flex-col text-sm gap-1">
+                    Jmeno
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.name || ""}
+                      onChange={handleEditChange("name")}
+                      required
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    E-mail
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.email || ""}
+                      onChange={handleEditChange("email")}
+                      type="email"
+                      required
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    Telefon
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.phone || ""}
+                      onChange={handleEditChange("phone")}
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    Adresa
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.address || ""}
+                      onChange={handleEditChange("address")}
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    IČO
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.ico || ""}
+                      onChange={handleEditChange("ico")}
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    DIČ
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.dic || ""}
+                      onChange={handleEditChange("dic")}
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    Cislo osvedceni
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.certificate_number || ""}
+                      onChange={handleEditChange("certificate_number")}
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm gap-1">
+                    Cislo opravneni
+                    <input
+                      className="border rounded px-2 py-1"
+                      value={editForm.authorization_number || ""}
+                      onChange={handleEditChange("authorization_number")}
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!editForm.is_admin}
+                      onChange={handleEditChange("is_admin")}
+                    />
+                    Je administrator
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={!!editForm.is_verified}
+                      onChange={handleEditChange("is_verified")}
+                    />
+                    Overeny ucet
+                  </label>
+                </div>
+
+                {editError && <div className="text-sm text-red-600">{editError}</div>}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-gray-200 rounded"
+                    onClick={() => {
+                      setEditUser(null);
+                      setEditForm(null);
+                      setEditError(null);
+                    }}
+                    disabled={savingEdit}
+                  >
+                    Zrusit
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                    disabled={savingEdit}
+                  >
+                    {savingEdit ? "Ukladam..." : "Ulozit zmeny"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

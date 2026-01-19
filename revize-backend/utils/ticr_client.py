@@ -15,6 +15,20 @@ def _normalize_text(value: Optional[str]) -> str:
     return re.sub(r"\s+", " ", (value or "").strip())
 
 
+def _certificate_tokens(value: str) -> list[str]:
+    return re.findall(r"[A-Z0-9]+", value.upper())
+
+
+def _build_certificate_regex(cert_in: str) -> Optional[re.Pattern[str]]:
+    tokens = _certificate_tokens(cert_in)
+    if not tokens:
+        return None
+    # Allow any non-alnum separators between parts (/, -, commas, spaces, ...)
+    parts = [re.escape(token) for token in tokens]
+    pattern = r"(?<![A-Z0-9])" + r"[^A-Z0-9]*".join(parts) + r"(?![A-Z0-9])"
+    return re.compile(pattern)
+
+
 # Candidate for full name: two or more words consisting only of letters
 NAME_CANDIDATE_RE = re.compile(r"([^\W\d_]+(?:\s+[^\W\d_]+)+)", re.UNICODE)
 
@@ -45,10 +59,19 @@ def verify_against_ticr(name: str, certificate_number: str, timeout_s: float = 8
     soup = BeautifulSoup(html, "html.parser")
     text = _normalize_text(soup.get_text(" "))
     text_upper = text.upper()
+    html_upper = html.upper()
     cert_upper = cert_in.upper()
 
-    pattern = re.compile(rf"(?<!\w){re.escape(cert_upper)}(?!\w)")
-    hit = pattern.search(text_upper)
+    exact_pattern = re.compile(rf"(?<![A-Z0-9]){re.escape(cert_upper)}(?![A-Z0-9])")
+    hit = exact_pattern.search(text_upper) or exact_pattern.search(html_upper)
+    if not hit:
+        flex_pattern = _build_certificate_regex(cert_upper)
+        hit = (
+            flex_pattern.search(text_upper)
+            or flex_pattern.search(html_upper)
+            if flex_pattern
+            else None
+        )
     if not hit:
         return {"status": "not_found"}
 
@@ -57,14 +80,32 @@ def verify_against_ticr(name: str, certificate_number: str, timeout_s: float = 8
     window = text[start:end]
 
     holder_name = ""
-    left_segment = text[start:hit.start()]
-    candidates_left = NAME_CANDIDATE_RE.findall(left_segment)
-    if candidates_left:
-        holder_name = _normalize_text(candidates_left[-1])
-    else:
-        matched = NAME_CANDIDATE_RE.search(window)
-        if matched:
-            holder_name = _normalize_text(matched.group(1))
+
+    # Prefer parsing table cells: name is often in the previous <td>
+    try:
+        match_re = _build_certificate_regex(cert_upper)
+        if match_re:
+            for node in soup.find_all(string=match_re):
+                td = node.find_parent("td")
+                if not td:
+                    continue
+                prev_td = td.find_previous_sibling("td")
+                if prev_td:
+                    holder_name = _normalize_text(prev_td.get_text(" "))
+                    if holder_name:
+                        break
+    except Exception:
+        holder_name = holder_name or ""
+
+    if not holder_name:
+        left_segment = text[start:hit.start()]
+        candidates_left = NAME_CANDIDATE_RE.findall(left_segment)
+        if candidates_left:
+            holder_name = _normalize_text(candidates_left[-1])
+        else:
+            matched = NAME_CANDIDATE_RE.search(window)
+            if matched:
+                holder_name = _normalize_text(matched.group(1))
 
     return {
         "status": "verified",

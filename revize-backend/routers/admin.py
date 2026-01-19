@@ -269,7 +269,7 @@ def list_users(
     _ensure_admin(user)
 
     sql = (
-        "SELECT id, name, email, phone, is_verified, is_admin, "
+        "SELECT id, name, email, phone, address, ico, dic, is_verified, is_admin, "
         "certificate_number, authorization_number, rt_status, rt_valid_until, rt_last_checked_at "
         "FROM users"
     )
@@ -331,6 +331,14 @@ def reject_user(
 class AdminUserPatchPayload(BaseModel):
     is_admin: Optional[bool] = None
     is_verified: Optional[bool] = None
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    ico: Optional[str] = None
+    dic: Optional[str] = None
+    certificate_number: Optional[str] = None
+    authorization_number: Optional[str] = None
 
 
 @router.patch("/users/{uid}")
@@ -346,12 +354,38 @@ def patch_user(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
 
     data = payload.model_dump(exclude_unset=True)
+    if "email" in data:
+        existing = (
+            db.query(UserModel)
+            .filter(UserModel.email == data["email"], UserModel.id != uid)
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, detail="Uzivatel s timto e-mailem uz existuje"
+            )
     if "is_admin" in data:
         target.is_admin = bool(data["is_admin"])
     if "is_verified" in data:
         target.is_verified = bool(data["is_verified"])
         if target.is_verified:
             target.verification_token = None
+    if "name" in data:
+        target.name = data["name"]
+    if "email" in data:
+        target.email = data["email"]
+    if "phone" in data:
+        target.phone = data["phone"]
+    if "address" in data:
+        target.address = data["address"]
+    if "ico" in data:
+        target.ico = data["ico"]
+    if "dic" in data:
+        target.dic = data["dic"]
+    if "certificate_number" in data:
+        target.certificate_number = data["certificate_number"]
+    if "authorization_number" in data:
+        target.authorization_number = data["authorization_number"]
 
     db.add(target)
     db.commit()
