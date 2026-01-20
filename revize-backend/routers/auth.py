@@ -2,6 +2,7 @@
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from datetime import datetime
 import secrets
@@ -84,7 +85,14 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         instruments_json="[]",
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Uzivatel s timto e-mailem uz existuje",
+        )
     db.refresh(user)
 
     email_sent = False

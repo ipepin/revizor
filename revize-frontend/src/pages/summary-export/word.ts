@@ -13,6 +13,7 @@ import {
   BorderStyle,
   TextRun,
   AlignmentType,
+  ImageRun,
 } from "docx";
 
 import {
@@ -34,6 +35,7 @@ import {
 
 import { normalizeComponents, depthPrefix, pick, num } from "../summary-utils/board";
 import { dash, stripHtml } from "../summary-utils/text";
+import { dataUrlToBytes, getSketchSize } from "./lpsWordBuilder";
 
 type GenArgs = {
   safeForm: any;
@@ -41,9 +43,20 @@ type GenArgs = {
   normsAll: string[];
   usedInstruments: Array<{ id: string; name: string; serial: string; calibration: string }>;
   revId?: string | undefined;
+  schemaImages?: Record<string, string>;
 };
 
 /* ---------- Lokální helpery ---------- */
+
+const MAX_SCHEMA_WIDTH_PX = 750;
+const MAX_SCHEMA_HEIGHT_PX = 520;
+
+function calculateSchemaTransform(size?: { width: number; height: number }) {
+  if (!size) return { width: MAX_SCHEMA_WIDTH_PX, height: Math.min(MAX_SCHEMA_WIDTH_PX * 0.6, MAX_SCHEMA_HEIGHT_PX) };
+  const width = Math.min(size.width, MAX_SCHEMA_WIDTH_PX);
+  const height = Math.min(size.height, MAX_SCHEMA_HEIGHT_PX);
+  return { width, height };
+}
 
 const labelRun = (t: string) =>
   new TextRun({ text: `${t}: `, bold: true, size: SMALL, color: COL_MUTE, font: FONT });
@@ -180,7 +193,6 @@ export async function generateSummaryDocx({
 }: GenArgs) {
   // ---------- Head / titul ----------
   const headTitle: Paragraph[] = [
-    P(`Číslo revizní zprávy: ${dash(safeForm.evidencni || revId)}`, { color: COL_MUTE, after: 40 }),
     P("Zpráva o elektrické instalaci", { center: true, bold: true, size: 32, after: 120 }),
     P(dash(safeForm.typRevize), { bold: true, center: true, after: 30 }),
     P(normsAll.length ? `V souladu s ${normsAll.join(", ")}` : `V souladu s Chybí informace`, {
@@ -305,11 +317,23 @@ export async function generateSummaryDocx({
     boardsBlocks.push(H("4. Měření – rozvaděče", 26), P("—"));
   } else {
     boardsBlocks.push(H("4. Měření – rozvaděče", 26));
-    (safeForm.boards || []).forEach((b: any, idx: number) => {
+    for (const [idx, b] of (safeForm.boards || []).entries()) {
       boardsBlocks.push(P("", { after: 300 }));
       boardsBlocks.push(P(`Rozvaděč: ${dash(b?.name) || `#${idx + 1}`}`, { bold: true, size: XS, after: 20 }));
       const details = `Výrobce: ${dash(b?.vyrobce)} | Typ: ${dash(b?.typ)} | Umístění: ${dash(b?.umisteni)} | S/N: ${dash(b?.vyrobniCislo)} | Napětí: ${dash(b?.napeti)} | Odpor: ${dash(b?.odpor)} | IP: ${dash(b?.ip)}`;
       boardsBlocks.push(P(details, { color: COL_MUTE, size: XS, after: 60 }));
+
+      const schemaDataUrl = schemaImages?.[String(b?.id)];
+      const schemaBytes = dataUrlToBytes(schemaDataUrl);
+      if (schemaBytes) {
+        const schemaSize = await getSketchSize(schemaDataUrl);
+        boardsBlocks.push(
+          new Paragraph({
+            children: [new ImageRun({ data: schemaBytes, transformation: calculateSchemaTransform(schemaSize) })],
+            spacing: { after: 200 },
+          })
+        );
+      }
 
       const flat = normalizeComponents(b?.komponenty || []);
       const rows = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
@@ -335,7 +359,7 @@ export async function generateSummaryDocx({
         if (zs) parts.push(`Zs: ${num(zs)} Ω`);
         if (tMs) parts.push(`t: ${num(tMs)} ms`);
         if (iDelta) parts.push(`IΔ: ${num(iDelta)} mA`);
-        if (pozn) parts.push(`Pozn.: ${pozn}`);
+        if (pozn) parts.push(`Název obvodu: ${pozn}`);
 
         const title = new Paragraph({
           children: [tr(`${prefix}${name}`, { bold: true, size: XS })],
@@ -371,7 +395,7 @@ export async function generateSummaryDocx({
           ),
         })
       );
-    });
+    }
   }
 
   // ---------- 4. Měření – místnosti ----------

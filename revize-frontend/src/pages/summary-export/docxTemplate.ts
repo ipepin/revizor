@@ -126,7 +126,7 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
       if (zs || zs === 0) parts.push(`Zs: ${zs} Î©`);
       if (tMs || tMs === 0) parts.push(`t: ${tMs} ms`);
       if (iDelta || iDelta === 0) parts.push(`IÎ”: ${iDelta} mA`);
-      if (pozn) parts.push(`Pozn.: ${pozn}`);
+      if (pozn) parts.push(`Název obvodu: ${pozn}`);
 
       const LINE_LEFT = `${prefix}${name}`;
       const LINE_RIGHT = parts.join("   Â·   ") || " ";

@@ -19,11 +19,13 @@ import DefectProposalsPage from "./pages/admin/DefectProposalsPage";
 import RevisionsAdminPage from "./pages/admin/RevisionsAdminPage";
 import DefectsEditorPage from "./pages/admin/DefectsEditorPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminNormsPage from "./pages/admin/AdminNormsPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import VvEditor from "./pages/VvEditor";
 import LpsEditPage from "./pages/LpsEditPage";
 import AdminSnippetsPage from "./pages/AdminSnippetsPage";
+import UserSnippetsPage from "./pages/UserSnippetsPage";
 
 import "./index.css";
 
@@ -78,6 +80,14 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/snippets"
+                element={
+                  <ProtectedRoute>
+                    <UserSnippetsPage />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/profil"
@@ -113,6 +123,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
               <Route path="/admin/revisions" element={<AdminRoute><RevisionsAdminPage /></AdminRoute>} />
               <Route path="/admin/defects-editor" element={<AdminRoute><DefectsEditorPage /></AdminRoute>} />
               <Route path="/admin/snippets" element={<AdminRoute><AdminSnippetsPage /></AdminRoute>} />
+              <Route path="/admin/norms" element={<AdminRoute><AdminNormsPage /></AdminRoute>} />
 
               {/* <Route path="*" element={<NotFoundPage />} /> */}
             </Routes>

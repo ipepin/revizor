@@ -49,6 +49,8 @@ export interface Board {
   vyrobniCislo: string;
   napeti: string;
   proud: string;
+  supplySystem: string;
+  supplyPhase: string;
   ip: string;
   odpor: string;
   umisteni: string;
@@ -266,16 +268,21 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
 export function RevisionFormProvider({
   revId,
   children,
+  training = false,
+  initialData,
 }: {
   revId: number;
   children: ReactNode;
+  training?: boolean;
+  initialData?: Partial<RevisionForm>;
 }) {
-  const [form, setForm] = useState<RevisionForm>(
-    withDefaults({})
+  const [form, setForm] = useState<RevisionForm>(() =>
+    withDefaults(initialData ?? {})
   );
 
   // NaÄŤtenĂ­ existujĂ­cĂ­ revize (s JWT pĹ™es api klient)
   useEffect(() => {
+    if (training) return;
     const ctrl = new AbortController();
     (async () => {
       try {
@@ -297,24 +304,27 @@ export function RevisionFormProvider({
       }
     })();
     return () => ctrl.abort();
-  }, [revId]);
+  }, [revId, training]);
 
   // Funkce pro okamĹľitĂ© uloĹľenĂ­ (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
+    if (training) return;
     // backend ÄŤekĂˇ objekt (dict), ne string
     api
       .patch(`/revisions/${revId}`, { data_json: form })
       .catch((err) => console.warn("UloĹľenĂ­ revize selhalo:", err?.response?.data || err));
-  }, [form, revId]);
+  }, [form, revId, training]);
 
   // Autosave s 800ms debouncingem
   useEffect(() => {
+    if (training) return;
     const timeout = setTimeout(saveNow, 800);
     return () => clearTimeout(timeout);
-  }, [form, saveNow]);
+  }, [form, saveNow, training]);
 
   // Označit Dokončení revize
   const finish = useCallback(async () => {
+    if (training) return;
     try {
       await api.patch(`/revisions/${revId}`, {
         data_json: form,
@@ -331,7 +341,7 @@ export function RevisionFormProvider({
         console.warn("Dokončení revize selhalo:", (err2 as any)?.response?.data || err2);
       }
     }
-  }, [form, revId]);
+  }, [form, revId, training]);
 
   return (
     <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>

@@ -342,6 +342,7 @@ export default function DefectsRecommendationsSection() {
       <h2 className="text-lg font-semibold">Závady a doporučení</h2>
 
       <textarea
+        data-guide-id="def-text"
         className="w-full rounded border px-3 py-1.5 text-sm whitespace-pre-wrap"
         rows={6}
         placeholder="Každá závada na samostatném řádku"
@@ -349,7 +350,7 @@ export default function DefectsRecommendationsSection() {
         onChange={onChangeTextarea}
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div data-guide-id="def-catalog" className="flex flex-wrap gap-2">
         <button
           className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
           onClick={() => setShowPicker(true)}

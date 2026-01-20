@@ -11,6 +11,9 @@ export default function AdminSnippetsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+  const [newBody, setNewBody] = useState("");
+  const [newScope, setNewScope] = useState<Scope>("EI");
 
   const load = async () => {
     setLoading(true);
@@ -21,7 +24,7 @@ export default function AdminSnippetsPage() {
       });
       setItems(res.data);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e?.message || "Nepodařilo se načíst čipy.");
+      setError(e?.response?.data?.detail || e?.message || "Nepodařilo se načíst rychlé věty.");
     } finally {
       setLoading(false);
     }
@@ -37,10 +40,29 @@ export default function AdminSnippetsPage() {
     setError(null);
     try {
       await api.post(`/snippets/${id}/promote`);
-      setInfo("Čip byl povýšen na výchozí.");
+      setInfo("Rychlá věta byla povýšena na výchozí.");
       await load();
     } catch (e: any) {
       setError(e?.response?.data?.detail || e?.message || "Povýšení selhalo.");
+    }
+  };
+
+  const createDefault = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInfo(null);
+    setError(null);
+    try {
+      await api.post("/snippets/admin/default", {
+        scope: newScope,
+        label: newLabel.trim(),
+        body: newBody,
+      });
+      setInfo("Výchozí rychlá věta byla vytvořena.");
+      setNewLabel("");
+      setNewBody("");
+      await load();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err?.message || "Vytvoření selhalo.");
     }
   };
 
@@ -50,8 +72,8 @@ export default function AdminSnippetsPage() {
       <main className="flex-1 p-6 space-y-4 compact-main">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-blue-800">Správa čipů</h1>
-            <p className="text-sm text-gray-600">Zobraz a povyšuj uživatelské čipy na výchozí.</p>
+            <h1 className="text-xl font-semibold text-blue-800">Správa rychlých vět</h1>
+            <p className="text-sm text-gray-600">Zobraz, přidej a povyšuj uživatelské rychlé věty na výchozí.</p>
           </div>
           <select
             className="border rounded px-3 py-1 text-sm"
@@ -67,6 +89,51 @@ export default function AdminSnippetsPage() {
         {loading && <div className="text-sm text-gray-500">Načítám…</div>}
         {error && <div className="text-sm text-red-600">{error}</div>}
         {info && <div className="text-sm text-green-600">{info}</div>}
+
+        <form className="border rounded bg-white p-4 space-y-3" onSubmit={createDefault}>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div>
+              <label className="block text-xs text-gray-600">Scope</label>
+              <select
+                className="border rounded px-3 py-1 text-sm"
+                value={newScope}
+                onChange={(e) => setNewScope(e.target.value as Scope)}
+              >
+                <option value="EI">EI</option>
+                <option value="LPS">LPS</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-xs text-gray-600">Label</label>
+              <input
+                type="text"
+                className="w-full border rounded px-3 py-1.5 text-sm"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600">Text věty</label>
+            <textarea
+              className="w-full border rounded px-3 py-2 text-sm"
+              rows={3}
+              value={newBody}
+              onChange={(e) => setNewBody(e.target.value)}
+              required
+            />
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50"
+              disabled={!newLabel.trim() || !newBody.trim()}
+            >
+              Přidat výchozí rychlou větu
+            </button>
+          </div>
+        </form>
 
         <div className="overflow-auto border rounded bg-white">
           <table className="min-w-full text-sm">
@@ -107,7 +174,7 @@ export default function AdminSnippetsPage() {
               {items.length === 0 && !loading && (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
-                    Žádné čipy k zobrazení.
+                    Žádné rychlé věty k zobrazení.
                   </td>
                 </tr>
               )}

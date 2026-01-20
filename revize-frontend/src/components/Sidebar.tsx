@@ -10,9 +10,10 @@ type Props = {
   active?: string;
   onSelect?: (sectionKey: string) => void;
   onNewProject?: () => void;
+  actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" | "outline" }[];
 };
 
-export default function Sidebar({ mode, active, onSelect, onNewProject }: Props) {
+export default function Sidebar({ mode, active, onSelect, onNewProject, actions }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
@@ -160,7 +161,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
           )}
 
           {/* Režim SUMMARY – LPS: přepínač dvou sekcí + Dokončit */}
-          {isSummary && (
+          {isSummary && onSelect && (
             <div className="mb-4 space-y-2">
               <button
                 className={`w-full px-4 py-2 rounded text-left transition ${active === "lps_info" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"}`}
@@ -224,9 +225,39 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                   className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
                   onClick={() => navigate("/admin/snippets")}
                 >
-                  Čipy (správa a schvalování)
+                  Rychlé věty (správa a schvalování)
+                </button>
+                <button
+                  className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
+                  onClick={() => navigate("/admin/norms")}
+                >
+                  Normy (správa)
                 </button>
               </div>
+            </div>
+          )}
+
+          {actions && actions.length > 0 && (
+            <div className="mb-4 space-y-2">
+              <div className="text-xs text-gray-500">Exporty</div>
+              {actions.map((action, idx) => {
+                const base = "w-full px-4 py-2 rounded text-left transition";
+                const variant =
+                  action.variant === "primary"
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : action.variant === "secondary"
+                    ? "bg-green-600 text-white hover:bg-green-700"
+                    : "bg-gray-100 hover:bg-gray-200";
+                return (
+                  <button
+                    key={`${action.label}-${idx}`}
+                    className={`${base} ${variant}`}
+                    onClick={action.onClick}
+                  >
+                    {action.label}
+                  </button>
+                );
+              })}
             </div>
           )}
           {/* Nastavení */}
@@ -250,6 +281,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => go("/snippets")}
+                >
+                  Katalog rychlých vět
+                </li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => go("/instruments")}
                 >
                   Měřicí přístroje
@@ -260,7 +297,15 @@ export default function Sidebar({ mode, active, onSelect, onNewProject }: Props)
                 >
                   Profil
                 </li>
-                <li className="p-2 hover:bg-gray-100 cursor-pointer">Tisk</li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => {
+                    window.dispatchEvent(new Event("revize-open-guide"));
+                    go("/");
+                  }}
+                >
+                  Spustit průvodce
+                </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => {

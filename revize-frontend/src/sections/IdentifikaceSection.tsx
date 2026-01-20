@@ -131,7 +131,7 @@ export default function IdentifikaceSection() {
       <h2 className="text-xl font-semibold text-blue-800">Identifikace</h2>
 
       {/* Základní pole */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div data-guide-id="id-basic" className="grid gap-3 md:grid-cols-2">
         <div>
           <label className="font-semibold">Evidenční číslo</label>
           <input type="text" value={form.evidencni || ""} readOnly className="p-2 border rounded w-full bg-gray-100" />
@@ -148,6 +148,9 @@ export default function IdentifikaceSection() {
           <label className="font-semibold">Objednatel</label>
           <input type="text" className="p-2 border rounded w-full" value={form.objednatel || ""} onChange={onField("objednatel")} />
         </div>
+      </div>
+
+      <div data-guide-id="id-type-network" className="grid gap-3 md:grid-cols-2">
         <div>
           <label className="font-semibold">Typ revize</label>
           <select className="p-2 border rounded w-full" value={form.typRevize || ""} onChange={onField("typRevize")}>
@@ -158,7 +161,7 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Druh sítě</label>
+          <label className="font-semibold">Druh s?t?</label>
           <select className="p-2 border rounded w-full" value={form.sit || ""} onChange={onField("sit")}>
             <option value="" disabled>- vyberte -</option>
             {networkTypes.map((opt) => (
@@ -167,7 +170,7 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Jmenovité napětí</label>
+          <label className="font-semibold">Jmenovit? nap?t?</label>
           <input list="voltages" className="p-2 border rounded w-full" value={form.voltage || ""} onChange={onField("voltage")} />
           <datalist id="voltages">
             {voltageOptions.map((v) => (
@@ -178,7 +181,7 @@ export default function IdentifikaceSection() {
       </div>
 
       {/* Měřicí přístroje */}
-      <section>
+      <section data-guide-id="id-instruments">
         <h3 className="text-lg font-semibold mb-2">Měřicí přístroje</h3>
         <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
           <table className="w-full text-sm">
@@ -232,7 +235,7 @@ export default function IdentifikaceSection() {
       </section>
 
       {/* Montážní firma */}
-      <div className="grid md:grid-cols-2 gap-4">
+      <div data-guide-id="id-montaz" className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="font-semibold">Montážní firma</label>
           <input type="text" className="p-2 border rounded w-full" value={form.montFirma || ""} onChange={onField("montFirma")} />
@@ -250,7 +253,7 @@ export default function IdentifikaceSection() {
       </div>
 
       {/* Data */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-guide-id="id-dates" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="font-semibold">Zahájení revize</label>
           <input type="date" className="p-2 border rounded w-full" value={(form as any).date_start || ""} onChange={onField("date_start") as any} />
@@ -266,7 +269,7 @@ export default function IdentifikaceSection() {
       </div>
 
       {/* Firma (z UserContextu) */}
-      <div className="grid md:grid-cols-3 gap-4 items-end">
+      <div data-guide-id="id-company" className="grid md:grid-cols-3 gap-4 items-end">
         <div className="md:col-span-2">
           <label className="font-semibold">Firma</label>
           <input
@@ -306,10 +309,13 @@ export default function IdentifikaceSection() {
       </div>
 
       {/* Normy */}
-      <NormsSection />
+      <div data-guide-id="id-norms">
+        <NormsSection />
+      </div>
 
       {/* Ochranná opatření */}
-      {(["basic", "fault", "additional"] as const).map((group) => (
+      <div data-guide-id="id-protection" className="space-y-4">
+        {(["basic", "fault", "additional"] as const).map((group) => (
         <div key={group}>
           <label className="font-semibold block mb-2 capitalize">
             {{ basic: "Základní ochrana", fault: "Ochrana při poruše", additional: "Doplňková ochrana" }[group]}
@@ -331,8 +337,10 @@ export default function IdentifikaceSection() {
         </div>
       ))}
 
+      </div>
+
       {/* Další podklady */}
-      <div className="grid md:grid-cols-2 gap-4">
+      <div data-guide-id="id-docs" className="grid md:grid-cols-2 gap-4">
         <div>
           <label className="font-semibold">Projektová dokumentace</label>
           <input type="text" className="p-2 border rounded w-full" value={form.documentation || ""} onChange={onField("documentation")} />

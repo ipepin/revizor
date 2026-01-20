@@ -48,7 +48,7 @@ export function SnippetManager({
   };
 
   const remove = async (id: number) => {
-    if (!window.confirm("Opravdu smazat čip?")) return;
+    if (!window.confirm("Opravdu smazat rychlou větu?")) return;
     setBusyId(id);
     try {
       await onDelete(id);
@@ -62,8 +62,8 @@ export function SnippetManager({
       <div className="bg-white rounded-lg shadow-xl w-[720px] max-w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div>
-            <div className="text-sm font-semibold">Správa čipů ({scope})</div>
-            <div className="text-xs text-gray-500">Zapněte/Vypněte zobrazování, přidejte vlastní čipy.</div>
+            <div className="text-sm font-semibold">Správa rychlých vět ({scope})</div>
+            <div className="text-xs text-gray-500">Zapněte/Vypněte zobrazování, přidejte vlastní rychlé věty.</div>
           </div>
           <button className="text-sm text-gray-600 hover:text-gray-900" onClick={onClose}>
             Zavřít
@@ -116,7 +116,7 @@ export function SnippetManager({
           </table>
         </div>
         <form onSubmit={submitNew} className="border-t p-4 space-y-3">
-          <div className="text-sm font-semibold">Přidat vlastní čip</div>
+          <div className="text-sm font-semibold">Přidat vlastní rychlou větu</div>
           <div className="grid md:grid-cols-3 gap-3">
             <div className="md:col-span-1">
               <label className="block text-xs text-gray-600 mb-1">Label</label>

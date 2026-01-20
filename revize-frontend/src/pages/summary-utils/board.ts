@@ -89,6 +89,6 @@ export function buildComponentLine(c: any): string {
   parts.push(seg("t",    pick(c, ["t","time","trip_time","rcd_time","vybavovaci_cas","vybavovaciCas","cas_vybaveni","cas"]), "ms", num));
   parts.push(seg("IΔ",   pick(c, ["ifi","i_fi","iDelta","i_delta","i_delta_n","idn","IΔn","IΔ","rcd_trip_current","vybavovaci_proud","vybavovaciProud","trip_current"]), "mA", num));
   parts.push(seg("Uᵢ",   pick(c, ["ui","u_i","ut","u_touch","dotykove_napeti"]), "V", num));
-  parts.push(seg("Pozn.", pick(c, ["poznamka","pozn","note","poznámka"])));
+  parts.push(seg("Název obvodu", pick(c, ["poznamka","pozn","note","poznámka"])));
   return parts.filter(Boolean).join("   •   ");
 }

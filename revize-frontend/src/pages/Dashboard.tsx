@@ -19,9 +19,16 @@ function normalizeStatus(s?: string): string {
   return raw;
 }
 
+type TrainingBundle = {
+  projectId: number;
+  elektroRevId: number;
+  lpsRevId: number;
+  vvId: number | string;
+};
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
-  const { token } = useAuth();
+  const { token, userEmail } = useAuth();
   const { profile, company } = useUser();  const [expandedProjectId, setExpandedProjectId] = useState<number | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
@@ -31,6 +38,15 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // First-login guide (per user email)
+  const guideKey = userEmail ? `revize_guide_seen_${userEmail}` : "revize_guide_seen";
+  const [showGuide, setShowGuide] = useState(false);
+  const [guideStep, setGuideStep] = useState<"lps" | "elektro" | "vv">("lps");
+  const trainingKey = userEmail ? `revize_training_${userEmail}` : "revize_training";
+  const [trainingBundle, setTrainingBundle] = useState<TrainingBundle | null>(null);
+  const [trainingStatus, setTrainingStatus] = useState<"idle" | "creating" | "ready" | "error">("idle");
+  const [trainingError, setTrainingError] = useState<string | null>(null);
 
   // unlock modal (heslo pro dokončenou revizi)
   const [unlockFor, setUnlockFor] = useState<{ projectId: number | null; revId: number | null}>({ projectId: null, revId: null });
@@ -118,6 +134,50 @@ export default function Dashboard() {
     fetchProjects(ctrl.signal).finally(() => setLoading(false));
     return () => ctrl.abort();
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const seen = localStorage.getItem(guideKey);
+    if (!seen) {
+      setShowGuide(true);
+    }
+  }, [token, guideKey]);
+
+  useEffect(() => {
+    if (!token) return;
+    const stored = localStorage.getItem(trainingKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as TrainingBundle;
+      if (parsed?.projectId === 0 && parsed?.vvId === "training") {
+        setTrainingBundle(parsed);
+        setTrainingStatus("ready");
+      } else {
+        localStorage.removeItem(trainingKey);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [token, trainingKey]);
+
+  useEffect(() => {
+    if (!token || !showGuide) return;
+    if (trainingStatus === "creating" || trainingStatus === "ready") return;
+    if (trainingBundle) return;
+    const stored = localStorage.getItem(trainingKey);
+    if (stored) return;
+    createTrainingBundle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, showGuide, trainingKey, trainingStatus, trainingBundle]);
+
+  useEffect(() => {
+    const handler = () => {
+      setGuideStep("lps");
+      setShowGuide(true);
+    };
+    window.addEventListener("revize-open-guide", handler);
+    return () => window.removeEventListener("revize-open-guide", handler);
+  }, []);
 
   const isExpired = (date: string) => new Date(date) < new Date();
 
@@ -254,6 +314,37 @@ export default function Dashboard() {
     } finally {
       setUnlockBusy(false);
     }
+  };
+
+  const createTrainingBundle = async () => {
+    if (!token) return;
+    setTrainingStatus("creating");
+    setTrainingError(null);
+    try {
+      const bundle: TrainingBundle = {
+        projectId: 0,
+        elektroRevId: 0,
+        lpsRevId: 0,
+        vvId: "training",
+      };
+      localStorage.setItem(trainingKey, JSON.stringify(bundle));
+      setTrainingBundle(bundle);
+      setTrainingStatus("ready");
+    } catch (e) {
+      console.error("Cvičné podklady se nepodařilo připravit:", e);
+      setTrainingStatus("error");
+      setTrainingError("Nepodařilo se připravit cvičné podklady. Zkus to prosím znovu.");
+    }
+  };
+
+  const dismissGuide = () => {
+    localStorage.setItem(guideKey, "1");
+    setShowGuide(false);
+  };
+
+  const startFirstProject = () => {
+    dismissGuide();
+    setShowNewProjectDialog(true);
   };
 
   return (
@@ -587,6 +678,186 @@ export default function Dashboard() {
               </button>
               <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={handleSaveNewProject} title="Uložit nový projekt">
                 Uložit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* First-login guide */}
+      {showGuide && (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={dismissGuide}>
+          <div
+            className="bg-white p-6 rounded shadow w-full max-w-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">První přihlášení: průvodce editory</h3>
+                <p className="text-sm text-slate-600">Kde co vyplnit v editorech revizí a VV.</p>
+              </div>
+              <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={dismissGuide} title="Zavřít">
+                X
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-4">
+              <button
+                className={`px-3 py-1.5 rounded text-sm transition ${
+                  guideStep === "lps" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+                }`}
+                onClick={() => setGuideStep("lps")}
+              >
+                Hromosvod (LPS)
+              </button>
+              <button
+                className={`px-3 py-1.5 rounded text-sm transition ${
+                  guideStep === "elektro" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+                }`}
+                onClick={() => setGuideStep("elektro")}
+              >
+                Elektroinstalace
+              </button>
+              <button
+                className={`px-3 py-1.5 rounded text-sm transition ${
+                  guideStep === "vv" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
+                }`}
+                onClick={() => setGuideStep("vv")}
+              >
+                Vnější vlivy (VV)
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-lg border bg-slate-50 p-3 text-sm text-slate-700">
+              <div className="font-medium text-slate-800">Cvičné podklady</div>
+              <div className="mt-1">
+                {trainingStatus === "creating" && "Připravuji cvičné podklady…"}
+                {trainingStatus === "error" && (
+                  <div className="text-red-600">
+                    {trainingError || "Nepodařilo se připravit cvičné podklady."}
+                    <div>
+                      <button
+                        className="mt-2 inline-flex items-center rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
+                        onClick={createTrainingBundle}
+                      >
+                        Zkusit znovu
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {(trainingStatus === "ready" && trainingBundle) && (
+                  <div className="space-y-2">
+                    <div>Vytvořeno. Otevři si jednotlivé editory:</div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
+                        onClick={() => navigate(`/revize/${trainingBundle.elektroRevId}?guide=1&training=1`)}
+                      >
+                        Cvičná revize elektroinstalace
+                      </button>
+                      <button
+                        className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
+                        onClick={() => navigate(`/revize/${trainingBundle.elektroRevId}?guide=1&training=1&guideStart=mereni`)}
+                      >
+                        {"P\u0159esko\u010dit na m\u011b\u0159en\u00ed"}
+                      </button>
+                      <button
+                        className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
+                        onClick={() => navigate(`/revize-lps/${trainingBundle.lpsRevId}?guide=1&training=1`)}
+                      >
+                        Cvičná revize LPS
+                      </button>
+                      <button
+                        className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
+                        onClick={() => navigate(`/vv/${trainingBundle.vvId}?guide=1&training=1`)}
+                      >
+                        Cvičný protokol VV
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {(trainingStatus === "idle") && "Cvičné podklady se připravují automaticky při otevření průvodce."}
+              </div>
+            </div>
+
+            <div className="text-sm text-slate-700 space-y-3">
+              {guideStep === "lps" && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Editor LPS: záložka „Identifikace objektu a prohlídka“</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Identifikace objektu a subjektu: adresa, objednatel, typ objektu.</li>
+                      <li>Identifikace technika: jméno, osvědčení, firma (doplní se z profilu).</li>
+                      <li>Parametry LPS: jímače, svody, zemniče, třída LPS, SPD.</li>
+                      <li>Popis LPS: text se generuje z voleb, doplň ručně konkrétní detaily.</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Editor LPS: záložka „Měření a závěr“</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Prohlídka LPS: vizuální stav, uchycení, svody, spoje.</li>
+                      <li>Měření: odpor zemniče, kontrola spojitosti, hodnoty měření.</li>
+                      <li>Závady a doporučení: zapiš závady a návrh řešení.</li>
+                      <li>Závěr: celkové zhodnocení a platnost revize.</li>
+                      <li>Nákres LPS: nakresli schéma / situaci objektu.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+              {guideStep === "elektro" && (
+                <div className="space-y-3">
+                  <div className="font-medium text-slate-800">Editor revize elektroinstalace (sekce v levém menu)</div>
+                  <ul className="list-decimal ml-5 space-y-1">
+                    <li>Identifikace: objekt, objednatel, napájení, typ revize, technik.</li>
+                    <li>Prohlídka: vizuální kontrola, označení, kryty, dokumentace.</li>
+                    <li>Zkoušky: funkční zkoušky, RCD, ověření ochrany.</li>
+                    <li>Měření: impedance, izolační odpor, proudové chrániče.</li>
+                    <li>Závady a doporučení: zapiš závady + návrh opatření.</li>
+                    <li>Závěr: shrnutí, vyhovuje/nevyhovuje, platnost revize.</li>
+                  </ul>
+                </div>
+              )}
+              {guideStep === "vv" && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Editor VV: Identifikace</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Objekt, adresa, zpracoval, datum.</li>
+                      <li>Předložená dokumentace a stručný popis objektu.</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Editor VV: Komise</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Přidej členy komise (předseda + členové).</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Editor VV: Prostory a vlivy</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Přidej prostory (místnosti) a vyber aktivní prostor.</li>
+                      <li>Pro každý prostor zvol třídy vlivů A/B/C.</li>
+                      <li>Vyznač, co je normální a co zvláštní (nenormální).</li>
+                      <li>Doplň poznámky, opatření a intervaly kontrol.</li>
+                    </ul>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="font-medium text-slate-800">Výstup</div>
+                    <ul className="list-decimal ml-5 space-y-1">
+                      <li>Po vyplnění lze exportovat JSON nebo vytisknout do PDF.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-between items-center">
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={dismissGuide}>
+                Rozumím, zavřít
+              </button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={startFirstProject}>
+                Založit vlastní projekt
               </button>
             </div>
           </div>

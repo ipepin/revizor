@@ -59,7 +59,7 @@ export default function ProhlidkaSection() {
   return (
     <div className="space-y-4 text-sm text-gray-800">
       {/* Provedené úkony */}
-      <div>
+      <div data-guide-id="pr-tasks">
         <h2 className="text-lg font-semibold text-blue-800 mb-2">
           ✅ Provedené úkony
         </h2>
@@ -79,7 +79,7 @@ export default function ProhlidkaSection() {
       </div>
 
       {/* Popis revidovaného objektu */}
-      <div>
+      <div data-guide-id="pr-description">
         <h2 className="text-lg font-semibold text-blue-800 mb-2">
           🏠 Popis revidovaného objektu
         </h2>

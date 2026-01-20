@@ -23,6 +23,8 @@ export interface Board {
   typ: string;
   vyrobniCislo: string;
   napetiProud: string;
+  supplySystem: string;
+  supplyPhase: string;
   ip: string;
   prechodovyOdpor: string;
   umisteni: string;

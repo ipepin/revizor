@@ -1,6 +1,6 @@
 // src/pages/LpsEditPage.tsx
-import React, { useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { RevisionFormProvider, useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
@@ -11,6 +11,106 @@ import LpsMeasurementsSection from "../sections/LpsMeasurementsSection";
 import DefectsRecommendationsSection from "../sections/DefectsRecommendationsSection";
 import LpsConclusionSection from "../sections/LpsConclusionSection";
 import LpsSketchCanvas from "../components/LpsSketchCanvas";
+
+type GuideStep = {
+  key: string;
+  tab: "lps_info" | "lps_measure";
+  targetId: string;
+  title: string;
+  text: string;
+};
+
+const useGuideTarget = (targetId: string | null, active: boolean) => {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    if (!active || !targetId) {
+      setRect(null);
+      return;
+    }
+
+    const update = () => {
+      const el = document.querySelector(`[data-guide-id="${targetId}"]`) as HTMLElement | null;
+      if (!el) {
+        setRect(null);
+        return;
+      }
+      setRect(el.getBoundingClientRect());
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [targetId, active]);
+
+  return rect;
+};
+
+function GuideOverlay({
+  active,
+  targetId,
+  title,
+  text,
+  isLast,
+  onNext,
+  onClose,
+}: {
+  active: boolean;
+  targetId: string | null;
+  title: string;
+  text: string;
+  isLast: boolean;
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  const rect = useGuideTarget(targetId, active);
+  if (!active || !rect) return null;
+
+  const bubbleWidth = 360;
+  const margin = 12;
+  const rightSpace = window.innerWidth - rect.right;
+  const leftSpace = rect.left;
+  const placeRight = rightSpace > bubbleWidth + margin || leftSpace < bubbleWidth + margin;
+  const left = placeRight
+    ? Math.min(rect.right + margin, window.innerWidth - bubbleWidth - margin)
+    : Math.max(margin, rect.left - bubbleWidth - margin);
+  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - 220);
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/25" onClick={onClose} />
+      <div
+        className="absolute rounded-lg border-2 border-blue-500 pointer-events-none"
+        style={{
+          top: Math.max(rect.top - 6, 0),
+          left: Math.max(rect.left - 6, 0),
+          width: rect.width + 12,
+          height: rect.height + 12,
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)",
+        }}
+      />
+      <div
+        className="absolute z-10 w-full max-w-sm rounded-lg border bg-white p-4 shadow-xl"
+        style={{ top, left, width: bubbleWidth }}
+      >
+        <div className="text-sm font-semibold text-slate-800">{title}</div>
+        <div className="mt-1 text-sm text-slate-600">{text}</div>
+        <div className="mt-3 flex justify-end gap-2">
+          <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={onClose}>
+            {"Zavřít"}
+          </button>
+          <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={onNext}>
+            {isLast ? "Dokončit" : "Pokračovat"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Field({ label, children }: React.PropsWithChildren<{ label: string }>) {
   return (
@@ -528,31 +628,146 @@ function LpsFormContent() {
 
 export default function LpsEditPage() {
   const { revId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [tab, setTab] = React.useState<'lps_info'|'lps_measure'>('lps_info');
+  const isTraining = new URLSearchParams(location.search).get("training") === "1";
+  const [guideOn, setGuideOn] = useState(
+    new URLSearchParams(location.search).get("guide") === "1"
+  );
+  const [guideIndex, setGuideIndex] = useState(0);
+
+  const guideSteps: GuideStep[] = [
+    {
+      key: "lps_info",
+      tab: "lps_info",
+      targetId: "lps-info",
+      title: "Identifikace objektu a prohlídka",
+      text: "Vyplň identifikaci objektu, technika a základní parametry LPS.",
+    },
+    {
+      key: "inspection",
+      tab: "lps_measure",
+      targetId: "lps-inspection",
+      title: "Prohlídka LPS",
+      text: "Zapiš vizuální kontrolu jímačů, svodů, spojů a upevnění.",
+    },
+    {
+      key: "measurements",
+      tab: "lps_measure",
+      targetId: "lps-measurements",
+      title: "Měření",
+      text: "Doplň odpor zemniče, spojitost a naměřené hodnoty.",
+    },
+    {
+      key: "defects",
+      tab: "lps_measure",
+      targetId: "lps-defects",
+      title: "Závady a doporučení",
+      text: "Seznam závad a návrh opatření.",
+    },
+    {
+      key: "conclusion",
+      tab: "lps_measure",
+      targetId: "lps-conclusion",
+      title: "Závěr",
+      text: "Celkové zhodnocení a platnost revize.",
+    },
+    {
+      key: "sketch",
+      tab: "lps_measure",
+      targetId: "lps-sketch",
+      title: "Náčrt LPS",
+      text: "Nakresli schéma nebo situaci objektu.",
+    },
+  ];
+
+  useEffect(() => {
+    const enabled = new URLSearchParams(location.search).get("guide") === "1";
+    setGuideOn(enabled);
+    setGuideIndex(0);
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!guideOn) return;
+    const step = guideSteps[guideIndex];
+    if (!step) return;
+    if (tab !== step.tab) {
+      setTab(step.tab);
+    }
+  }, [guideOn, guideIndex, tab]);
+
+  useEffect(() => {
+    if (!guideOn) return;
+    const step = guideSteps[guideIndex];
+    if (!step) return;
+    const el = document.querySelector(`[data-guide-id="${step.targetId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [guideOn, guideIndex, guideSteps]);
+
+  const closeGuide = () => {
+    const ok = window.confirm("Opravdu chcete ukončit průvodce?");
+    if (!ok) return;
+    setGuideOn(false);
+    navigate("/", { replace: true });
+  };
+
+  const handleNext = () => {
+    const isLast = guideIndex >= guideSteps.length - 1;
+    if (isLast) {
+      closeGuide();
+      return;
+    }
+    setGuideIndex((i) => Math.min(i + 1, guideSteps.length - 1));
+  };
+
   return (
-    <RevisionFormProvider revId={parseInt((revId as string) || '0', 10)}>
-      <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
-        <Sidebar mode="summary" active={tab} onSelect={(k)=>setTab(k as any)} />
-        <main className="compact-main flex-1 overflow-auto p-4 md:p-6">
-          <div className="compact-card space-y-4">
-            {tab === 'lps_info' ? (
-              <LpsFormContent />
-            ) : (
-              <>
-                <LpsInspectionSection />
-                <LpsMeasurementsSection />
-                <DefectsRecommendationsSection />
-                <LpsConclusionSection />
-                <section className="bg-white rounded shadow p-4">
-                  <h2 className="text-lg font-semibold mb-3">Náčrt LPS</h2>
-                  <p className="text-sm text-gray-600 mb-2">Nakreslete schéma LPS / situaci. Kreslení probíhá na mřížce, vhodné i pro tablet.</p>
-                  <LpsSketchCanvas />
-                </section>
-              </>
-            )}
-          </div>
-        </main>
-      </div>
-    </RevisionFormProvider>
+    <>
+      <RevisionFormProvider revId={parseInt((revId as string) || "0", 10)} training={isTraining}>
+        <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
+          <Sidebar mode="summary" active={tab} onSelect={(k) => setTab(k as any)} />
+          <main className="compact-main flex-1 overflow-auto p-4 md:p-6">
+            <div className="compact-card space-y-4">
+              {tab === "lps_info" ? (
+                <div data-guide-id="lps-info">
+                  <LpsFormContent />
+                </div>
+              ) : (
+                <>
+                  <div data-guide-id="lps-inspection">
+                    <LpsInspectionSection />
+                  </div>
+                  <div data-guide-id="lps-measurements">
+                    <LpsMeasurementsSection />
+                  </div>
+                  <div data-guide-id="lps-defects">
+                    <DefectsRecommendationsSection />
+                  </div>
+                  <div data-guide-id="lps-conclusion">
+                    <LpsConclusionSection />
+                  </div>
+                  <section className="bg-white rounded shadow p-4" data-guide-id="lps-sketch">
+                    <h2 className="text-lg font-semibold mb-3">Nacrt LPS</h2>
+                    <p className="text-sm text-gray-600 mb-2">Nakreslete schema LPS / situaci. Kresleni probiha na mrizce, vhodne i pro tablet.</p>
+                    <LpsSketchCanvas />
+                  </section>
+                </>
+              )}
+            </div>
+          </main>
+        </div>
+      </RevisionFormProvider>
+      <GuideOverlay
+        active={guideOn}
+        targetId={guideSteps[guideIndex]?.targetId || null}
+        title={guideSteps[guideIndex]?.title || ""}
+        text={guideSteps[guideIndex]?.text || ""}
+        isLast={guideIndex >= guideSteps.length - 1}
+        onNext={handleNext}
+        onClose={closeGuide}
+      />
+    </>
   );
 }

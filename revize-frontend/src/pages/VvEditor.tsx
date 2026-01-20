@@ -1,6 +1,6 @@
 // src/pages/VvEditor.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Download,
   Printer,
@@ -54,6 +54,105 @@ type VvDoc = {
   created_at: string;
   updated_at: string;
 };
+
+type GuideStep = {
+  key: string;
+  targetId: string;
+  title: string;
+  text: string;
+};
+
+const useGuideTarget = (targetId: string | null, active: boolean) => {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    if (!active || !targetId) {
+      setRect(null);
+      return;
+    }
+
+    const update = () => {
+      const el = document.querySelector(`[data-guide-id="${targetId}"]`) as HTMLElement | null;
+      if (!el) {
+        setRect(null);
+        return;
+      }
+      setRect(el.getBoundingClientRect());
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [targetId, active]);
+
+  return rect;
+};
+
+function GuideOverlay({
+  active,
+  targetId,
+  title,
+  text,
+  isLast,
+  onNext,
+  onClose,
+}: {
+  active: boolean;
+  targetId: string | null;
+  title: string;
+  text: string;
+  isLast: boolean;
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  const rect = useGuideTarget(targetId, active);
+  if (!active || !rect) return null;
+
+  const bubbleWidth = 360;
+  const margin = 12;
+  const rightSpace = window.innerWidth - rect.right;
+  const leftSpace = rect.left;
+  const placeRight = rightSpace > bubbleWidth + margin || leftSpace < bubbleWidth + margin;
+  const left = placeRight
+    ? Math.min(rect.right + margin, window.innerWidth - bubbleWidth - margin)
+    : Math.max(margin, rect.left - bubbleWidth - margin);
+  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - 220);
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/25" onClick={onClose} />
+      <div
+        className="absolute rounded-lg border-2 border-blue-500 pointer-events-none"
+        style={{
+          top: Math.max(rect.top - 6, 0),
+          left: Math.max(rect.left - 6, 0),
+          width: rect.width + 12,
+          height: rect.height + 12,
+          boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)",
+        }}
+      />
+      <div
+        className="absolute z-10 w-full max-w-sm rounded-lg border bg-white p-4 shadow-xl"
+        style={{ top, left, width: bubbleWidth }}
+      >
+        <div className="text-sm font-semibold text-slate-800">{title}</div>
+        <div className="mt-1 text-sm text-slate-600">{text}</div>
+        <div className="mt-3 flex justify-end gap-2">
+          <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={onClose}>
+            {"Zavřít"}
+          </button>
+          <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={onNext}>
+            {isLast ? "Dokončit" : "Pokračovat"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** ===== Pomocné ===== */
 const uuid = () =>
@@ -203,7 +302,72 @@ function toColumns<T>(arr: T[], cols: number): T[][] {
 export default function VvEditor() {
   const { id: vvId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { token } = useAuth();
+  const isTraining = new URLSearchParams(location.search).get("training") === "1";
+
+  const [guideOn, setGuideOn] = useState(
+    new URLSearchParams(location.search).get("guide") === "1"
+  );
+  const [guideIndex, setGuideIndex] = useState(0);
+  const guideSteps: GuideStep[] = [
+    {
+      key: "identifikace",
+      targetId: "vv-identifikace",
+      title: "Identifikace",
+      text: "Vyplň objekt, adresu, zpracoval a datum. Doplň dokumentaci a popis objektu.",
+    },
+    {
+      key: "komise",
+      targetId: "vv-komise",
+      title: "Komise",
+      text: "Zadej předsedu a členy komise. Lze přidat více osob.",
+    },
+    {
+      key: "prostory",
+      targetId: "vv-prostory",
+      title: "Prostory",
+      text: "Přidej místnosti a vyber aktivní prostor, který právě vyplňuješ.",
+    },
+    {
+      key: "vlivy",
+      targetId: "vv-vlivy",
+      title: "Vlivy",
+      text: "Vyber třídy vlivů A/B/C pro prostor, doplň opatření a intervaly kontrol.",
+    },
+  ];
+
+  useEffect(() => {
+    const enabled = new URLSearchParams(location.search).get("guide") === "1";
+    setGuideOn(enabled);
+    setGuideIndex(0);
+  }, [location.search]);
+
+  const closeGuide = () => {
+    const ok = window.confirm("Opravdu chcete ukončit průvodce?");
+    if (!ok) return;
+    setGuideOn(false);
+    navigate("/", { replace: true });
+  };
+
+  const handleNext = () => {
+    const isLast = guideIndex >= guideSteps.length - 1;
+    if (isLast) {
+      closeGuide();
+      return;
+    }
+    setGuideIndex((i) => Math.min(i + 1, guideSteps.length - 1));
+  };
+
+  useEffect(() => {
+    if (!guideOn) return;
+    const step = guideSteps[guideIndex];
+    if (!step) return;
+    const el = document.querySelector(`[data-guide-id="${step.targetId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [guideOn, guideIndex, guideSteps]);
 
   const [doc, setDoc] = useState<VvDoc | null>(null);
   const [data, setData] = useState<ProtocolData>(emptyProtocol());
@@ -218,6 +382,20 @@ export default function VvEditor() {
 
   // GET /vv/:id
   useEffect(() => {
+    if (isTraining) {
+      const base = emptyProtocol();
+      setDoc({
+        id: "training",
+        number: "CVI?N?",
+        project_id: 0,
+        data_json: base,
+        created_at: "",
+        updated_at: "",
+      });
+      setData(base);
+      setActiveSpaceId(base.spaces?.[0]?.id || null);
+      return;
+    }
     if (!vvId || !token) return;
     let alive = true;
     setBusy(true);
@@ -246,7 +424,7 @@ export default function VvEditor() {
     return () => {
       alive = false;
     };
-  }, [vvId, token]);
+  }, [vvId, token, isTraining]);
 
   // načtení JSON slovníku
   useEffect(() => {
@@ -300,6 +478,7 @@ export default function VvEditor() {
   const saveTimer = useRef<number | null>(null);
   const lastSaved = useRef<string>("");
   const scheduleSave = (payload: ProtocolData) => {
+    if (isTraining) return;
     if (!doc?.id || !token) return;
     const key = JSON.stringify(payload);
     if (key === lastSaved.current) return;
@@ -395,7 +574,13 @@ export default function VvEditor() {
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
       {/* Zabaleno do app-sidebar kvůli tisku */}
       <div className="app-sidebar">
-        <Sidebar mode="summary" />
+        <Sidebar
+          mode="catalog"
+          actions={[
+            { label: "Export PDF", onClick: doPrint, variant: "outline" },
+            { label: "Export JSON", onClick: exportJson, variant: "outline" },
+          ]}
+        />
       </div>
 
       <main className="compact-main flex-1 space-y-4 p-4 md:p-6">
@@ -448,7 +633,7 @@ export default function VvEditor() {
         {influences && (
           <div className="no-print grid gap-3 md:grid-cols-3">
             {/* Identifikace + textové bloky */}
-            <div className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm">
+            <div className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm" data-guide-id="vv-identifikace">
               <h2 className="mb-3 text-lg font-semibold">Identifikace</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="flex flex-col gap-1">
@@ -507,8 +692,8 @@ export default function VvEditor() {
               </div>
             </div>
 
-            {/* Komise */}
-            <div className="rounded-lg border bg-white p-4 shadow-sm">
+                          {/* Komise */}
+            <div className="rounded-lg border bg-white p-4 shadow-sm relative" data-guide-id="vv-komise">
               <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
                 Komise <Info className="h-4 w-4 opacity-60" />
               </h2>
@@ -569,8 +754,8 @@ export default function VvEditor() {
               </div>
             </div>
 
-            {/* Prostory & editor */}
-            <aside className="rounded-lg border bg-white p-4 shadow-sm h-max">
+                          {/* Prostory & editor */}
+            <aside className="rounded-lg border bg-white p-4 shadow-sm h-max relative" data-guide-id="vv-prostory">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold text-lg">Prostory</h2>
                 <button
@@ -608,10 +793,13 @@ export default function VvEditor() {
                   Smazat vybraný
                 </button>
               )}
+
+              
             </aside>
 
-            <section className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm">
-              {/* Legenda pro fialové „normální“ třídy */}
+            <section className="md:col-span-2 rounded-lg border bg-white p-4 shadow-sm" data-guide-id="vv-vlivy">
+
+                            {/* Legenda pro fialové „normální“ třídy */}
               <div className="text-xs text-slate-500 mb-2 flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 bg-purple-50 border-purple-200 text-purple-800">
                   <BadgeCheck className="h-3 w-3" /> normální vliv
@@ -1076,6 +1264,15 @@ export default function VvEditor() {
           {busy ? "Načítám…" : "Připraveno"}
         </div>
       </main>
+      <GuideOverlay
+        active={guideOn}
+        targetId={guideSteps[guideIndex]?.targetId || null}
+        title={guideSteps[guideIndex]?.title || ""}
+        text={guideSteps[guideIndex]?.text || ""}
+        isLast={guideIndex >= guideSteps.length - 1}
+        onNext={handleNext}
+        onClose={closeGuide}
+      />
     </div>
   );
 }

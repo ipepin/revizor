@@ -7,9 +7,13 @@ export default function SectionMereni() {
     <div className="space-y-5 text-sm text-gray-800">
       <h2 className="text-xl font-semibold text-blue-800">📏 Měření – Elektroinstalace</h2>
 
-      <RozvadecePanel />
+      <div data-guide-id="me-rozvadece">
+        <RozvadecePanel />
+      </div>
 
-      <MistnostiPanel />
+      <div data-guide-id="me-mistnosti">
+        <MistnostiPanel />
+      </div>
     </div>
   );
 }

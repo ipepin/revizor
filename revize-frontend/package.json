@@ -18,6 +18,7 @@
     "docx": "^9.5.1",
     "docxtemplater": "^3.65.3",
     "file-saver": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.10.3",
     "lucide-react": "^0.526.0",
     "pizzip": "^3.2.0",

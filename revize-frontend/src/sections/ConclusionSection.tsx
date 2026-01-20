@@ -4,7 +4,7 @@ import { useSnippets } from "../hooks/useSnippets";
 import type { Snippet } from "../api/snippets";
 import { SnippetManager } from "../components/SnippetManager";
 
-// Zachováme původní pořadí čipů (elektro)
+// Zachováme původní pořadí rychlých vět (elektro)
 const DEFAULT_LABEL_ORDER = [
   "Revize dle ČSN",
   "Izolační odpory",
@@ -185,8 +185,8 @@ export default function ConclusionSection() {
     <section className="space-y-6 text-sm text-gray-800">
       <h2 className="text-lg font-semibold text-blue-800">Závěr</h2>
 
-      {/* Čipy – rychlé vložení/odebrání vět */}
-      <div className="rounded-md border bg-white p-3">
+      {/* Rychlé věty – rychlé vložení/odebrání vět */}
+      <div data-guide-id="zv-snippets" className="rounded-md border bg-white p-3">
         <div className="flex items-center justify-between mb-2">
           <div className="text-xs text-gray-500">Rychlé věty</div>
           <button
@@ -194,7 +194,7 @@ export default function ConclusionSection() {
             className="text-xs px-3 py-1 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50"
             onClick={() => setManagerOpen(true)}
           >
-            Správa čipů
+            Správa rychlých vět
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -242,7 +242,7 @@ export default function ConclusionSection() {
       </div>
 
       {/* Editor výsledného textu */}
-      <div className="rounded-md border bg-white p-4 space-y-2">
+      <div data-guide-id="zv-text" className="rounded-md border bg-white p-4 space-y-2">
         <label className="text-sm font-medium">Text závěru (plně upravitelný)</label>
         <textarea
           className="w-full rounded border px-3 py-2 text-sm"
@@ -252,11 +252,11 @@ export default function ConclusionSection() {
             setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), text: e.target.value } }))
           }
         />
-        <p className="text-[11px] text-gray-500">Tip: čipy výše vloží/odeberou připravené odstavce. Můžete libovolně psát a mazat.</p>
+        <p className="text-[11px] text-gray-500">Tip: rychlé věty výše vloží/odeberou připravené odstavce. Můžete libovolně psát a mazat.</p>
       </div>
 
       {/* Bezpečnost a platnost revize */}
-      <fieldset className="space-y-2">
+      <fieldset data-guide-id="zv-safety" className="space-y-2">
         <legend className="text-sm font-medium">Posouzení bezpečnosti</legend>
         <label className="inline-flex items-center mr-4">
           <input
@@ -286,7 +286,7 @@ export default function ConclusionSection() {
         </label>
       </fieldset>
 
-      <div className="space-y-2">
+      <div data-guide-id="zv-validity" className="space-y-2">
         <label className="block text-sm font-medium">Platnost revize (doporučený termín další revize)</label>
         <input
           type="date"

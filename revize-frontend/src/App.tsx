@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+﻿import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import { UserProvider } from "./context/UserContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import InstrumentsPage from "./pages/InstrumentsPage";
+import AdminSnippetsPage from "./pages/AdminSnippetsPage";
 // (pokud máš RevisionFormProvider, obal i tím – viz komentáře níž)
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
               }
             />
             <Route path="/instruments" element={<InstrumentsPage />} />
+            <Route
+              path="/admin/snippets"
+              element={
+                <ProtectedRoute>
+                  <AdminSnippetsPage />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         {/* </RevisionFormProvider> */}
       </UserProvider>

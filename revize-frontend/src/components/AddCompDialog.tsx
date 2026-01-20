@@ -2,7 +2,7 @@
 import React, { ChangeEvent, useMemo } from "react";
 import { Komponenta } from "../context/RevisionFormContext";
 
-type CompWithParent = Komponenta & { parentId?: number | null };
+type CompWithParent = Komponenta & { parentId?: number | null; rowId?: number | null };
 
 interface AddCompDialogProps {
   newComp: CompWithParent;
@@ -15,8 +15,12 @@ interface AddCompDialogProps {
   models: { id: number; name: string }[];
   polesOptions: string[];
   dimenzeOptions: string[];
+  favoriteDimenze?: string[];
   parentCandidates: { id: number; label: string }[];
+  rowOptions?: { id: number; label: string }[];
+  onRowChange?: (rowId: number | null) => void;
   onParentChange: (pid: number | null) => void;
+  polesWarning?: string;
   onCancel: () => void;
   onAdd: () => void;
 }
@@ -32,11 +36,20 @@ export default function AddCompDialog({
   models,
   polesOptions,
   dimenzeOptions,
+  favoriteDimenze,
   parentCandidates,
+  rowOptions,
+  onRowChange,
   onParentChange,
+  polesWarning,
   onCancel,
   onAdd,
 }: AddCompDialogProps) {
+  const normalizeDim = (value: string) => value.toLowerCase().replace(/\s+/g, "");
+  const favoriteSet = useMemo(
+    () => new Set((favoriteDimenze || []).map((v) => normalizeDim(v))),
+    [favoriteDimenze]
+  );
   // zobrazit extra pole pro chránič / chráničojistič (RCBO)
   const showBreakerFields = useMemo(() => {
     const src = `${newComp.nazev || ""} ${newComp.typ || ""}`.toLowerCase();
@@ -49,6 +62,25 @@ export default function AddCompDialog({
         <h3 className="text-lg font-semibold mb-4">
           {(newComp as any).id ? "Upravit komponentu" : "Nová komponenta"}
         </h3>
+        {/* Rada */}
+        {rowOptions?.length ? (
+          <div className="mb-4">
+            <label className="block text-xs font-medium mb-1">Rada</label>
+            <select
+              className="w-full p-1.5 border rounded text-sm"
+              value={newComp.rowId ?? rowOptions[0]?.id ?? 1}
+              onChange={(e) => onRowChange?.(Number(e.target.value) || null)}
+            >
+              {rowOptions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
+
 
         {/* Nadřazený prvek */}
         <div className="mb-4">
@@ -79,7 +111,7 @@ export default function AddCompDialog({
               const val = e.target.value;
               if (val === "vlastni") {
                 setIsCustom(true);
-                setNewComp({ ...defaultComp, parentId: newComp.parentId ?? null });
+                setNewComp({ ...defaultComp, parentId: newComp.parentId ?? null, rowId: newComp.rowId ?? null });
               } else {
                 setIsCustom(false);
                 const txt = e.target.selectedOptions[0]?.text || "";
@@ -117,7 +149,7 @@ export default function AddCompDialog({
                 ["dimenze", "Dimenze"],
                 ["riso", "Riso [MΩ]"],
                 ["ochrana", "Ochrana [Ω]"],
-                ["poznamka", "Poznámka"],
+                ["poznamka", "Název obvodu"],
               ] as const).map(([field, label]) => (
                 <div key={field}>
                   <label className="block text-xs font-medium">{label}</label>
@@ -197,6 +229,11 @@ export default function AddCompDialog({
                     </option>
                   ))}
                 </select>
+                {polesWarning && (
+                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                    {polesWarning}
+                  </div>
+                )}
               </div>
 
               {/* Dimenze */}
@@ -210,7 +247,7 @@ export default function AddCompDialog({
                   <option value="">-- vyber --</option>
                   {dimenzeOptions.map((o) => (
                     <option key={o} value={o}>
-                      {o}
+                      {favoriteSet.has(normalizeDim(o)) ? `? ${o}` : o}
                     </option>
                   ))}
                 </select>
@@ -238,9 +275,9 @@ export default function AddCompDialog({
                 />
               </div>
 
-              {/* Poznámka */}
+              {/* N?zev obvodu */}
               <div className="col-span-2">
-                <label className="block text-xs font-medium">Poznámka</label>
+                <label className="block text-xs font-medium">N?zev obvodu</label>
                 <input
                   type="text"
                   className="w-full p-1.5 border rounded text-sm"

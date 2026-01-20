@@ -221,7 +221,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
-      <Sidebar mode="summary" />
+      <Sidebar mode="catalog" />
 
       <main className="flex-1 p-6">
         <h1 className="text-2xl font-semibold mb-4">👤 Profil & subjekt</h1>

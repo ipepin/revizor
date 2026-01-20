@@ -49,7 +49,7 @@ export default function ZkouskySection() {
         🔍 Provedené zkoušky
       </h2>
 
-      <div className="space-y-3">
+      <div data-guide-id="zk-tests" className="space-y-3">
         {defaultTests.map((label) => {
           const data: TestData = form.tests[label] ?? { checked: false, note: "" };
           return (

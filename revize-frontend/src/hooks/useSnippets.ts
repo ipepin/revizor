@@ -21,7 +21,7 @@ export function useSnippets(scope: SnippetScope) {
       const data = await fetchSnippets(scope);
       setItems(data);
     } catch (e: any) {
-      setError(e?.message || "Nepodařilo se načíst čipy");
+      setError(e?.message || "Nepodařilo se načíst rychlé věty");
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ export function useSnippets(scope: SnippetScope) {
   const addSnippet = useCallback(
     async (payload: { label: string; body: string }) => {
       const created = await createSnippet({ scope, ...payload });
-      // nové čipy necháme viditelné
+      // nové rychlé věty necháme viditelné
       setItems((prev) => [...prev, { ...created, visible: true }]);
       return created;
     },

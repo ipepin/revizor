@@ -27,10 +27,10 @@ def _ensure_access(user: UserModel, snippet: SnippetModel) -> None:
     is_admin = bool(getattr(user, "is_admin", False))
     if snippet.user_id is None:
         if not is_admin:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Pouze administrátor může upravit výchozí čip.")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Pouze administrátor může upravit výchozí rychlou větu.")
     else:
         if not (is_owner or is_admin):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Nemáte oprávnění k úpravě tohoto čipu.")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Nemáte oprávnění k úpravě této rychlé věty.")
 
 
 def _apply_visibility(snippets: List[SnippetModel], prefs: dict[int, SnippetPreferenceModel]) -> None:
@@ -42,7 +42,7 @@ def _apply_visibility(snippets: List[SnippetModel], prefs: dict[int, SnippetPref
 
 @router.get("", response_model=list[SnippetRead])
 def list_snippets(
-    scope: Literal["EI", "LPS"] = Query(..., description="Scope čipů"),
+    scope: Literal["EI", "LPS"] = Query(..., description="Scope rychlých vět"),
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
@@ -51,7 +51,7 @@ def list_snippets(
         or_(
             SnippetModel.user_id == None,  # noqa: E711
             SnippetModel.user_id == user.id,
-            SnippetModel.is_default == True,  # výchozí jsou viditelné všem
+            SnippetModel.is_default == True,
         ),
     )
     snippets = q.order_by(SnippetModel.is_default.desc(), SnippetModel.label.asc()).all()
@@ -89,7 +89,6 @@ def create_snippet(
     db.add(s)
     db.commit()
     db.refresh(s)
-    # vlastní čip je implicitně viditelný
     s.visible = True  # type: ignore[attr-defined]
     s.order_index = None  # type: ignore[attr-defined]
     return s
@@ -104,7 +103,7 @@ def update_snippet(
 ):
     s = db.query(SnippetModel).get(snippet_id)
     if not s:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Čip nenalezen.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Rychlá věta nenalezena.")
 
     _ensure_access(user, s)
 
@@ -117,7 +116,6 @@ def update_snippet(
 
     db.commit()
     db.refresh(s)
-    # doplň viditelnost, pokud existuje preference
     pref = (
         db.query(SnippetPreferenceModel)
         .filter(
@@ -139,7 +137,7 @@ def delete_snippet(
 ):
     s = db.query(SnippetModel).get(snippet_id)
     if not s:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Čip nenalezen.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Rychlá věta nenalezena.")
     _ensure_access(user, s)
     db.delete(s)
     db.commit()
@@ -155,9 +153,8 @@ def set_visibility(
 ):
     s = db.query(SnippetModel).get(snippet_id)
     if not s:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Čip nenalezen.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Rychlá věta nenalezena.")
 
-    # viditelnost může nastavovat každý uživatel pro libovolný dostupný čip (defaulty i vlastní)
     pref = (
         db.query(SnippetPreferenceModel)
         .filter(
@@ -213,7 +210,7 @@ def admin_promote_snippet(
     _ensure_admin(user)
     src = db.query(SnippetModel).get(snippet_id)
     if not src:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Čip nenalezen.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Rychlá věta nenalezena.")
     existing = (
         db.query(SnippetModel)
         .filter(
@@ -231,3 +228,36 @@ def admin_promote_snippet(
     db.refresh(new_snip)
     new_snip.visible = True  # type: ignore[attr-defined]
     return new_snip
+
+
+@router.post("/admin/default", response_model=SnippetRead, status_code=status.HTTP_201_CREATED)
+def admin_create_default_snippet(
+    payload: SnippetCreate,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    """Admin vytvoří přímo výchozí rychlou větu."""
+    _ensure_admin(user)
+    exists = (
+        db.query(SnippetModel)
+        .filter(
+            SnippetModel.scope == SnippetScope(payload.scope),
+            SnippetModel.label == payload.label.strip(),
+            SnippetModel.is_default == True,  # noqa: E712
+        )
+        .first()
+    )
+    if exists:
+        return exists
+    s = SnippetModel(
+        scope=SnippetScope(payload.scope),
+        label=payload.label.strip(),
+        body=payload.body,
+        user_id=None,
+        is_default=True,
+    )
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    s.visible = True  # type: ignore[attr-defined]
+    return s

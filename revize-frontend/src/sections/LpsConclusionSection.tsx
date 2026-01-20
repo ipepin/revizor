@@ -119,7 +119,7 @@ export default function LpsConclusionSection() {
               className="text-xs px-3 py-1 rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50"
               onClick={() => setManagerOpen(true)}
             >
-              Správa čipů
+              Správa rychlých vět
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -155,7 +155,7 @@ export default function LpsConclusionSection() {
               setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), text: e.target.value } }))
             }
           />
-          <p className="text-[11px] text-gray-500">Tip: čipy výše vloží/odeberou připravené odstavce. Můžete libovolně psát a mazat.</p>
+          <p className="text-[11px] text-gray-500">Tip: rychlé věty výše vloží/odeberou připravené odstavce. Můžete libovolně psát a mazat.</p>
         </div>
 
         <fieldset className="space-y-2">
