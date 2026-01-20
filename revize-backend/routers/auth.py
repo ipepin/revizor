@@ -5,14 +5,17 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime
 import secrets
+import logging
 
 from database import get_db
 from models import User
 from utils.security import hash_password, verify_password, create_access_token
 from routers.deps import get_current_user
 from utils.ticr_client import verify_against_ticr
+from utils.mailersend import send_verification_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 # ---------- Schemas ----------
 class RegisterIn(BaseModel):
@@ -84,6 +87,17 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    email_sent = False
+    if verification_token:
+        try:
+            email_sent = send_verification_email(
+                to_email=user.email,
+                to_name=user.name,
+                token=verification_token,
+            )
+        except Exception as exc:
+            logger.warning("Verification email failed: %s", exc)
+
     # Store rt_* fields best-effort
     try:
         sql = text(
@@ -114,6 +128,7 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
         "is_verified": user.is_verified,
         "verification_token": user.verification_token,
         "rt_status": verify.get("status"),
+        "email_sent": email_sent,
     }
 
 class RtLookupIn(BaseModel):
