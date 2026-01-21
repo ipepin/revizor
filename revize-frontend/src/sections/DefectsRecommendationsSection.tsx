@@ -344,7 +344,7 @@ export default function DefectsRecommendationsSection() {
       <textarea
         data-guide-id="def-text"
         className="w-full rounded border px-3 py-1.5 text-sm whitespace-pre-wrap"
-        rows={6}
+        rows={10}
         placeholder="Každá závada na samostatném řádku"
         value={defectsText}
         onChange={onChangeTextarea}

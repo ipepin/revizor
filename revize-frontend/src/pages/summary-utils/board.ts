@@ -78,6 +78,15 @@ export const num = (x: any) => {
   return Number.isFinite(n) ? String(n) : String(x);
 };
 
+/** Sestaví zobrazený název komponenty: Název + Výborce + Typ */
+export function buildComponentTitle(c: any): string {
+  const name = pick(c, ["nazev", "name"]);
+  const manufacturer = pick(c, ["vyrobce", "manufacturer", "maker", "popis", "description"]);
+  const typ = pick(c, ["typ", "type", "model"]);
+  return [name, manufacturer, typ].filter((v) => String(v || "").trim()).join(" ");
+}
+
+
 /** Poskládá “inline” řádek parametrů komponenty (typ • póly • dim. • Riso • Zs • t • IΔ • Uᵢ • Pozn.) */
 export function buildComponentLine(c: any): string {
   const parts: string[] = [];

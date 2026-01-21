@@ -82,7 +82,7 @@ export default function UserSnippetsPage() {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
       <Sidebar mode="catalog" />
-      <main className="flex-1 p-6 space-y-4">
+      <main className="flex-1 p-6 space-y-4 catalog-main">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-blue-800">Katalog rychlých vět</h1>

@@ -22,6 +22,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminNormsPage from "./pages/admin/AdminNormsPage";
 import ProfilePage from "./pages/ProfilPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
+import InspectionTemplatesPage from "./pages/InspectionTemplatesPage";
 import VvEditor from "./pages/VvEditor";
 import LpsEditPage from "./pages/LpsEditPage";
 import AdminSnippetsPage from "./pages/AdminSnippetsPage";
@@ -103,6 +104,14 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
                 element={
                   <ProtectedRoute>
                     <InstrumentsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/inspection-templates"
+                element={
+                  <ProtectedRoute>
+                    <InspectionTemplatesPage />
                   </ProtectedRoute>
                 }
               />

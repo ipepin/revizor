@@ -185,6 +185,11 @@ class NormScope(str, _enum.Enum):
     LPS = "LPS"
 
 
+class InspectionTemplateScope(str, _enum.Enum):
+    EI = "EI"
+    LPS = "LPS"
+
+
 class Norm(Base):
     __tablename__ = "norms"
 
@@ -239,6 +244,25 @@ class SnippetPreference(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "snippet_id", name="uq_snippet_pref_unique"),
+    )
+
+
+class InspectionTemplate(Base):
+    __tablename__ = "inspection_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope = Column(Enum(InspectionTemplateScope), nullable=False)
+    label = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_default = Column(Boolean, nullable=False, default=False, server_default="0")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "scope", "label", name="uq_inspection_template_label_per_user_scope"),
     )
 
 

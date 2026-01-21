@@ -161,7 +161,7 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Druh s?t?</label>
+          <label className="font-semibold">Druh sítě</label>
           <select className="p-2 border rounded w-full" value={form.sit || ""} onChange={onField("sit")}>
             <option value="" disabled>- vyberte -</option>
             {networkTypes.map((opt) => (
@@ -170,7 +170,7 @@ export default function IdentifikaceSection() {
           </select>
         </div>
         <div>
-          <label className="font-semibold">Jmenovit? nap?t?</label>
+          <label className="font-semibold">Jmenovité napětí</label>
           <input list="voltages" className="p-2 border rounded w-full" value={form.voltage || ""} onChange={onField("voltage")} />
           <datalist id="voltages">
             {voltageOptions.map((v) => (

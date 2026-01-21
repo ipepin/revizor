@@ -14,6 +14,7 @@ from routers.auth import get_current_user
 from schemas import DefectRead
 from utils.security import hash_password
 from utils.ticr_client import verify_against_ticr
+from utils.mailersend import send_email
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -509,5 +510,31 @@ def rt_lookup_admin(
     except Exception:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="TIČR dočasně nedostupný")
     return result
+
+
+class AdminEmailTestIn(BaseModel):
+    to_email: EmailStr = "blazek1.jo@gmail.com"
+    subject: str = "Testovaci email"
+    message: str = "Ahoj! Toto je testovaci email z Revizoru."
+
+
+@router.post("/email/test")
+def send_test_email(
+    payload: AdminEmailTestIn,
+    user: UserModel = Depends(get_current_user),
+):
+    _ensure_admin(user)
+    text = payload.message
+    html = f"<p>{payload.message}</p>"
+    ok = send_email(
+        to_email=payload.to_email,
+        subject=payload.subject,
+        text=text,
+        html=html,
+        to_name=payload.to_email,
+    )
+    if not ok:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Odeslani emailu selhalo")
+    return {"ok": True}
 
 

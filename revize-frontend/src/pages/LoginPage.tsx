@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LucideBolt } from "lucide-react";
+import lbRevizeLogo from "../pngs/lb-revize.png";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,12 +30,12 @@ const LoginPage: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary to-secondary text-base-content px-4">
       {/* Logo */}
-      <div className="flex items-center gap-3 mb-8 select-none">
-        <LucideBolt className="w-10 h-10 text-accent" />
-        <h1 className="text-4xl font-extrabold tracking-tight">
-          Revizor <span className="text-accent-content">0.1</span>
-          <span className="text-sm font-normal ml-2">by JB</span>
-        </h1>
+      <div className="flex items-center justify-center mb-0 select-none">
+        <img
+          src={lbRevizeLogo}
+          alt="LB-Revize"
+          className="w-full max-w-xs sm:max-w-sm"
+        />
       </div>
 
       {/* Glass card */}

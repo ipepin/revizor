@@ -33,7 +33,7 @@ import {
   makeFooter,
 } from "../summary-utils/docx";
 
-import { normalizeComponents, depthPrefix, pick, num } from "../summary-utils/board";
+import { normalizeComponents, depthPrefix, pick, num, buildComponentTitle } from "../summary-utils/board";
 import { dash, stripHtml } from "../summary-utils/text";
 import { dataUrlToBytes, getSketchSize } from "./lpsWordBuilder";
 
@@ -48,14 +48,28 @@ type GenArgs = {
 
 /* ---------- Lokální helpery ---------- */
 
-const MAX_SCHEMA_WIDTH_PX = 750;
-const MAX_SCHEMA_HEIGHT_PX = 520;
+const PAGE_WIDTH_MM = 210;
+const PAGE_HEIGHT_MM = 297;
+const PAGE_MARGIN_MM = 14;
+const MAX_SCHEMA_WIDTH_PX = Math.round(((PAGE_WIDTH_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96);
+const MAX_SCHEMA_HEIGHT_PX = Math.round(((PAGE_HEIGHT_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96);
 
 function calculateSchemaTransform(size?: { width: number; height: number }) {
-  if (!size) return { width: MAX_SCHEMA_WIDTH_PX, height: Math.min(MAX_SCHEMA_WIDTH_PX * 0.6, MAX_SCHEMA_HEIGHT_PX) };
-  const width = Math.min(size.width, MAX_SCHEMA_WIDTH_PX);
-  const height = Math.min(size.height, MAX_SCHEMA_HEIGHT_PX);
-  return { width, height };
+  if (!size) {
+    return {
+      width: MAX_SCHEMA_WIDTH_PX,
+      height: Math.min(Math.round(MAX_SCHEMA_WIDTH_PX * 0.6), MAX_SCHEMA_HEIGHT_PX),
+    };
+  }
+  const scale = Math.min(
+    MAX_SCHEMA_WIDTH_PX / size.width,
+    MAX_SCHEMA_HEIGHT_PX / size.height,
+    1
+  );
+  return {
+    width: Math.round(size.width * scale),
+    height: Math.round(size.height * scale),
+  };
 }
 
 const labelRun = (t: string) =>
@@ -190,6 +204,7 @@ export async function generateSummaryDocx({
   normsAll,
   usedInstruments,
   revId,
+  schemaImages,
 }: GenArgs) {
   // ---------- Head / titul ----------
   const headTitle: Paragraph[] = [
@@ -323,22 +338,10 @@ export async function generateSummaryDocx({
       const details = `Výrobce: ${dash(b?.vyrobce)} | Typ: ${dash(b?.typ)} | Umístění: ${dash(b?.umisteni)} | S/N: ${dash(b?.vyrobniCislo)} | Napětí: ${dash(b?.napeti)} | Odpor: ${dash(b?.odpor)} | IP: ${dash(b?.ip)}`;
       boardsBlocks.push(P(details, { color: COL_MUTE, size: XS, after: 60 }));
 
-      const schemaDataUrl = schemaImages?.[String(b?.id)];
-      const schemaBytes = dataUrlToBytes(schemaDataUrl);
-      if (schemaBytes) {
-        const schemaSize = await getSketchSize(schemaDataUrl);
-        boardsBlocks.push(
-          new Paragraph({
-            children: [new ImageRun({ data: schemaBytes, transformation: calculateSchemaTransform(schemaSize) })],
-            spacing: { after: 200 },
-          })
-        );
-      }
-
       const flat = normalizeComponents(b?.komponenty || []);
       const rows = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
         const prefix = depthPrefix(c._level);
-        const name = dash(c?.nazev || c?.name) || "—";
+        const name = dash(buildComponentTitle(c)) || "?";
         const desc = dash(c?.popis || c?.description || "");
 
         const typ = pick(c, ["typ", "type", "druh"]);
@@ -395,6 +398,35 @@ export async function generateSummaryDocx({
           ),
         })
       );
+      boardsBlocks.push(P("", { after: 60 }));
+      boardsBlocks.push(P("", { after: 60 }));
+
+      const schemaTitle = `Schéma rozvaděče: ${dash(b?.name) || `#${idx + 1}`}`;
+      boardsBlocks.push(P(schemaTitle, { bold: true, size: XS, after: 40 }));
+
+      const schemaDataUrl = schemaImages?.[String(b?.id)];
+      const schemaBytes = dataUrlToBytes(schemaDataUrl);
+      if (schemaBytes) {
+        const schemaSize = await getSketchSize(schemaDataUrl);
+        boardsBlocks.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new ImageRun({ data: schemaBytes, transformation: calculateSchemaTransform(schemaSize) })],
+            spacing: { before: 120, after: 200 },
+          })
+        );
+      }
+
+      if (idx < (safeForm.boards || []).length - 1) {
+        boardsBlocks.push(
+          new Paragraph({
+            border: {
+              bottom: { style: BorderStyle.SINGLE, size: 6, color: "e2e8f0" },
+            },
+            spacing: { before: 120, after: 120 },
+          })
+        );
+      }
     }
   }
 

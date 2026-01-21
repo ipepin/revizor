@@ -160,7 +160,9 @@ export default function RozvadecePanel() {
 
   // full name for labels
   const fullName = (c: Partial<GraphComp>) =>
-    [c.nazev, c.popis, c.typ].filter((x) => (x ?? "").toString().trim()).join(" ");
+    [c.nazev || c.name, c.vyrobce || c.popis, c.typ]
+      .filter((x) => (x ?? "").toString().trim())
+      .join(" ");
 
   const boardRows = useMemo(() => {
     if (!selectedBoard) return [] as { id: number; name: string }[];
@@ -238,7 +240,7 @@ export default function RozvadecePanel() {
     const parentPoles = (parent.poles || "").toString().trim();
     const childPoles = (newComp.poles || "").toString().trim();
     if (["1", "1+N"].includes(parentPoles) && ["3", "3+N"].includes(childPoles)) {
-      return "Varovani: nadrzeny prvek je 1f, ale vybran 3f prvek.";
+      return "Varování: nadřazený prvek je 1f, ale vybraný prvek je 3f.";
     }
     return "";
   }, [selectedBoard, newComp.parentId, newComp.poles]);
@@ -325,7 +327,7 @@ export default function RozvadecePanel() {
           className={`inline-flex items-center px-4 py-2 rounded-full border text-base whitespace-normal break-words w-full ${
             isMismatch ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-100"
           }`}
-          title={isMismatch ? "Nadrzeny prvek je 1f, ale tento prvek je 3f." : undefined}
+          title={isMismatch ? "Nadřazený prvek je 1f, ale tento prvek je 3f." : undefined}
         >
           {label}
         </span>
@@ -681,7 +683,6 @@ export default function RozvadecePanel() {
                   + Přidat řadu
                 </button>
               </div>
-
               <div className="space-y-4">
                 {boardRows.map((row) => {
                   const rowItems = (selectedBoard.komponenty as GraphComp[]).filter(
@@ -707,7 +708,7 @@ export default function RozvadecePanel() {
                           </button>
                           <button
                             className="text-xs border px-2 py-1 rounded"
-                            title="Dolu"
+                            title="Dolů"
                             onClick={() => moveRow(row.id, 1)}
                           >
                             v
@@ -975,7 +976,7 @@ function CompactDiagram({
   onMoveDown,
   onCopy,
   onDelete,
-  // inline poznámka:
+  // inline pozn?mka:
   onStartEditNote,
   editingNoteId,
   noteDraft,
@@ -1000,37 +1001,39 @@ function CompactDiagram({
 }) {
   const render = (node: any, depth: number): React.ReactNode => {
     const hasChildren = (node.children?.length ?? 0) > 0;
+    const title =
+      [node.nazev || node.name, node.vyrobce || node.popis, node.typ]
+        .filter((v) => (v ?? "").toString().trim())
+        .join(" ") || fullName(node);
     return (
       <div key={node.id}>
-        {/* řádek uzlu */}
+        {/* ??dek uzlu */}
         <div
           className="flex items-center gap-2 px-2 py-1.5 border-b hover:bg-blue-50/40"
-            style={{ paddingLeft: BASE_INDENT + depth * INDENT_PER_LEVEL }}
-
+          style={{ paddingLeft: BASE_INDENT + depth * INDENT_PER_LEVEL }}
         >
           <div className="flex-1 min-w-0">
-            <div className="truncate font-medium">
-              {node.cislo ? `${node.cislo} – ` : ""}
-              {fullName(node)}
+            <div className="truncate font-semibold text-[13px]">
+              {node.cislo ? `${node.cislo} • ` : ""}
+              {title}
             </div>
-            {/* bublina s detaily (menší písmo, 2 řádky max) */}
-            <div className="text-[14px] text-gray-600 line-clamp-2" style={clamp2}>
-              {node.poles && <span className="mr-3">póly: {node.poles}</span>}
+            {/* bublina s detaily (men?? p?smo, 2 ??dky max) */}
+            <div className="text-[12px] text-gray-600 line-clamp-2" style={clamp2}>
+              {node.poles && <span className="mr-3">p?ly: {node.poles}</span>}
               {node.dimenze && <span className="mr-3">dim.: {node.dimenze}</span>}
-              {node.riso && <span className="mr-3">Riso: {node.riso} Ω</span>}
+              {node.riso && <span className="mr-3">Riso: {node.riso} MΩ</span>}
               {node.ochrana && <span className="mr-3">Zs: {node.ochrana} Ω</span>}
-              {/* NOVÉ – zobrazit jen pokud existují */}
               {node.vybavovaciCasMs && (
-                <span className="mr-3">tᵣ: {node.vybavovaciCasMs} ms</span>
+                <span className="mr-3">tΔ: {node.vybavovaciCasMs} ms</span>
               )}
               {node.vybavovaciProudmA && (
-                <span className="mr-3">Iᵣ: {node.vybavovaciProudmA} mA</span>
+                <span className="mr-3">IΔ: {node.vybavovaciProudmA} mA</span>
               )}
               {node.dotykoveNapetiV && (
-                <span className="mr-3">Uₜ: {node.dotykoveNapetiV} V</span>
+                <span className="mr-3">U_t: {node.dotykoveNapetiV} V</span>
               )}
 
-              {/* Poznámka – dvojklikem editor */}
+              {/* Pozn?mka ? dvojklikem editor */}
               {editingNoteId === node.id ? (
                 <span className="inline-flex items-center gap-1">
                   <input
@@ -1049,54 +1052,54 @@ function CompactDiagram({
                     className="text-[12px] px-1 py-0.5 border rounded"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onSaveNote(node.id)}
-                    title="Uložit"
+                    title="Ulo?it"
                   >
-                    Uložit
+                    Ulo?it
                   </button>
                   <button
                     className="text-[12px] px-1 py-0.5 border rounded"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={onCancelNote}
-                    title="Zrušit"
+                    title="Zru?it"
                   >
-                    Zrušit
+                    Zru?it
                   </button>
                 </span>
               ) : (
                 <span
                   className="italic"
                   onDoubleClick={() => onStartEditNote(node.id, node.poznamka || "")}
-                  title="Dvojklikem upravit poznámku"
+                  title="Dvojklikem upravit pozn?mku"
                   style={{ cursor: "text" }}
                 >
-                  Název obvodu: {node.poznamka || "—"}
+                  N?zev obvodu: {node.poznamka || "—"}
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1 whitespace-nowrap">
             <button className="text-xs border px-2 py-0.5 rounded" title="Upravit" onClick={() => onEdit(node.id)}>
-              ✏️
+              ??
             </button>
             <button className="text-xs border px-2 py-0.5 rounded" title="Nahoru" onClick={() => onMoveUp(node.id)}>
-              ▲
+              ?
             </button>
-            <button className="text-xs border px-2 py-0.5 rounded" title="Dolů" onClick={() => onMoveDown(node.id)}>
-              ▼
+            <button className="text-xs border px-2 py-0.5 rounded" title="Dol?" onClick={() => onMoveDown(node.id)}>
+              ?
             </button>
-            <button className="text-xs border px-2 py-0.5 rounded" title="Kopírovat" onClick={() => onCopy(node.id)}>
-              📄
+            <button className="text-xs border px-2 py-0.5 rounded" title="Kop?rovat" onClick={() => onCopy(node.id)}>
+              ??
             </button>
             <button
               className="text-xs bg-red-600 text-white px-2 py-0.5 rounded"
               title="Smazat"
               onClick={() => onDelete(node.id)}
             >
-              🗑️
+              ??
             </button>
             <button
               className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded"
-              title="Přidat potomka"
+              title="P?idat potomka"
               onClick={() => onAddChild(node.id)}
             >
               +
@@ -1104,7 +1107,7 @@ function CompactDiagram({
           </div>
         </div>
 
-        {/* děti */}
+        {/* d?ti */}
         {hasChildren && node.children.map((ch: any) => render(ch, depth + 1))}
       </div>
     );
@@ -1112,7 +1115,7 @@ function CompactDiagram({
 
   return (
     <div className="w-full border rounded">
-      {roots.length ? roots.map((n) => render(n, 0)) : <div className="p-3 text-gray-500">Žádné prvky.</div>}
+      {roots.length ? roots.map((n) => render(n, 0)) : <div className="p-3 text-gray-500">??dn? prvky.</div>}
     </div>
   );
 }

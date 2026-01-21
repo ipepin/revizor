@@ -1,6 +1,7 @@
 // src/components/AddCompDialog.tsx
-import React, { ChangeEvent, useMemo } from "react";
+import React, { ChangeEvent, useMemo, useState, useEffect } from "react";
 import { Komponenta } from "../context/RevisionFormContext";
+import api from "../api/axios";
 
 type CompWithParent = Komponenta & { parentId?: number | null; rowId?: number | null };
 
@@ -50,10 +51,132 @@ export default function AddCompDialog({
     () => new Set((favoriteDimenze || []).map((v) => normalizeDim(v))),
     [favoriteDimenze]
   );
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [modelCache, setModelCache] = useState<Record<string, { id: number; name: string }[]>>({});
+  const [searchBusy, setSearchBusy] = useState(false);
+
+  const typeName = useMemo(() => {
+    return (
+      newComp.nazev ||
+      types.find((t) => String(t.id) === String(newComp.nazevId))?.name ||
+      ""
+    );
+  }, [newComp.nazev, newComp.nazevId, types]);
+
+  const fetchModelsForSearch = async () => {
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+    const pending = manufacturers.filter((m) => !modelCache[String(m.id)]);
+    if (!pending.length) return;
+    setSearchBusy(true);
+    try {
+      const results = await Promise.all(
+        pending.map((m) =>
+          api
+            .get("/catalog/models", { params: { manufacturer_id: m.id } })
+            .then((r) => ({ id: m.id, rows: Array.isArray(r.data) ? r.data : [] }))
+            .catch(() => ({ id: m.id, rows: [] }))
+        )
+      );
+      setModelCache((prev) => {
+        const next = { ...prev };
+        results.forEach((r) => {
+          next[String(r.id)] = r.rows;
+        });
+        return next;
+      });
+    } finally {
+      setSearchBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchModelsForSearch();
+  }, [searchQuery, manufacturers]);
+
+  const searchOptions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    const out: {
+      kind: "type" | "manufacturer" | "model";
+      id: string;
+      label: string;
+      manufacturerId?: string;
+    }[] = [];
+
+    types.forEach((t) => {
+      if (t.name.toLowerCase().includes(q)) {
+        out.push({ kind: "type", id: String(t.id), label: t.name });
+      }
+    });
+
+    manufacturers.forEach((m) => {
+      if (m.name.toLowerCase().includes(q)) {
+        out.push({ kind: "manufacturer", id: String(m.id), label: m.name });
+      }
+      const modelsForM = modelCache[String(m.id)] || [];
+      modelsForM.forEach((model) => {
+        const fullLabel = `${m.name} ${model.name}`;
+        if (fullLabel.toLowerCase().includes(q) || model.name.toLowerCase().includes(q)) {
+          const prefix = [typeName, m.name, model.name].filter((v) => v.trim()).join(" ");
+          out.push({
+            kind: "model",
+            id: String(model.id),
+            label: prefix || fullLabel,
+            manufacturerId: String(m.id),
+          });
+        }
+      });
+    });
+
+    return out.slice(0, 15);
+  }, [searchQuery, types, manufacturers, modelCache, typeName]);
+
+  const handleSearchSelect = (opt: {
+    kind: "type" | "manufacturer" | "model";
+    id: string;
+    label: string;
+    manufacturerId?: string;
+  }) => {
+    if (opt.kind === "type") {
+      setIsCustom(false);
+      setNewComp({
+        ...defaultComp,
+        parentId: newComp.parentId ?? null,
+        rowId: newComp.rowId ?? null,
+        nazevId: opt.id,
+        nazev: opt.label,
+      });
+    } else if (opt.kind === "manufacturer") {
+      setNewComp((c) => ({
+        ...c,
+        popisId: opt.id,
+        popis: opt.label,
+        typId: "",
+        typ: "",
+      }));
+    } else if (opt.kind === "model") {
+      const manufacturer = manufacturers.find((m) => String(m.id) === opt.manufacturerId);
+      const modelName = opt.label
+        .replace(typeName, "")
+        .replace(manufacturer?.name || "", "")
+        .trim();
+      setNewComp((c) => ({
+        ...c,
+        popisId: manufacturer ? String(manufacturer.id) : c.popisId,
+        popis: manufacturer ? manufacturer.name : c.popis,
+        typId: opt.id,
+        typ: modelName || opt.label,
+      }));
+    }
+    setSearchQuery("");
+  };
+
   // zobrazit extra pole pro chránič / chráničojistič (RCBO)
   const showBreakerFields = useMemo(() => {
     const src = `${newComp.nazev || ""} ${newComp.typ || ""}`.toLowerCase();
-    return /chránič|jističochránič|rcd|rcbo/.test(src);
+    return /chránič|jističochranič|rcd|rcbo/.test(src);
   }, [newComp.nazev, newComp.typ]);
 
   return (
@@ -62,10 +185,11 @@ export default function AddCompDialog({
         <h3 className="text-lg font-semibold mb-4">
           {(newComp as any).id ? "Upravit komponentu" : "Nová komponenta"}
         </h3>
-        {/* Rada */}
+
+        {/* Řada */}
         {rowOptions?.length ? (
           <div className="mb-4">
-            <label className="block text-xs font-medium mb-1">Rada</label>
+            <label className="block text-xs font-medium mb-1">Řada</label>
             <select
               className="w-full p-1.5 border rounded text-sm"
               value={newComp.rowId ?? rowOptions[0]?.id ?? 1}
@@ -79,8 +203,6 @@ export default function AddCompDialog({
             </select>
           </div>
         ) : null}
-
-
 
         {/* Nadřazený prvek */}
         <div className="mb-4">
@@ -99,6 +221,35 @@ export default function AddCompDialog({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Vyhledávání v katalogu */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium mb-1">Vyhledat v katalogu</label>
+          <input
+            className="w-full p-1.5 border rounded text-sm"
+            placeholder="Napiš např. Eaton nebo PL7"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchBusy && <div className="mt-1 text-xs text-gray-500">Načítám možnosti…</div>}
+          {searchOptions.length > 0 && (
+            <div className="mt-1 border rounded bg-white max-h-48 overflow-auto text-sm">
+              {searchOptions.map((opt) => (
+                <button
+                  key={`${opt.kind}-${opt.id}-${opt.manufacturerId || ""}`}
+                  type="button"
+                  className="w-full text-left px-2 py-1 hover:bg-slate-100"
+                  onClick={() => handleSearchSelect(opt)}
+                >
+                  <span className="text-[11px] uppercase text-slate-500 mr-2">
+                    {opt.kind === "type" ? "Přístroj" : opt.kind === "manufacturer" ? "Výrobce" : "Model"}
+                  </span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Přístroj */}
@@ -137,7 +288,7 @@ export default function AddCompDialog({
           </select>
         </div>
 
-        {/* TĚLO FORMULÁŘE: 2 sloupce, menší inputy */}
+        {/* Tělo formuláře: 2 sloupce */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {isCustom ? (
             <>
@@ -247,7 +398,7 @@ export default function AddCompDialog({
                   <option value="">-- vyber --</option>
                   {dimenzeOptions.map((o) => (
                     <option key={o} value={o}>
-                      {favoriteSet.has(normalizeDim(o)) ? `? ${o}` : o}
+                      {favoriteSet.has(normalizeDim(o)) ? `★ ${o}` : o}
                     </option>
                   ))}
                 </select>
@@ -264,9 +415,9 @@ export default function AddCompDialog({
                 />
               </div>
 
-              {/* Ochrana */}
+              {/* Zs */}
               <div>
-                <label className="block text-xs font-medium">Ochrana [Ω]</label>
+                <label className="block text-xs font-medium">Zs [Ω]</label>
                 <input
                   type="text"
                   className="w-full p-1.5 border rounded text-sm"
@@ -275,9 +426,9 @@ export default function AddCompDialog({
                 />
               </div>
 
-              {/* N?zev obvodu */}
+              {/* Název obvodu */}
               <div className="col-span-2">
-                <label className="block text-xs font-medium">N?zev obvodu</label>
+                <label className="block text-xs font-medium">Název obvodu</label>
                 <input
                   type="text"
                   className="w-full p-1.5 border rounded text-sm"
@@ -287,54 +438,20 @@ export default function AddCompDialog({
               </div>
             </>
           )}
-
-          {/* Extra pole pro chránič / chráničojistič – v obou režimech */}
-          {showBreakerFields && (
-            <>
-              <div>
-                <label className="block text-xs font-medium">Vybavovací čas [ms]</label>
-                <input
-                  type="number"
-                  className="w-full p-1.5 border rounded text-sm"
-                  value={(newComp as any).vybavovaciCasMs || ""}
-                  onChange={(e) =>
-                    setNewComp((c) => ({ ...(c as any), vybavovaciCasMs: e.target.value }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium">Vybavovací proud [mA]</label>
-                <input
-                  type="number"
-                  className="w-full p-1.5 border rounded text-sm"
-                  value={(newComp as any).vybavovaciProudmA || ""}
-                  onChange={(e) =>
-                    setNewComp((c) => ({ ...(c as any), vybavovaciProudmA: e.target.value }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium">Dotykové napětí [V]</label>
-                <input
-                  type="number"
-                  className="w-full p-1.5 border rounded text-sm"
-                  value={(newComp as any).dotykoveNapetiV || ""}
-                  onChange={(e) =>
-                    setNewComp((c) => ({ ...(c as any), dotykoveNapetiV: e.target.value }))
-                  }
-                />
-              </div>
-            </>
-          )}
         </div>
 
-        {/* Akční tlačítka */}
+        {showBreakerFields && (
+          <div className="text-xs text-gray-500 mb-4">
+            U proudových chráničů a chráničojističů vyplňte také vybavovací proud a čas.
+          </div>
+        )}
+
         <div className="flex justify-end gap-2">
-          <button className="bg-gray-300 px-4 py-2 rounded" onClick={onCancel}>
+          <button className="px-4 py-2 bg-gray-300 rounded" onClick={onCancel}>
             Zrušit
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={onAdd}>
-            {(newComp as any).id ? "Uložit změny" : "Přidat komponentu"}
+          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={onAdd}>
+            {(newComp as any).id ? "Uložit" : "Přidat"}
           </button>
         </div>
       </div>

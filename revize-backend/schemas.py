@@ -146,6 +146,34 @@ class UserProfileRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ==========================
+# INSPECTION TEMPLATES
+# ==========================
+class InspectionTemplateCreate(BaseModel):
+    scope: Literal["EI", "LPS"]
+    label: str
+    body: str
+
+
+class InspectionTemplateUpdate(BaseModel):
+    scope: Optional[Literal["EI", "LPS"]] = None
+    label: Optional[str] = None
+    body: Optional[str] = None
+
+
+class InspectionTemplateRead(BaseModel):
+    id: int
+    scope: Literal["EI", "LPS"]
+    label: str
+    body: str
+    user_id: Optional[int] = None
+    is_default: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserProfileUpdate(BaseModel):
     user_id: Optional[int] = None
     name: Optional[str] = None

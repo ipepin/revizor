@@ -152,7 +152,7 @@ export default function InstrumentsPage() {
     <div className="min-h-screen flex bg-gray-100">
       <Sidebar mode="dashboard" />
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 catalog-main">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-semibold">Měřicí přístroje</h1>
           {editId === null && (

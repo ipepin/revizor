@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useAuth } from "../context/AuthContext";
+import lbRevizeLogo from "../pngs/lb-revize.png";
 
 type Props = {
   mode: "dashboard" | "edit" | "catalog" | "summary";
@@ -80,10 +81,13 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
         <div>
           {/* Hlavicka se jménem technika, číslem osvědčení a aktivním subjektem */}
           <div className="text-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-blue-500/20 text-blue-900 mx-auto mb-2 shadow-inner flex items-center justify-center text-2xl font-semibold">
-              {initial}
+            <div className="-mb-8 flex justify-center">
+              <img
+                src={lbRevizeLogo}
+                alt="LB-Revize"
+                className="w-full max-w-[160px]"
+              />
             </div>
-
             <div className="font-bold text-blue-900">
               {profile?.fullName ?? (loading ? "Načítám…" : "—")}
             </div>
@@ -142,12 +146,14 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
 
           {/* Režim DASHBOARD – tlačítko Nový projekt (NE na instruments) */}
           {mode === "dashboard" && !isInstruments && (
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded mb-2 hover:bg-blue-700 transition"
-              onClick={() => onNewProject?.()}
-            >
-              + Nový projekt
-            </button>
+            <div className="flex justify-center mb-2">
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+                onClick={() => onNewProject?.()}
+              >
+                + Nový projekt
+              </button>
+            </div>
           )}
 
           {/* Režimy CATALOG / SUMMARY / INSTRUMENTS – jen „Zpět na projekty“ */}
@@ -277,13 +283,19 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                   }`}
                   onClick={() => go("/katalog")}
                 >
-                  Katalog
+                  Katalog komponent
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
                   onClick={() => go("/snippets")}
                 >
                   Katalog rychlých vět
+                </li>
+                <li
+                  className="p-2 hover:bg-gray-100 cursor-pointer"
+                  onClick={() => go("/inspection-templates")}
+                >
+                  Katalog vzorových textů
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
@@ -314,8 +326,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                   }}
                 >
                   Odhlásit se
-                </li>
-              </ul>
+                </li></ul>
             )}
           </div>
         </div>
