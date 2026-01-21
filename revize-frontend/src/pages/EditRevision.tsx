@@ -338,9 +338,10 @@ export default function EditRevision() {
   const { revId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, userEmail } = useAuth();
   const [revType, setRevType] = useState<string>('');
   const isTraining = new URLSearchParams(location.search).get("training") === "1";
+  const trainingKey = userEmail ? `revize_training_${userEmail}` : "revize_training";
 
   const [activeSection, setActiveSection] = useState("identifikace");
   const [loading, setLoading] = useState(true);
@@ -351,6 +352,7 @@ export default function EditRevision() {
     new URLSearchParams(location.search).get("guide") === "1"
   );
   const [guideIndex, setGuideIndex] = useState(0);
+  const [showLpsPrompt, setShowLpsPrompt] = useState(false);
 
   useEffect(() => {
     const enabled = new URLSearchParams(location.search).get("guide") === "1";
@@ -542,17 +544,46 @@ export default function EditRevision() {
     ];
   }, [isLps]);
 
+  const finishGuide = () => {
+    setGuideOn(false);
+    try {
+      if (revId) sessionStorage.setItem("revize_last_rev_id", String(revId));
+    } catch {}
+    setShowLpsPrompt(true);
+  };
+
   const closeGuide = () => {
     const ok = window.confirm("Opravdu chcete ukon\u010dit pr\u016fvodce?");
     if (!ok) return;
     setGuideOn(false);
-    navigate("/", { replace: true });
+    try {
+      if (revId) sessionStorage.setItem("revize_last_rev_id", String(revId));
+    } catch {}
+    navigate("/?guideSummary=1", { replace: true });
   };
+  const handleLpsPrompt = (goLps: boolean) => {
+    setShowLpsPrompt(false);
+    if (goLps) {
+      try {
+        const stored = localStorage.getItem(trainingKey);
+        if (stored && isTraining) {
+          const parsed = JSON.parse(stored);
+          const lpsId = parsed?.lpsRevId;
+          if (typeof lpsId === "number" && lpsId > 0) {
+            navigate(`/revize-lps/${lpsId}?guide=1&training=1`);
+            return;
+          }
+        }
+      } catch {}
+    }
+    navigate("/?guideSummary=1", { replace: true });
+  };
+
 
   const handleNext = () => {
     const isLast = guideIndex >= guideSteps.length - 1;
     if (isLast) {
-      closeGuide();
+      finishGuide();
       return;
     }
     setGuideIndex((i) => Math.min(i + 1, guideSteps.length - 1));
@@ -633,6 +664,18 @@ export default function EditRevision() {
           </div>
         </main>
       </div>
+      {showLpsPrompt && (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => handleLpsPrompt(false)}>
+          <div className="bg-white p-6 rounded shadow w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-slate-800 mb-2">Chce\u0161 pokra\u010dovat s uk\u00e1zkou revize LPS?</h3>
+            <p className="text-sm text-slate-600 mb-4">Pokud d\u00e1\u0161 Ano, otev\u0159u pr\u016fvodce pro LPS.</p>
+            <div className="flex justify-end gap-2">
+              <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => handleLpsPrompt(false)}>Ne, pokra\u010dovat na dashboard</button>
+              <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={() => handleLpsPrompt(true)}>Ano, pokra\u010dovat</button>
+            </div>
+          </div>
+        </div>
+      )}
       <GuideLayer
         guideOn={guideOn}
         guideIndex={guideIndex}

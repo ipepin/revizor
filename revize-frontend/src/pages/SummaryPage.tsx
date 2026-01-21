@@ -1,5 +1,5 @@
 ﻿// src/pages/SummaryPage.tsx
-import React, { useMemo, useRef, useEffect, useCallback } from "react";
+import React, { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
@@ -30,6 +30,10 @@ export default function SummaryPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const schemaCaptureRef = useRef<HTMLDivElement | null>(null);
   const { profile, company } = useUser();
+  const [showWordGuide, setShowWordGuide] = useState(() => {
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get("guide") === "word";
+  });
   // Print-view flag
   const sp = new URLSearchParams(window.location.search);
   const isPrintView = sp.get("print") === "1";
@@ -246,16 +250,36 @@ export default function SummaryPage() {
     }));
   }, [safeForm.measuringInstruments, safeForm.instruments]);
 
-  // Export DOCX (původní generátor)
+  // Export DOCX (p?vodn? gener?tor)
   const captureSchemaImages = async () => {
     const container = schemaCaptureRef.current;
     if (!container) return {} as Record<string, string>;
-    const nodes = Array.from(container.querySelectorAll<HTMLElement>("[data-schema-board-id]"));
+
+    // ensure layout/fonts are ready before html2canvas
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    try {
+      if ((document as any).fonts?.ready) await (document as any).fonts.ready;
+    } catch {}
+
+    const readNodes = () =>
+      Array.from(container.querySelectorAll<HTMLElement>("[data-schema-board-id]"));
+
+    let nodes = readNodes();
+    if (!nodes.length) {
+      for (let i = 0; i < 6; i += 1) {
+        await new Promise((r) => setTimeout(r, 80));
+        nodes = readNodes();
+        if (nodes.length) break;
+      }
+    }
+
     const images: Record<string, string> = {};
     for (const node of nodes) {
       const id = node.getAttribute("data-schema-board-id");
       if (!id) continue;
-      const canvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 2 });
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const canvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 3, useCORS: true });
       images[id] = canvas.toDataURL("image/png");
     }
     return images;
@@ -316,6 +340,32 @@ export default function SummaryPage() {
 
   return (
     <div className={isPrintView ? "min-h-screen bg-white text-slate-900" : "min-h-screen bg-white text-slate-900"}>
+      {showWordGuide && !isPrintView && (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setShowWordGuide(false)}>
+          <div className="bg-white p-6 rounded shadow w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Export do Wordu</h3>
+                <p className="text-sm text-slate-600">Klikni na export a stáhni revizi do Wordu.</p>
+              </div>
+              <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={() => setShowWordGuide(false)} title="Zavřít">
+                ✕
+              </button>
+            </div>
+            <div className="text-sm text-slate-700">
+              V levém panelu klikni na „Export do Wordu“. Pokud chceš, můžeš použít tlačítko níže.
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => setShowWordGuide(false)}>
+                Zavřít
+              </button>
+              <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={handleGenerateDocx}>
+                Export do Wordu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {!isPrintView && (
         <div ref={schemaCaptureRef} className="fixed -left-[10000px] top-0">
           {boards.map((b) => {
@@ -326,9 +376,6 @@ export default function SummaryPage() {
                 data-schema-board-id={String(b.id)}
                 className="bg-white p-4 w-[900px]"
               >
-                <div className="text-sm font-semibold text-slate-700 mb-2">
-                  Schéma rozvaděče: {dash(b?.name) || `#${b.id}`}
-                </div>
                 <div className="grid grid-cols-[90px_minmax(0,1fr)] gap-x-4 items-start">
                   <div className="flex flex-col items-end gap-1 text-xs text-slate-600 pt-1 pr-3">
                     <div className="font-semibold text-slate-700">{b?.supplySystem || "—"}</div>

@@ -18,6 +18,10 @@ type GuideStep = {
   targetId: string;
   title: string;
   text: string;
+  action?: string;
+  placement?: "below" | "right" | "left" | "top";
+  offsetX?: number;
+  offsetY?: number;
 };
 
 const useGuideTarget = (targetId: string | null, active: boolean) => {
@@ -55,7 +59,15 @@ function GuideOverlay({
   targetId,
   title,
   text,
+  action,
+  currentStep,
+  totalSteps,
+  canNext,
   isLast,
+  missing,
+  placement,
+  offsetX = 0,
+  offsetY = 0,
   onNext,
   onClose,
 }: {
@@ -63,26 +75,68 @@ function GuideOverlay({
   targetId: string | null;
   title: string;
   text: string;
+  action?: string;
+  currentStep: number;
+  totalSteps: number;
+  canNext: boolean;
   isLast: boolean;
+  missing?: string[];
+  placement?: "below" | "right" | "left" | "top";
+  offsetX?: number;
+  offsetY?: number;
   onNext: () => void;
   onClose: () => void;
 }) {
   const rect = useGuideTarget(targetId, active);
   if (!active || !rect) return null;
 
-  const bubbleWidth = 360;
-  const margin = 12;
+  const bubbleWidth = 460;
+  const margin = 16;
+  const bubbleHeight = 260;
   const rightSpace = window.innerWidth - rect.right;
   const leftSpace = rect.left;
-  const placeRight = rightSpace > bubbleWidth + margin || leftSpace < bubbleWidth + margin;
+  const belowSpace = window.innerHeight - rect.bottom;
+  const topSpace = rect.top;
+
+  const canRight = rightSpace >= bubbleWidth + margin;
+  const canLeft = leftSpace >= bubbleWidth + margin;
+  const canBelow = belowSpace >= bubbleHeight + margin;
+  const canTop = topSpace >= bubbleHeight + margin;
+
+  let placeRight = false;
+  let placeLeft = false;
+  let placeBelow = false;
+  let placeTop = false;
+
+  if (placement === "right" && canRight) placeRight = true;
+  else if (placement === "left" && canLeft) placeLeft = true;
+  else if (placement === "below" && canBelow) placeBelow = true;
+  else if (placement === "top" && canTop) placeTop = true;
+  else {
+    placeRight = canRight;
+    placeLeft = !placeRight && canLeft;
+    placeBelow = !placeRight && !placeLeft && canBelow;
+    placeTop = !placeRight && !placeLeft && !placeBelow && canTop;
+  }
+
   const left = placeRight
-    ? Math.min(rect.right + margin, window.innerWidth - bubbleWidth - margin)
-    : Math.max(margin, rect.left - bubbleWidth - margin);
-  const top = Math.min(Math.max(margin, rect.top), window.innerHeight - 220);
+    ? rect.right + margin
+    : placeLeft
+    ? rect.left - bubbleWidth - margin
+    : Math.min(
+        Math.max(margin, rect.left + rect.width / 2 - bubbleWidth / 2),
+        window.innerWidth - bubbleWidth - margin
+      );
+
+  const top = placeBelow
+    ? rect.bottom + margin
+    : placeTop
+    ? rect.top - bubbleHeight - margin
+    : Math.min(Math.max(margin, rect.top), window.innerHeight - bubbleHeight - margin);
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/25" onClick={onClose} />
+    <div className="fixed inset-0 z-40 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none" />
       <div
         className="absolute rounded-lg border-2 border-blue-500 pointer-events-none"
         style={{
@@ -94,21 +148,137 @@ function GuideOverlay({
         }}
       />
       <div
-        className="absolute z-10 w-full max-w-sm rounded-lg border bg-white p-4 shadow-xl"
-        style={{ top, left, width: bubbleWidth }}
+        className="absolute z-10 w-full max-w-xl rounded-lg border bg-white p-5 shadow-xl pointer-events-auto"
+        style={{ top: top + offsetY, left: left + offsetX, width: bubbleWidth }}
       >
-        <div className="text-sm font-semibold text-slate-800">{title}</div>
-        <div className="mt-1 text-sm text-slate-600">{text}</div>
+        <div className="text-xs uppercase tracking-wide text-slate-400">Krok {currentStep} z {totalSteps}</div>
+        <div className="text-base font-semibold text-slate-800 mt-1">{title}</div>
+        <div className="mt-1 text-base text-slate-600">{text}</div>
+        {action ? <div className="mt-2 text-base text-blue-700 font-medium">{action}</div> : null}
+        {missing && missing.length > 0 && (
+          <div className="mt-3 text-sm text-slate-600">Chybí vyplnit: {missing.join(", ")}. </div>
+        )}
         <div className="mt-3 flex justify-end gap-2">
           <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={onClose}>
             {"Zavřít"}
           </button>
-          <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={onNext}>
+          <button className={`rounded px-3 py-1.5 text-sm text-white ${canNext ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-300 cursor-not-allowed"}`} onClick={onNext} disabled={!canNext}>
             {isLast ? "Dokončit" : "Pokračovat"}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+const hasText = (v: any) => (v ?? "").toString().trim().length > 0;
+
+const getStepMissing = (step: GuideStep | undefined, form: any): string[] => {
+  if (!step) return [];
+  const lps = (form as any)?.lps || {};
+  const missing: string[] = [];
+
+  if (step.key == "base") {
+    if (!hasText(lps.standard)) missing.push("Norma");
+    if (!hasText(form?.typRevize)) missing.push("Typ revize");
+    if (!hasText(form?.date_start)) missing.push("Datum zah\u00e1jen\u00ed");
+    if (!hasText(form?.date_end)) missing.push("Datum ukon\u010den\u00ed");
+    if (!hasText(form?.date_created)) missing.push("Datum vypracov\u00e1n\u00ed");
+  }
+
+  if (step.key == "instruments") {
+    const list = Array.isArray(form?.measuringInstruments) ? form.measuringInstruments : [];
+    if (!list.length) missing.push("Alespo\u0148 jeden m\u011b\u0159ic\u00ed p\u0159\u00edstroj");
+  }
+
+  if (step.key == "scope") {
+    const scopes = Array.isArray(lps.scopeChecks) ? lps.scopeChecks : [];
+    if (!scopes.length) missing.push("Rozsah revize");
+  }
+
+  if (step.key == "object") {
+    if (!hasText(form?.objekt)) missing.push("Revidovan\u00fd objekt");
+    if (!hasText(form?.adresa)) missing.push("Adresa");
+    if (!hasText(form?.objednatel)) missing.push("Objednatel");
+  }
+
+  if (step.key == "technician") {
+    if (!hasText(form?.technicianName)) missing.push("Jm\u00e9no technika");
+    if (!hasText(form?.technicianCertificateNumber)) missing.push("\u010c\u00edslo osv\u011bd\u010den\u00ed");
+  }
+
+  if (step.key == "description") {
+    if (!hasText(lps.objectType) && !hasText(lps.objectTypeOther)) missing.push("Typ objektu");
+    if (!hasText(lps.floorsCount) && !hasText(lps.floorsCountOther)) missing.push("Po\u010det podla\u017e\u00ed");
+  }
+
+  if (step.key == "inspection") {
+    const checks = Array.isArray(lps.visualChecks) ? lps.visualChecks : [];
+    const hasRow = checks.some((c: any) => hasText(c?.text));
+    if (!hasRow) missing.push("Alespo\u0148 jedna polo\u017eka prohl\u00eddky");
+  }
+
+  if (step.key == "measurements") {
+    const earth = Array.isArray(lps.earthResistance) ? lps.earthResistance : [];
+    const hasValue = earth.some((r: any) => hasText(r?.valueOhm));
+    if (!hasValue) missing.push("Hodnota odporu uzemn\u011bn\u00ed");
+  }
+
+  if (step.key == "defects") {
+    const defects = Array.isArray(form?.defects) ? form.defects : [];
+    if (!defects.length) missing.push("Alespo\u0148 jedna z\u00e1vada");
+  }
+
+  if (step.key == "conclusion") {
+    if (!hasText(form?.conclusion?.safety)) missing.push("Hodnocen\u00ed bezpe\u010dnosti");
+    if (!hasText(form?.conclusion?.validUntil)) missing.push("Platnost revize");
+  }
+
+  if (step.key == "sketch") {
+    const strokes = Array.isArray(lps.sketchJson) ? lps.sketchJson : [];
+    const icons = Array.isArray(lps.sketchIcons) ? lps.sketchIcons : [];
+    if (!strokes.length && !icons.length) missing.push("N\u00e1\u010drt LPS");
+  }
+
+  return missing;
+};
+
+function LpsGuideLayer({
+  guideOn,
+  guideIndex,
+  guideSteps,
+  onNext,
+  onClose,
+}: {
+  guideOn: boolean;
+  guideIndex: number;
+  guideSteps: GuideStep[];
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  const { form } = useRevisionForm();
+  const step = guideSteps[guideIndex];
+  const missing = getStepMissing(step, form);
+  const canNext = missing.length === 0;
+
+  return (
+    <GuideOverlay
+      active={guideOn}
+      targetId={step?.targetId || null}
+      title={step?.title || ""}
+      text={step?.text || ""}
+      action={step?.action || ""}
+      currentStep={guideIndex + 1}
+      totalSteps={guideSteps.length}
+      canNext={canNext}
+      isLast={guideIndex >= guideSteps.length - 1}
+      missing={missing}
+      placement={step?.placement}
+      offsetX={step?.offsetX}
+      offsetY={step?.offsetY}
+      onNext={onNext}
+      onClose={onClose}
+    />
   );
 }
 
@@ -321,7 +491,8 @@ function LpsFormContent() {
     <div className="space-y-6 text-sm">
       {/* Základní údaje */}
       <section className="bg-white rounded shadow p-4">
-        <h2 className="text-lg font-semibold mb-3">LPS – Základní údaje</h2>
+        <div data-guide-id="lps-base">
+          <h2 className="text-lg font-semibold mb-3">LPS – Základní údaje</h2>
         <div className="grid md:grid-cols-3 gap-3">
           <Field label="Evidenční číslo">
             <input value={evidencni} readOnly className="w-full p-2 border rounded bg-gray-100" />
@@ -356,14 +527,16 @@ function LpsFormContent() {
           </Field>
         </div>
 
+        </div>
         {/* Měřicí přístroje (přesunuto sem) */}
-        <div className="mt-4">
+
+        <div className="mt-4" data-guide-id="lps-instruments">
           <LpsIdentifikaceSection />
         </div>
       </section>
 
       {/* Rozsah revize */}
-      <section className="bg-white rounded shadow p-4">
+      <section className="bg-white rounded shadow p-4" data-guide-id="lps-scope">
         <h2 className="text-lg font-semibold mb-3">Rozsah revize</h2>
         <div className="grid md:grid-cols-2 gap-2 text-sm">
           <label className="flex items-center gap-2"><input type="checkbox" checked={Array.isArray((form as any)?.lps?.scopeChecks) && (form as any).lps.scopeChecks.includes("vnejsi")} onChange={() => toggleScope("vnejsi")} /> Vnější ochrana před bleskem</label>
@@ -375,7 +548,7 @@ function LpsFormContent() {
       </section>
 
       {/* Identifikace objektu a subjektů */}
-      <section className="bg-white rounded shadow p-4">
+      <section className="bg-white rounded shadow p-4" data-guide-id="lps-object">
         <h2 className="text-lg font-semibold mb-3">Identifikace objektu a subjektů</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <Field label="Revidovaný objekt">
@@ -406,7 +579,7 @@ function LpsFormContent() {
       </section>
 
       {/* Identifikace revizního technika */}
-      <section className="bg-white rounded shadow p-4">
+      <section className="bg-white rounded shadow p-4" data-guide-id="lps-technician">
         <h2 className="text-lg font-semibold mb-3">Identifikace revizního technika</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <Field label="Jméno revizního technika">
@@ -439,7 +612,7 @@ function LpsFormContent() {
       </section>
 
       {/* Popis objektu – čipy + editor */}
-      <section className="bg-white rounded shadow p-4">
+      <section className="bg-white rounded shadow p-4" data-guide-id="lps-description">
         <h2 className="text-lg font-semibold mb-3">Popis objektu</h2>
         <div className="grid md:grid-cols-2 gap-3">
           <div>
@@ -639,39 +812,86 @@ export default function LpsEditPage() {
 
   const guideSteps: GuideStep[] = [
     {
-      key: "lps_info",
+      key: "base",
       tab: "lps_info",
-      targetId: "lps-info",
-      title: "Identifikace objektu a prohlídka",
-      text: "Vyplň identifikaci objektu, technika a základní parametry LPS.",
+      targetId: "lps-base",
+      title: "Základní údaje LPS",
+      text: "Zkontroluj evidenční číslo, normu a typ revize. Doplň také data zahájení, ukončení a vypracování.",
+      action: "Teď doplň základní údaje revize.",
+    },
+    {
+      key: "instruments",
+      tab: "lps_info",
+      targetId: "lps-instruments",
+      title: "Měřicí přístroje",
+      text: "Vyber přístroje použité při revizi LPS. Pokud nějaký chybí, přidej ho do knihovny v Nastavení -> Měřicí přístroje.",
+      action: "Teď vyber použité přístroje.",
+    },
+    {
+      key: "scope",
+      tab: "lps_info",
+      targetId: "lps-scope",
+      title: "Rozsah revize",
+      text: "Zaškrtni, které části LPS jsou součástí revize.",
+      action: "Teď zvol rozsah revize.",
+    },
+    {
+      key: "object",
+      tab: "lps_info",
+      targetId: "lps-object",
+      placement: "top",
+      offsetY: -16,
+      title: "Identifikace objektu a subjektů",
+      text: "Vyplň revidovaný objekt, adresu, majitele/provozovatele a objednatele.",
+      action: "Teď vyplň identifikaci objektu.",
+    },
+    {
+      key: "technician",
+      tab: "lps_info",
+      targetId: "lps-technician",
+      title: "Revizní technik",
+      text: "Vyplň údaje technika a firmy. Můžeš načíst aktivní subjekt z profilu.",
+      action: "Teď doplň údaje technika.",
+    },
+    {
+      key: "description",
+      tab: "lps_info",
+      targetId: "lps-description",
+      title: "Popis objektu a LPS",
+      text: "Zvol typ objektu, počet podlaží a parametry LPS. Text můžeš doplnit ručně.",
+      action: "Teď vyplň popis objektu.",
     },
     {
       key: "inspection",
       tab: "lps_measure",
       targetId: "lps-inspection",
       title: "Prohlídka LPS",
-      text: "Zapiš vizuální kontrolu jímačů, svodů, spojů a upevnění.",
+      text: "Zapiš výsledky vizuální kontroly jímací soustavy, svodů, spojů a upevnění.",
+      action: "Teď vyplň prohlídku.",
     },
     {
       key: "measurements",
       tab: "lps_measure",
       targetId: "lps-measurements",
-      title: "Měření",
-      text: "Doplň odpor zemniče, spojitost a naměřené hodnoty.",
+      title: "Měření LPS",
+      text: "Doplň měření odporu uzemnění a spojitosti.",
+      action: "Teď vyplň měření.",
     },
     {
       key: "defects",
       tab: "lps_measure",
       targetId: "lps-defects",
       title: "Závady a doporučení",
-      text: "Seznam závad a návrh opatření.",
+      text: "Uveď zjištěné závady a doporučená opatření.",
+      action: "Teď přidej závady.",
     },
     {
       key: "conclusion",
       tab: "lps_measure",
       targetId: "lps-conclusion",
       title: "Závěr",
-      text: "Celkové zhodnocení a platnost revize.",
+      text: "Vyplň celkové hodnocení a platnost revize.",
+      action: "Teď dokonči závěr.",
     },
     {
       key: "sketch",
@@ -679,6 +899,7 @@ export default function LpsEditPage() {
       targetId: "lps-sketch",
       title: "Náčrt LPS",
       text: "Nakresli schéma nebo situaci objektu.",
+      action: "Teď vytvoř náčrt.",
     },
   ];
 
@@ -758,16 +979,14 @@ export default function LpsEditPage() {
             </div>
           </main>
         </div>
+        <LpsGuideLayer
+          guideOn={guideOn}
+          guideIndex={guideIndex}
+          guideSteps={guideSteps}
+          onNext={handleNext}
+          onClose={closeGuide}
+        />
       </RevisionFormProvider>
-      <GuideOverlay
-        active={guideOn}
-        targetId={guideSteps[guideIndex]?.targetId || null}
-        title={guideSteps[guideIndex]?.title || ""}
-        text={guideSteps[guideIndex]?.text || ""}
-        isLast={guideIndex >= guideSteps.length - 1}
-        onNext={handleNext}
-        onClose={closeGuide}
-      />
     </>
   );
 }

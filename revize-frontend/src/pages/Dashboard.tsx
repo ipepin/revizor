@@ -1,6 +1,6 @@
 ﻿// src/pages/Dashboard.tsx (obnovený původní vzhled + VV + mazání s heslem)
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { authHeader } from "../api/auth";
@@ -36,13 +36,13 @@ export default function Dashboard() {
   const [newProjectData, setNewProjectData] = useState({ address: "", client: "" });
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   // First-login guide (per user email)
   const guideKey = userEmail ? `revize_guide_seen_${userEmail}` : "revize_guide_seen";
   const [showGuide, setShowGuide] = useState(false);
-  const [guideStep, setGuideStep] = useState<"lps" | "elektro" | "vv">("lps");
   const trainingKey = userEmail ? `revize_training_${userEmail}` : "revize_training";
   const [trainingBundle, setTrainingBundle] = useState<TrainingBundle | null>(null);
   const [trainingStatus, setTrainingStatus] = useState<"idle" | "creating" | "ready" | "error">("idle");
@@ -172,12 +172,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handler = () => {
-      setGuideStep("lps");
       setShowGuide(true);
     };
     window.addEventListener("revize-open-guide", handler);
     return () => window.removeEventListener("revize-open-guide", handler);
   }, []);
+
+  const [showSummaryGuide, setShowSummaryGuide] = useState(false);
+  const [summaryRevId, setSummaryRevId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    if (sp.get("guideSummary") !== "1") return;
+    let id = null;
+    try {
+      id = sessionStorage.getItem("revize_last_rev_id");
+    } catch {}
+    setSummaryRevId(id);
+    setShowSummaryGuide(true);
+  }, [location.search]);
 
   const isExpired = (date: string) => new Date(date) < new Date();
 
@@ -694,41 +707,32 @@ export default function Dashboard() {
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800">První přihlášení: průvodce editory</h3>
-                <p className="text-sm text-slate-600">Kde co vyplnit v editorech revizí a VV.</p>
+                <h3 className="text-lg font-semibold text-slate-800">{"V\u00edtej v LB-Revize"}</h3>
+                <p className="text-sm text-slate-600">{"Kr\u00e1tk\u00e9 p\u0159edstaven\u00ed aplikace a rychl\u00fd start."}</p>
               </div>
               <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={dismissGuide} title="Zavřít">
                 X
               </button>
             </div>
 
-            <div className="flex gap-2 mb-4">
-              <button
-                className={`px-3 py-1.5 rounded text-sm transition ${
-                  guideStep === "lps" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
-                }`}
-                onClick={() => setGuideStep("lps")}
-              >
-                Hromosvod (LPS)
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded text-sm transition ${
-                  guideStep === "elektro" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
-                }`}
-                onClick={() => setGuideStep("elektro")}
-              >
-                Elektroinstalace
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded text-sm transition ${
-                  guideStep === "vv" ? "bg-blue-600 text-white" : "bg-gray-100 hover:bg-gray-200"
-                }`}
-                onClick={() => setGuideStep("vv")}
-              >
-                Vnější vlivy (VV)
-              </button>
-            </div>
 
+            <div className="text-base text-slate-700 space-y-3">
+              <p>{"Revize je n\u00e1stroj pro rychlou a p\u0159ehlednou tvorbu revizn\u00edch zpr\u00e1v elektroinstalac\u00ed a LPS, v\u010detn\u011b protokol\u016f o ur\u010den\u00ed vn\u011bj\u0161\u00edch vliv\u016f (VV)."}</p>
+              <p>{"Vznikla proto, abys nemusel skl\u00e1dat dokumenty ru\u010dn\u011b \u2013 v\u0161e vypln\u00ed\u0161 v editorech a aplikace p\u0159iprav\u00ed v\u00fdstup."}</p>
+              <p>{"Nejv\u011bt\u0161\u00ed p\u0159\u00ednos je v tom, \u017ee t\u011b provede cel\u00fdm procesem, udr\u017e\u00ed data pohromad\u011b a zrychl\u00ed administrativu."}</p>
+              <div>
+                <div className="font-medium text-slate-800">{"Co um\u00ed nejl\u00e9pe:"}</div>
+                <ul className="list-disc ml-5 space-y-1">
+                  <li>{"Tvorbu sch\u00e9mat rozvad\u011b\u010d\u016f v\u010detn\u011b hierarchie prvk\u016f a n\u00e1vaznost\u00ed."}</li>
+                  <li>{"M\u011b\u0159en\u00ed v rozvad\u011b\u010d\u00edch i m\u00edstnostech v p\u0159ehledn\u00fdch tabulk\u00e1ch."}</li>
+                  <li>{"N\u00e1kresy LPS a situac\u00ed objektu p\u0159\u00edmo v editoru."}</li>
+                  <li>{"Tvorbu protokolu o ur\u010den\u00ed vn\u011bj\u0161\u00edch vliv\u016f (VV)."}</li>
+                  <li>{"Rychl\u00e9 v\u011bty, katalogy a normy pro rychl\u00e9 vypl\u0148ov\u00e1n\u00ed."}</li>
+                  <li>{"Export hotov\u00e9 revize do Wordu jedn\u00edm kliknut\u00edm."}</li>
+                </ul>
+              </div>
+              <div className="text-sm text-slate-600">{"Pozn\u00e1mka: Toto je prvn\u00ed verze aplikace v testovac\u00edm re\u017eimu. Pokud naraz\u00ed\u0161 na chybu nebo ti bude n\u011bco chyb\u011bt, dej n\u00e1m pros\u00edm v\u011bd\u011bt na "}<a className="text-blue-600 hover:text-blue-700 underline" href="mailto:admin@lb-eltech.cz">admin@lb-eltech.cz</a>{"."}</div>
+            </div>
             <div className="mb-4 rounded-lg border bg-slate-50 p-3 text-sm text-slate-700">
               <div className="font-medium text-slate-800">Cvičné podklady</div>
               <div className="mt-1">
@@ -748,19 +752,13 @@ export default function Dashboard() {
                 )}
                 {(trainingStatus === "ready" && trainingBundle) && (
                   <div className="space-y-2">
-                    <div>Vytvořeno. Otevři si jednotlivé editory:</div>
-                    <div className="flex flex-wrap gap-2">
+                    <div>{"Vyzkou\u0161ej si jednotliv\u00e9 editory."}</div>
+                    <div className="flex flex-wrap gap-2 justify-center">
                       <button
                         className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
                         onClick={() => navigate(`/revize/${trainingBundle.elektroRevId}?guide=1&training=1`)}
                       >
                         Cvičná revize elektroinstalace
-                      </button>
-                      <button
-                        className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
-                        onClick={() => navigate(`/revize/${trainingBundle.elektroRevId}?guide=1&training=1&guideStart=mereni`)}
-                      >
-                        {"P\u0159esko\u010dit na m\u011b\u0159en\u00ed"}
                       </button>
                       <button
                         className="rounded border bg-white px-3 py-1.5 hover:bg-gray-50"
@@ -780,85 +778,48 @@ export default function Dashboard() {
                 {(trainingStatus === "idle") && "Cvičné podklady se připravují automaticky při otevření průvodce."}
               </div>
             </div>
-
-            <div className="text-sm text-slate-700 space-y-3">
-              {guideStep === "lps" && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Editor LPS: záložka „Identifikace objektu a prohlídka“</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Identifikace objektu a subjektu: adresa, objednatel, typ objektu.</li>
-                      <li>Identifikace technika: jméno, osvědčení, firma (doplní se z profilu).</li>
-                      <li>Parametry LPS: jímače, svody, zemniče, třída LPS, SPD.</li>
-                      <li>Popis LPS: text se generuje z voleb, doplň ručně konkrétní detaily.</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Editor LPS: záložka „Měření a závěr“</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Prohlídka LPS: vizuální stav, uchycení, svody, spoje.</li>
-                      <li>Měření: odpor zemniče, kontrola spojitosti, hodnoty měření.</li>
-                      <li>Závady a doporučení: zapiš závady a návrh řešení.</li>
-                      <li>Závěr: celkové zhodnocení a platnost revize.</li>
-                      <li>Nákres LPS: nakresli schéma / situaci objektu.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-              {guideStep === "elektro" && (
-                <div className="space-y-3">
-                  <div className="font-medium text-slate-800">Editor revize elektroinstalace (sekce v levém menu)</div>
-                  <ul className="list-decimal ml-5 space-y-1">
-                    <li>Identifikace: objekt, objednatel, napájení, typ revize, technik.</li>
-                    <li>Prohlídka: vizuální kontrola, označení, kryty, dokumentace.</li>
-                    <li>Zkoušky: funkční zkoušky, RCD, ověření ochrany.</li>
-                    <li>Měření: impedance, izolační odpor, proudové chrániče.</li>
-                    <li>Závady a doporučení: zapiš závady + návrh opatření.</li>
-                    <li>Závěr: shrnutí, vyhovuje/nevyhovuje, platnost revize.</li>
-                  </ul>
-                </div>
-              )}
-              {guideStep === "vv" && (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Editor VV: Identifikace</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Objekt, adresa, zpracoval, datum.</li>
-                      <li>Předložená dokumentace a stručný popis objektu.</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Editor VV: Komise</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Přidej členy komise (předseda + členové).</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Editor VV: Prostory a vlivy</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Přidej prostory (místnosti) a vyber aktivní prostor.</li>
-                      <li>Pro každý prostor zvol třídy vlivů A/B/C.</li>
-                      <li>Vyznač, co je normální a co zvláštní (nenormální).</li>
-                      <li>Doplň poznámky, opatření a intervaly kontrol.</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="font-medium text-slate-800">Výstup</div>
-                    <ul className="list-decimal ml-5 space-y-1">
-                      <li>Po vyplnění lze exportovat JSON nebo vytisknout do PDF.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-5 flex justify-between items-center">
+            <div className="mt-5 flex justify-center items-center gap-3">
               <button className="px-4 py-2 bg-gray-200 rounded" onClick={dismissGuide}>
                 Rozumím, zavřít
               </button>
               <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" onClick={startFirstProject}>
                 Založit vlastní projekt
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Guide: Summary + Word export */}
+      {showSummaryGuide && (
+        <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setShowSummaryGuide(false)}>
+          <div className="bg-white p-6 rounded shadow w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Další krok: souhrn a Word</h3>
+                <p className="text-sm text-slate-600">Teď tě navedu na souhrn a export do Wordu.</p>
+              </div>
+              <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={() => setShowSummaryGuide(false)} title="Zavřít">
+                ✕
+              </button>
+            </div>
+            <ol className="list-decimal ml-5 space-y-1 text-sm text-slate-700">
+              <li>Na dashboardu rozbal projekt s dokončenou revizí.</li>
+              <li>U revize klikni na tlačítko Souhrn.</li>
+              <li>V souhrnu klikni na „Export do Wordu“.</li>
+            </ol>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => setShowSummaryGuide(false)}>
+                Zavřít
+              </button>
+              {summaryRevId && (
+                <button
+                  className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+                  onClick={() => navigate(`/summary/${summaryRevId}?guide=word`)}
+                >
+                  Otevřít souhrn
+                </button>
+              )}
             </div>
           </div>
         </div>
