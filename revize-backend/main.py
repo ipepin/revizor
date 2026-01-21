@@ -1,4 +1,5 @@
 ﻿from fastapi import FastAPI, Depends
+from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from routers.auth import router as auth_router, get_current_user
 from routers.catalog   import router as catalog_router
@@ -16,6 +17,9 @@ from routers.vv import router as vv_router
 from routers.admin import router as admin_router
 from routers.snippets import router as snippets_router
 from routers.norms import router as norms_router
+from routers.inspection_templates import router as inspection_templates_router
+
+load_dotenv()
 
 app = FastAPI() 
 
@@ -62,6 +66,7 @@ app.include_router(export_router,  dependencies=[Depends(get_current_user)])
 app.include_router(vv_router, dependencies=[Depends(get_current_user)])
 app.include_router(snippets_router, dependencies=[Depends(get_current_user)])
 app.include_router(norms_router, dependencies=[Depends(get_current_user)])
+app.include_router(inspection_templates_router, dependencies=[Depends(get_current_user)])
 # Admin router Ĺ™eĹˇĂ­ autorizaci uvnitĹ™ handlerĹŻ; neblokuj CORS preflight pĹ™es globĂˇlnĂ­ dependency
 app.include_router(admin_router)
 
