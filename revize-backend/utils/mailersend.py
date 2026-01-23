@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import logging
 from typing import Optional
 
 import httpx
 
 
 MAILERSEND_API_URL = "https://api.mailersend.com/v1/email"
+logger = logging.getLogger(__name__)
 
 
 def _get_env(name: str, default: Optional[str] = None) -> Optional[str]:
@@ -62,6 +64,12 @@ def send_email(
 
     with httpx.Client(timeout=10.0) as client:
         resp = client.post(MAILERSEND_API_URL, json=payload, headers=headers)
+        if not (200 <= resp.status_code < 300):
+            logger.warning(
+                "MailerSend error status=%s body=%s",
+                resp.status_code,
+                resp.text,
+            )
         return 200 <= resp.status_code < 300
 
 
