@@ -108,10 +108,10 @@ function GuideOverlay({
   let placeBelow = false;
   let placeTop = false;
 
-  if (placement === "right" && canRight) placeRight = true;
-  else if (placement === "left" && canLeft) placeLeft = true;
-  else if (placement === "below" && canBelow) placeBelow = true;
-  else if (placement === "top" && canTop) placeTop = true;
+  if (placement === "right") placeRight = true;
+  else if (placement === "left") placeLeft = true;
+  else if (placement === "below") placeBelow = true;
+  else if (placement === "top") placeTop = true;
   else {
     placeRight = canRight;
     placeLeft = !placeRight && canLeft;
@@ -134,6 +134,8 @@ function GuideOverlay({
     ? rect.top - bubbleHeight - margin
     : Math.min(Math.max(margin, rect.top), window.innerHeight - bubbleHeight - margin);
 
+  const topFinal = placement === "top" ? top : Math.min(Math.max(margin, top), window.innerHeight - bubbleHeight - margin);
+
   return (
     <div className="fixed inset-0 z-40 pointer-events-none">
       <div className="absolute inset-0 pointer-events-none" />
@@ -149,7 +151,7 @@ function GuideOverlay({
       />
       <div
         className="absolute z-10 w-full max-w-xl rounded-lg border bg-white p-5 shadow-xl pointer-events-auto"
-        style={{ top: top + offsetY, left: left + offsetX, width: bubbleWidth }}
+        style={{ top: topFinal + offsetY, left: left + offsetX, width: bubbleWidth }}
       >
         <div className="text-xs uppercase tracking-wide text-slate-400">Krok {currentStep} z {totalSteps}</div>
         <div className="text-base font-semibold text-slate-800 mt-1">{title}</div>
@@ -840,7 +842,7 @@ export default function LpsEditPage() {
       tab: "lps_info",
       targetId: "lps-object",
       placement: "top",
-      offsetY: -16,
+      offsetY: -220,
       title: "Identifikace objektu a subjektů",
       text: "Vyplň revidovaný objekt, adresu, majitele/provozovatele a objednatele.",
       action: "Teď vyplň identifikaci objektu.",
@@ -849,6 +851,8 @@ export default function LpsEditPage() {
       key: "technician",
       tab: "lps_info",
       targetId: "lps-technician",
+      placement: "top",
+      offsetY: -220,
       title: "Revizní technik",
       text: "Vyplň údaje technika a firmy. Můžeš načíst aktivní subjekt z profilu.",
       action: "Teď doplň údaje technika.",
@@ -857,6 +861,8 @@ export default function LpsEditPage() {
       key: "description",
       tab: "lps_info",
       targetId: "lps-description",
+      placement: "top",
+      offsetY: -220,
       title: "Popis objektu a LPS",
       text: "Zvol typ objektu, počet podlaží a parametry LPS. Text můžeš doplnit ručně.",
       action: "Teď vyplň popis objektu.",
@@ -865,6 +871,8 @@ export default function LpsEditPage() {
       key: "inspection",
       tab: "lps_measure",
       targetId: "lps-inspection",
+      placement: "top",
+      offsetY: -220,
       title: "Prohlídka LPS",
       text: "Zapiš výsledky vizuální kontroly jímací soustavy, svodů, spojů a upevnění.",
       action: "Teď vyplň prohlídku.",
