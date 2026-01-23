@@ -5,6 +5,7 @@ import { useUser } from "../context/UserContext";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useAuth } from "../context/AuthContext";
 import lbRevizeLogo from "../pngs/lb-revize.png";
+import { API_DISPLAY_URL, apiUrl } from "../api/base";
 
 type Props = {
   mode: "dashboard" | "edit" | "catalog" | "summary";
@@ -88,7 +89,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
       return;
     }
     try {
-      const res = await fetch("/admin/email/test", {
+      const res = await fetch(apiUrl("/admin/email/test"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -97,7 +98,13 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
         body: JSON.stringify({ to_email: "blazek1.jo@gmail.com" }),
       });
       if (!res.ok) {
-        const detail = await res.text();
+        let detail = "";
+        try {
+          const data = await res.json();
+          detail = data?.detail || "";
+        } catch {
+          detail = await res.text();
+        }
         throw new Error(detail || "Odeslani selhalo.");
       }
       setToast({ type: "success", message: "Email odeslan." });
@@ -277,6 +284,9 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 >
                   Odeslat testovací email
                 </button>
+                <div className="text-[11px] text-gray-400 px-1 break-all">
+                  API: {API_DISPLAY_URL || "stejny origin"}
+                </div>
               </div>
             </div>
           )}
