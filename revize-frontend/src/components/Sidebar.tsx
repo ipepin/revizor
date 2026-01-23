@@ -17,7 +17,7 @@ type Props = {
 export default function Sidebar({ mode, active, onSelect, onNewProject, actions }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, token } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
   // potvrzení dokončení
@@ -72,6 +72,22 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
       setFinishing(false);
       setShowConfirmFinish(false);
       navigate("/"); // zpět na projekty
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (!token) return;
+    try {
+      await fetch("/admin/email/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ to_email: "blazek1.jo@gmail.com" }),
+      });
+    } catch (e) {
+      console.warn("Test email failed:", e);
     }
   };
 
@@ -238,6 +254,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                   onClick={() => navigate("/admin/norms")}
                 >
                   Normy (správa)
+                </button>
+                <button
+                  className="bg-amber-100 hover:bg-amber-200 text-left px-4 py-2 rounded transition"
+                  onClick={sendTestEmail}
+                >
+                  Odeslat testovací email
                 </button>
               </div>
             </div>
