@@ -1,5 +1,5 @@
 ﻿﻿// src/components/Sidebar.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useRevisionForm } from "../context/RevisionFormContext";
@@ -23,6 +23,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
   // potvrzení dokončení
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // User context (profil technika + firma)
   const { profile, company, loading } = useUser();
@@ -75,10 +76,19 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
     }
   };
 
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(timeout);
+  }, [toast]);
+
   const sendTestEmail = async () => {
-    if (!token) return;
+    if (!token) {
+      setToast({ type: "error", message: "Nejste prihlasen." });
+      return;
+    }
     try {
-      await fetch("/admin/email/test", {
+      const res = await fetch("/admin/email/test", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -86,8 +96,14 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
         },
         body: JSON.stringify({ to_email: "blazek1.jo@gmail.com" }),
       });
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(detail || "Odeslani selhalo.");
+      }
+      setToast({ type: "success", message: "Email odeslan." });
     } catch (e) {
       console.warn("Test email failed:", e);
+      setToast({ type: "error", message: "Odeslani selhalo." });
     }
   };
 
@@ -386,6 +402,16 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          className={`fixed bottom-4 right-4 px-4 py-2 rounded shadow text-white ${
+            toast.type === "success" ? "bg-green-600" : "bg-red-600"
+          }`}
+        >
+          {toast.message}
         </div>
       )}
     </>
