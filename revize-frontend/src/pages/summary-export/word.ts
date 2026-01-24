@@ -224,9 +224,13 @@ export async function generateSummaryDocx({
 
   // ---------- Přístroje ----------
   const instrumentsRows = (usedInstruments?.length
-    ? usedInstruments.map((i) => [i.name, i.serial, i.calibration])
-    : [["—", "—", "—"]]) as (string | number)[][];
-  const instruments = tableBordered(["Přístroj", "Výrobní číslo", "Kalibrační list"], instrumentsRows, [50, 25, 25]);
+    ? usedInstruments.map((i) => [i.name, i.serial, i.calibration, i.measurement_text || "—"])
+    : [["—", "—", "—", "—"]]) as (string | number)[][];
+  const instruments = tableBordered(
+    ["Přístroj", "Výrobní číslo", "Kalibrační list", "Měření"],
+    instrumentsRows,
+    [40, 20, 20, 20]
+  );
 
   // ---------- Výsledek (rámeček + větší text, vystředěný) ----------
   const safetyLabel = (() => {

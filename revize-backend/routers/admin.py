@@ -7,9 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload, defer
+from sqlalchemy.exc import IntegrityError
 
 from database import get_db
-from models import User as UserModel, Revision, Defect, Project, VvDoc
+from models import User as UserModel, Revision, Defect, Project, VvDoc, SnippetPreference, UserInstrument, CompanyProfile, project_user_link
 from routers.auth import get_current_user
 from schemas import DefectRead
 from utils.security import hash_password
@@ -409,15 +410,27 @@ def delete_user(
     if not target:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Uzivatel nenalezen")
 
-    projects = db.query(Project).filter(Project.owner_id == uid).all()
-    project_ids = [p.id for p in projects]
-    if project_ids:
-        db.query(Revision).filter(Revision.project_id.in_(project_ids)).delete(synchronize_session=False)
-        db.query(VvDoc).filter(VvDoc.project_id.in_(project_ids)).delete(synchronize_session=False)
-        db.query(Project).filter(Project.id.in_(project_ids)).delete(synchronize_session=False)
+    try:
+        # cleanup m2m links (shared projects)
+        db.execute(project_user_link.delete().where(project_user_link.c.user_id == uid))
 
-    db.delete(target)
-    db.commit()
+        # cleanup dependent rows (for DBs without FK cascade)
+        db.query(SnippetPreference).filter(SnippetPreference.user_id == uid).delete(synchronize_session=False)
+        db.query(UserInstrument).filter(UserInstrument.user_id == uid).delete(synchronize_session=False)
+        db.query(CompanyProfile).filter(CompanyProfile.user_id == uid).delete(synchronize_session=False)
+
+        projects = db.query(Project).filter(Project.owner_id == uid).all()
+        project_ids = [p.id for p in projects]
+        if project_ids:
+            db.query(Revision).filter(Revision.project_id.in_(project_ids)).delete(synchronize_session=False)
+            db.query(VvDoc).filter(VvDoc.project_id.in_(project_ids)).delete(synchronize_session=False)
+            db.query(Project).filter(Project.id.in_(project_ids)).delete(synchronize_session=False)
+
+        db.delete(target)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="Uzivatele nelze smazat kvuli vazbam v databazi.")
     return {"ok": True, "id": uid}
 
 

@@ -824,18 +824,19 @@ export default function RozvadecePanel() {
                   />
                 </div>
               ))}
-              <div>
-                <label className="block text-sm font-medium mb-1">Síť (TN)</label>
-                <select
-                  className="w-full p-2 border rounded"
-                  value={(newBoard as any).supplySystem || ""}
-                  onChange={(e) => setNewBoard((b) => ({ ...b, supplySystem: e.target.value }))}
-                >
-                  <option value="">-- vyber --</option>
-                  <option value="TN-C">TN-C</option>
-                  <option value="TN-S">TN-S</option>
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Síť (TN)</label>
+                  <select
+                    className="w-full p-2 border rounded"
+                    value={(newBoard as any).supplySystem || ""}
+                    onChange={(e) => setNewBoard((b) => ({ ...b, supplySystem: e.target.value }))}
+                  >
+                    <option value="">-- vyber --</option>
+                    <option value="TN-C">TN-C</option>
+                    <option value="TN-C-S">TN-C-S</option>
+                    <option value="TN-S">TN-S</option>
+                  </select>
+                </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Fáze přívodu</label>
                 <select
@@ -976,7 +977,7 @@ function CompactDiagram({
   onMoveDown,
   onCopy,
   onDelete,
-  // inline pozn?mka:
+  // inline poznámka:
   onStartEditNote,
   editingNoteId,
   noteDraft,
@@ -1007,7 +1008,7 @@ function CompactDiagram({
         .join(" ") || fullName(node);
     return (
       <div key={node.id}>
-        {/* ??dek uzlu */}
+        {/* řádek uzlu */}
         <div
           className="flex items-center gap-2 px-2 py-1.5 border-b hover:bg-blue-50/40"
           style={{ paddingLeft: BASE_INDENT + depth * INDENT_PER_LEVEL }}
@@ -1017,9 +1018,9 @@ function CompactDiagram({
               {node.cislo ? `${node.cislo} • ` : ""}
               {title}
             </div>
-            {/* bublina s detaily (men?? p?smo, 2 ??dky max) */}
+            {/* bublina s detaily (menší písmo, 2 řádky max) */}
             <div className="text-[12px] text-gray-600 line-clamp-2" style={clamp2}>
-              {node.poles && <span className="mr-3">p?ly: {node.poles}</span>}
+              {node.poles && <span className="mr-3">póly: {node.poles}</span>}
               {node.dimenze && <span className="mr-3">dim.: {node.dimenze}</span>}
               {node.riso && <span className="mr-3">Riso: {node.riso} MΩ</span>}
               {node.ochrana && <span className="mr-3">Zs: {node.ochrana} Ω</span>}
@@ -1033,7 +1034,7 @@ function CompactDiagram({
                 <span className="mr-3">U_t: {node.dotykoveNapetiV} V</span>
               )}
 
-              {/* Pozn?mka ? dvojklikem editor */}
+              {/* Poznámka – dvojklikem editor */}
               {editingNoteId === node.id ? (
                 <span className="inline-flex items-center gap-1">
                   <input
@@ -1052,54 +1053,54 @@ function CompactDiagram({
                     className="text-[12px] px-1 py-0.5 border rounded"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onSaveNote(node.id)}
-                    title="Ulo?it"
+                    title="Uložit"
                   >
-                    Ulo?it
+                    Uložit
                   </button>
                   <button
                     className="text-[12px] px-1 py-0.5 border rounded"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={onCancelNote}
-                    title="Zru?it"
+                    title="Zrušit"
                   >
-                    Zru?it
+                    Zrušit
                   </button>
                 </span>
               ) : (
                 <span
                   className="italic"
                   onDoubleClick={() => onStartEditNote(node.id, node.poznamka || "")}
-                  title="Dvojklikem upravit pozn?mku"
+                  title="Dvojklikem upravit poznámku"
                   style={{ cursor: "text" }}
                 >
-                  N?zev obvodu: {node.poznamka || "—"}
+                  Název obvodu: {node.poznamka || "—"}
                 </span>
               )}
             </div>
           </div>
           <div className="flex items-center gap-1 whitespace-nowrap">
             <button className="text-xs border px-2 py-0.5 rounded" title="Upravit" onClick={() => onEdit(node.id)}>
-              ??
+              ✏️
             </button>
             <button className="text-xs border px-2 py-0.5 rounded" title="Nahoru" onClick={() => onMoveUp(node.id)}>
-              ?
+              ▲
             </button>
-            <button className="text-xs border px-2 py-0.5 rounded" title="Dol?" onClick={() => onMoveDown(node.id)}>
-              ?
+            <button className="text-xs border px-2 py-0.5 rounded" title="Dolů" onClick={() => onMoveDown(node.id)}>
+              ▼
             </button>
-            <button className="text-xs border px-2 py-0.5 rounded" title="Kop?rovat" onClick={() => onCopy(node.id)}>
-              ??
+            <button className="text-xs border px-2 py-0.5 rounded" title="Kopírovat" onClick={() => onCopy(node.id)}>
+              ⧉
             </button>
             <button
               className="text-xs bg-red-600 text-white px-2 py-0.5 rounded"
               title="Smazat"
               onClick={() => onDelete(node.id)}
             >
-              ??
+              🗑
             </button>
             <button
               className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded"
-              title="P?idat potomka"
+              title="Přidat potomka"
               onClick={() => onAddChild(node.id)}
             >
               +
@@ -1107,7 +1108,7 @@ function CompactDiagram({
           </div>
         </div>
 
-        {/* d?ti */}
+        {/* děti */}
         {hasChildren && node.children.map((ch: any) => render(ch, depth + 1))}
       </div>
     );
@@ -1115,7 +1116,7 @@ function CompactDiagram({
 
   return (
     <div className="w-full border rounded">
-      {roots.length ? roots.map((n) => render(n, 0)) : <div className="p-3 text-gray-500">??dn? prvky.</div>}
+      {roots.length ? roots.map((n) => render(n, 0)) : <div className="p-3 text-gray-500">Žádné prvky.</div>}
     </div>
   );
 }

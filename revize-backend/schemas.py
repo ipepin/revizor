@@ -242,6 +242,7 @@ class CompanyProfileUpdate(BaseModel):
 class ManufacturerRead(BaseModel):
     id: int
     name: Optional[str] = None
+    type_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

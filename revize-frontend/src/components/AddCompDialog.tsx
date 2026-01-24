@@ -1,9 +1,23 @@
 // src/components/AddCompDialog.tsx
-import React, { ChangeEvent, useMemo, useState, useEffect } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Komponenta } from "../context/RevisionFormContext";
 import api from "../api/axios";
 
 type CompWithParent = Komponenta & { parentId?: number | null; rowId?: number | null };
+
+type SearchManufacturer = { id: number; name: string; typeId: number };
+
+type SearchOption = {
+  kind: "type" | "typeManufacturer" | "typeManufacturerModel";
+  id: string;
+  label: string;
+  manufacturerId?: string;
+  manufacturerName?: string;
+  typeId?: string;
+  typeName?: string;
+  modelId?: string;
+  modelName?: string;
+};
 
 interface AddCompDialogProps {
   newComp: CompWithParent;
@@ -12,7 +26,7 @@ interface AddCompDialogProps {
   isCustom: boolean;
   setIsCustom: React.Dispatch<React.SetStateAction<boolean>>;
   types: { id: number; name: string }[];
-  manufacturers: { id: number; name: string }[];
+  manufacturers: { id: number; name: string; typeId?: number; type_id?: number }[];
   models: { id: number; name: string }[];
   polesOptions: string[];
   dimenzeOptions: string[];
@@ -53,130 +67,221 @@ export default function AddCompDialog({
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [modelCache, setModelCache] = useState<Record<string, { id: number; name: string }[]>>({});
   const [searchBusy, setSearchBusy] = useState(false);
+  const [searchManufacturerCache, setSearchManufacturerCache] = useState<
+    Record<string, SearchManufacturer[]>
+  >({});
+  const [modelCache, setModelCache] = useState<Record<string, { id: number; name: string }[]>>({});
 
-  const typeName = useMemo(() => {
-    return (
-      newComp.nazev ||
-      types.find((t) => String(t.id) === String(newComp.nazevId))?.name ||
-      ""
-    );
-  }, [newComp.nazev, newComp.nazevId, types]);
-
-  const fetchModelsForSearch = async () => {
-    const q = searchQuery.trim();
-    if (q.length < 2) return;
-    const pending = manufacturers.filter((m) => !modelCache[String(m.id)]);
-    if (!pending.length) return;
-    setSearchBusy(true);
-    try {
-      const results = await Promise.all(
-        pending.map((m) =>
-          api
-            .get("/catalog/models", { params: { manufacturer_id: m.id } })
-            .then((r) => ({ id: m.id, rows: Array.isArray(r.data) ? r.data : [] }))
-            .catch(() => ({ id: m.id, rows: [] }))
-        )
-      );
-      setModelCache((prev) => {
-        const next = { ...prev };
-        results.forEach((r) => {
-          next[String(r.id)] = r.rows;
-        });
-        return next;
-      });
-    } finally {
-      setSearchBusy(false);
+  const selectedType = useMemo(() => {
+    if (newComp.nazevId) {
+      const hit = types.find((t) => String(t.id) === String(newComp.nazevId));
+      if (hit) return hit;
     }
-  };
+    if (newComp.nazev) {
+      return types.find((t) => t.name === newComp.nazev);
+    }
+    return undefined;
+  }, [newComp.nazevId, newComp.nazev, types]);
+
+  const selectedTypeName = selectedType?.name || "";
+  const selectedTypeId = newComp.nazevId ? String(newComp.nazevId) : undefined;
+
+  const searchManufacturers = useMemo(
+    () => Object.values(searchManufacturerCache).flat(),
+    [searchManufacturerCache]
+  );
 
   useEffect(() => {
-    fetchModelsForSearch();
-  }, [searchQuery, manufacturers]);
+    const q = searchQuery.trim();
+    if (q.length < 2 || !types.length) return;
+
+    const fetchSearchData = async () => {
+      const missingTypeIds = types
+        .map((t) => String(t.id))
+        .filter((id) => !searchManufacturerCache[id]);
+
+      const nextManufacturerCache = { ...searchManufacturerCache };
+      const pendingManufacturers = Object.values(nextManufacturerCache).flat();
+      const missingManufacturers = pendingManufacturers.filter((m) => !modelCache[String(m.id)]);
+
+      if (!missingTypeIds.length && !missingManufacturers.length) return;
+
+      setSearchBusy(true);
+      try {
+        if (missingTypeIds.length) {
+          const results = await Promise.all(
+            missingTypeIds.map((typeId) =>
+              api
+                .get("/catalog/manufacturers", { params: { type_id: typeId } })
+                .then((r) => ({
+                  typeId: Number(typeId),
+                  rows: Array.isArray(r.data) ? r.data : [],
+                }))
+                .catch(() => ({ typeId: Number(typeId), rows: [] }))
+            )
+          );
+
+          results.forEach((r) => {
+            nextManufacturerCache[String(r.typeId)] = (r.rows || []).map((m: any) => ({
+              id: m.id,
+              name: m.name || "",
+              typeId: r.typeId,
+            }));
+          });
+          setSearchManufacturerCache(nextManufacturerCache);
+        }
+
+        const allManufacturers = Object.values(nextManufacturerCache).flat();
+        const missingModels = allManufacturers.filter((m) => !modelCache[String(m.id)]);
+
+        if (missingModels.length) {
+          const modelResults = await Promise.all(
+            missingModels.map((m) =>
+              api
+                .get("/catalog/models", { params: { manufacturer_id: m.id } })
+                .then((r) => ({ id: m.id, rows: Array.isArray(r.data) ? r.data : [] }))
+                .catch(() => ({ id: m.id, rows: [] }))
+            )
+          );
+
+          setModelCache((prev) => {
+            const next = { ...prev };
+            modelResults.forEach((r) => {
+              next[String(r.id)] = r.rows;
+            });
+            return next;
+          });
+        }
+      } finally {
+        setSearchBusy(false);
+      }
+    };
+
+    fetchSearchData();
+  }, [searchQuery, types, searchManufacturerCache, modelCache]);
 
   const searchOptions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    const out: {
-      kind: "type" | "manufacturer" | "model";
-      id: string;
-      label: string;
-      manufacturerId?: string;
-    }[] = [];
+    if (!q) return [] as SearchOption[];
 
-    types.forEach((t) => {
-      if (t.name.toLowerCase().includes(q)) {
-        out.push({ kind: "type", id: String(t.id), label: t.name });
-      }
-    });
+    const out: SearchOption[] = [];
+    const seen = new Set<string>();
+    const add = (opt: SearchOption) => {
+      if (seen.has(opt.id)) return;
+      seen.add(opt.id);
+      out.push(opt);
+    };
 
-    manufacturers.forEach((m) => {
-      if (m.name.toLowerCase().includes(q)) {
-        out.push({ kind: "manufacturer", id: String(m.id), label: m.name });
-      }
-      const modelsForM = modelCache[String(m.id)] || [];
-      modelsForM.forEach((model) => {
-        const fullLabel = `${m.name} ${model.name}`;
-        if (fullLabel.toLowerCase().includes(q) || model.name.toLowerCase().includes(q)) {
-          const prefix = [typeName, m.name, model.name].filter((v) => v.trim()).join(" ");
-          out.push({
-            kind: "model",
-            id: String(model.id),
-            label: prefix || fullLabel,
-            manufacturerId: String(m.id),
-          });
-        }
+    const typeMatches = types.filter((t) => t.name.toLowerCase().includes(q));
+    const fallbackManufacturers = manufacturers
+      .map((m) => ({
+        id: m.id,
+        name: m.name,
+        typeId:
+          typeof m.typeId === "number"
+            ? m.typeId
+            : typeof m.type_id === "number"
+              ? m.type_id
+              : selectedTypeId
+                ? Number(selectedTypeId)
+                : -1,
+      }))
+      .filter((m) => m.typeId > 0);
+
+    const manufacturersAll = searchManufacturers.length ? searchManufacturers : fallbackManufacturers;
+
+    typeMatches.forEach((t) =>
+      add({ kind: "type", id: `type-${t.id}`, label: t.name, typeId: String(t.id), typeName: t.name })
+    );
+
+    manufacturersAll.forEach((m) => {
+      const typeName = types.find((t) => t.id === m.typeId)?.name;
+      if (!typeName) return;
+      if (!m.name.toLowerCase().includes(q)) return;
+
+      add({
+        kind: "typeManufacturer",
+        id: `type-manufacturer-${m.typeId}-${m.id}`,
+        label: `${typeName} ${m.name}`,
+        manufacturerId: String(m.id),
+        manufacturerName: m.name,
+        typeId: String(m.typeId),
+        typeName,
       });
     });
 
-    return out.slice(0, 15);
-  }, [searchQuery, types, manufacturers, modelCache, typeName]);
+    manufacturersAll.forEach((m) => {
+      const typeName = types.find((t) => t.id === m.typeId)?.name;
+      if (!typeName) return;
+      const modelsForM = modelCache[String(m.id)] || [];
 
-  const handleSearchSelect = (opt: {
-    kind: "type" | "manufacturer" | "model";
-    id: string;
-    label: string;
-    manufacturerId?: string;
-  }) => {
+      modelsForM.forEach((model) => {
+        const modelLabel = model.name || "";
+        const modelLower = modelLabel.toLowerCase();
+        const matchModel = modelLower.includes(q) || q.includes(modelLower);
+        if (!matchModel) return;
+
+        add({
+          kind: "typeManufacturerModel",
+          id: `tmm-${m.typeId}-${m.id}-${model.id}`,
+          label: `${typeName} ${m.name} ${modelLabel}`,
+          manufacturerId: String(m.id),
+          manufacturerName: m.name,
+          typeId: String(m.typeId),
+          typeName,
+          modelId: String(model.id),
+          modelName: modelLabel,
+        });
+      });
+    });
+
+    return out.slice(0, 20);
+  }, [searchQuery, types, manufacturers, searchManufacturers, modelCache]);
+
+  const handleSearchSelect = (opt: SearchOption) => {
     if (opt.kind === "type") {
       setIsCustom(false);
       setNewComp({
         ...defaultComp,
         parentId: newComp.parentId ?? null,
         rowId: newComp.rowId ?? null,
-        nazevId: opt.id,
-        nazev: opt.label,
+        nazevId: opt.typeId || opt.id,
+        nazev: opt.typeName || opt.label,
       });
-    } else if (opt.kind === "manufacturer") {
-      setNewComp((c) => ({
-        ...c,
-        popisId: opt.id,
-        popis: opt.label,
+    } else if (opt.kind === "typeManufacturer") {
+      setIsCustom(false);
+      setNewComp({
+        ...defaultComp,
+        parentId: newComp.parentId ?? null,
+        rowId: newComp.rowId ?? null,
+        nazevId: opt.typeId || "",
+        nazev: opt.typeName || "",
+        popisId: opt.manufacturerId || "",
+        popis: opt.manufacturerName || "",
         typId: "",
         typ: "",
-      }));
-    } else if (opt.kind === "model") {
-      const manufacturer = manufacturers.find((m) => String(m.id) === opt.manufacturerId);
-      const modelName = opt.label
-        .replace(typeName, "")
-        .replace(manufacturer?.name || "", "")
-        .trim();
-      setNewComp((c) => ({
-        ...c,
-        popisId: manufacturer ? String(manufacturer.id) : c.popisId,
-        popis: manufacturer ? manufacturer.name : c.popis,
-        typId: opt.id,
-        typ: modelName || opt.label,
-      }));
+      });
+    } else if (opt.kind === "typeManufacturerModel") {
+      setIsCustom(false);
+      setNewComp({
+        ...defaultComp,
+        parentId: newComp.parentId ?? null,
+        rowId: newComp.rowId ?? null,
+        nazevId: opt.typeId || selectedTypeId || "",
+        nazev: opt.typeName || selectedTypeName || "",
+        popisId: opt.manufacturerId || "",
+        popis: opt.manufacturerName || "",
+        typId: opt.modelId || "",
+        typ: opt.modelName || "",
+      });
     }
     setSearchQuery("");
   };
 
-  // zobrazit extra pole pro chránič / chráničojistič (RCBO)
   const showBreakerFields = useMemo(() => {
     const src = `${newComp.nazev || ""} ${newComp.typ || ""}`.toLowerCase();
-    return /chránič|jističochranič|rcd|rcbo/.test(src);
+    return /chránič|chráničojistič|rcd|rcbo/.test(src);
   }, [newComp.nazev, newComp.typ]);
 
   return (
@@ -186,7 +291,6 @@ export default function AddCompDialog({
           {(newComp as any).id ? "Upravit komponentu" : "Nová komponenta"}
         </h3>
 
-        {/* Řada */}
         {rowOptions?.length ? (
           <div className="mb-4">
             <label className="block text-xs font-medium mb-1">Řada</label>
@@ -204,7 +308,6 @@ export default function AddCompDialog({
           </div>
         ) : null}
 
-        {/* Nadřazený prvek */}
         <div className="mb-4">
           <label className="block text-xs font-medium mb-1">Nadřazený prvek</label>
           <select
@@ -223,7 +326,6 @@ export default function AddCompDialog({
           </select>
         </div>
 
-        {/* Vyhledávání v katalogu */}
         <div className="mb-4">
           <label className="block text-xs font-medium mb-1">Vyhledat v katalogu</label>
           <input
@@ -237,13 +339,13 @@ export default function AddCompDialog({
             <div className="mt-1 border rounded bg-white max-h-48 overflow-auto text-sm">
               {searchOptions.map((opt) => (
                 <button
-                  key={`${opt.kind}-${opt.id}-${opt.manufacturerId || ""}`}
+                  key={`${opt.kind}-${opt.id}`}
                   type="button"
                   className="w-full text-left px-2 py-1 hover:bg-slate-100"
                   onClick={() => handleSearchSelect(opt)}
                 >
                   <span className="text-[11px] uppercase text-slate-500 mr-2">
-                    {opt.kind === "type" ? "Přístroj" : opt.kind === "manufacturer" ? "Výrobce" : "Model"}
+                    {opt.kind === "type" || opt.kind === "typeManufacturer" ? "Přístroj" : "Model"}
                   </span>
                   {opt.label}
                 </button>
@@ -252,7 +354,6 @@ export default function AddCompDialog({
           )}
         </div>
 
-        {/* Přístroj */}
         <div className="mb-4">
           <label className="block text-xs font-medium mb-1">Přístroj</label>
           <select
@@ -262,7 +363,11 @@ export default function AddCompDialog({
               const val = e.target.value;
               if (val === "vlastni") {
                 setIsCustom(true);
-                setNewComp({ ...defaultComp, parentId: newComp.parentId ?? null, rowId: newComp.rowId ?? null });
+                setNewComp({
+                  ...defaultComp,
+                  parentId: newComp.parentId ?? null,
+                  rowId: newComp.rowId ?? null,
+                });
               } else {
                 setIsCustom(false);
                 const txt = e.target.selectedOptions[0]?.text || "";
@@ -288,7 +393,6 @@ export default function AddCompDialog({
           </select>
         </div>
 
-        {/* Tělo formuláře: 2 sloupce */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {isCustom ? (
             <>
@@ -299,7 +403,7 @@ export default function AddCompDialog({
                 ["poles", "Počet pólů"],
                 ["dimenze", "Dimenze"],
                 ["riso", "Riso [MΩ]"],
-                ["ochrana", "Ochrana [Ω]"],
+                ["ochrana", "Zs [Ω]"],
                 ["poznamka", "Název obvodu"],
               ] as const).map(([field, label]) => (
                 <div key={field}>
@@ -317,7 +421,6 @@ export default function AddCompDialog({
             </>
           ) : (
             <>
-              {/* Výrobce */}
               <div>
                 <label className="block text-xs font-medium">Výrobce</label>
                 <select
@@ -344,7 +447,6 @@ export default function AddCompDialog({
                 </select>
               </div>
 
-              {/* Typ / model */}
               <div>
                 <label className="block text-xs font-medium">Typ / Model</label>
                 <select
@@ -365,7 +467,6 @@ export default function AddCompDialog({
                 </select>
               </div>
 
-              {/* Počet pólů */}
               <div>
                 <label className="block text-xs font-medium">Počet pólů</label>
                 <select
@@ -387,7 +488,6 @@ export default function AddCompDialog({
                 )}
               </div>
 
-              {/* Dimenze */}
               <div>
                 <label className="block text-xs font-medium">Dimenze</label>
                 <select
@@ -404,7 +504,6 @@ export default function AddCompDialog({
                 </select>
               </div>
 
-              {/* Riso */}
               <div>
                 <label className="block text-xs font-medium">Riso [MΩ]</label>
                 <input
@@ -415,7 +514,6 @@ export default function AddCompDialog({
                 />
               </div>
 
-              {/* Zs */}
               <div>
                 <label className="block text-xs font-medium">Zs [Ω]</label>
                 <input
@@ -426,7 +524,6 @@ export default function AddCompDialog({
                 />
               </div>
 
-              {/* Název obvodu */}
               <div className="col-span-2">
                 <label className="block text-xs font-medium">Název obvodu</label>
                 <input
@@ -442,7 +539,7 @@ export default function AddCompDialog({
 
         {showBreakerFields && (
           <div className="text-xs text-gray-500 mb-4">
-            U proudových chráničů a chráničojističů vyplňte také vybavovací proud a čas.
+            U proudových chráničů a chráničojističů vyplňte vybavovací proud a čas.
           </div>
         )}
 

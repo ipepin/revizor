@@ -239,7 +239,7 @@ export default function SummaryPage() {
     const hasChecked = arr.some((i) => typeof i?.checked === "boolean");
     const selected = hasChecked ? arr.filter((i) => i?.checked) : arr;
 
-    return selected.map((i) => ({
+    const mapped = selected.map((i) => ({
       id: String(i?.id ?? i?._id ?? i?.uuid ?? Math.random()),
       name: dash(i?.name),
       serial: dash(i?.serial || i?.serial_no || i?.sn),
@@ -248,6 +248,16 @@ export default function SummaryPage() {
       calibration_valid_until: dash(i?.calibration_valid_until),
       note: dash(i?.note),
     }));
+
+    const seen = new Set<string>();
+    return mapped.filter((i) => {
+      const key = [i.name, i.serial, i.calibration]
+        .map((v) => String(v || "").trim().toLowerCase())
+        .join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [safeForm.measuringInstruments, safeForm.instruments]);
 
   // Export DOCX (p?vodn? gener?tor)
