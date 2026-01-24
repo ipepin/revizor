@@ -27,6 +27,7 @@ import VvEditor from "./pages/VvEditor";
 import LpsEditPage from "./pages/LpsEditPage";
 import AdminSnippetsPage from "./pages/AdminSnippetsPage";
 import UserSnippetsPage from "./pages/UserSnippetsPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
 
 import "./index.css";
 
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify" element={<VerifyEmailPage />} />
 
               <Route
                 path="/"

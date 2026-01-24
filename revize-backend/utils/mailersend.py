@@ -24,6 +24,10 @@ def _public_api_base_url() -> str:
     )
 
 
+def _public_app_base_url() -> Optional[str]:
+    return _get_env("PUBLIC_APP_BASE_URL")
+
+
 def _from_email() -> str:
     return _get_env("MAIL_FROM_EMAIL", "admin@lb-eltech.online") or "admin@lb-eltech.online"
 
@@ -33,6 +37,9 @@ def _from_name() -> str:
 
 
 def build_verification_link(token: str) -> str:
+    app_base = _public_app_base_url()
+    if app_base:
+        return f"{app_base.rstrip('/')}/verify?token={token}"
     base = _public_api_base_url().rstrip("/")
     return f"{base}/auth/verify?token={token}"
 
