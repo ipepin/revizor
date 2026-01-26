@@ -312,28 +312,60 @@ export default function VvEditor() {
   const [guideIndex, setGuideIndex] = useState(0);
   const guideSteps: GuideStep[] = [
     {
-      key: "identifikace",
+      key: "identifikace-zaklad",
       targetId: "vv-identifikace",
-      title: "Identifikace",
-      text: "Vyplň objekt, adresu, zpracoval a datum. Doplň dokumentaci a popis objektu.",
+      title: "Z\u00e1kladn\u00ed \u00fadaje protokolu",
+      text:
+        "Vypl\u0148 n\u00e1zev objektu, adresu, zpracoval a datum. \u010c\u00edslo protokolu se dopln\u00ed automaticky po ulo\u017een\u00ed.",
+    },
+    {
+      key: "identifikace-podklady",
+      targetId: "vv-identifikace",
+      title: "Podklady a popis",
+      text:
+        "Do \u201eP\u0159edlo\u017een\u00e1 dokumentace\u201c napi\u0161, z jak\u00fdch podklad\u016f vych\u00e1z\u00ed\u0161. Stru\u010dn\u00fd popis objektu pom\u016f\u017ee p\u0159i obhajob\u011b protokolu.",
     },
     {
       key: "komise",
       targetId: "vv-komise",
       title: "Komise",
-      text: "Zadej předsedu a členy komise. Lze přidat více osob.",
+      text:
+        "Dopl\u0148 p\u0159edsedu a \u010dleny komise. Dal\u0161\u00ed osoby p\u0159id\u00e1\u0161 tla\u010d\u00edtkem \u201eP\u0159idat\u201c, odstranit jde ikonou ko\u0161e.",
     },
     {
       key: "prostory",
       targetId: "vv-prostory",
       title: "Prostory",
-      text: "Přidej místnosti a vyber aktivní prostor, který právě vyplňuješ.",
+      text:
+        "P\u0159idej m\u00edstnosti a vyber aktivn\u00ed prostor vlevo. V\u0161echny dal\u0161\u00ed volby se vztahuj\u00ed k vybran\u00e9mu prostoru.",
     },
     {
-      key: "vlivy",
+      key: "vlivy-tridy",
       targetId: "vv-vlivy",
-      title: "Vlivy",
-      text: "Vyber třídy vlivů A/B/C pro prostor, doplň opatření a intervaly kontrol.",
+      title: "T\u0159\u00eddy vn\u011bj\u0161\u00edch vliv\u016f",
+      text:
+        "Pro aktivn\u00ed prostor zvol t\u0159\u00eddy v ka\u017ed\u00e9 skupin\u011b A/B/C. \u0160t\u00edtky ozna\u010duj\u00ed norm\u00e1ln\u00ed vlivy.",
+    },
+    {
+      key: "vlivy-opatreni",
+      targetId: "vv-vlivy",
+      title: "Opat\u0159en\u00ed a intervaly",
+      text:
+        "Dopl\u0148 technick\u00e1 opat\u0159en\u00ed a intervaly pravideln\u00fdch reviz\u00ed pro aktivn\u00ed prostor.",
+    },
+    {
+      key: "vlivy-souhrn",
+      targetId: "vv-vlivy",
+      title: "Souhrn po\u017eadavk\u016f",
+      text:
+        "Souhrn se sestavuje automaticky podle vybran\u00fdch t\u0159\u00edd. Zkontroluj, zda d\u00e1v\u00e1 smysl pro dan\u00fd prostor.",
+    },
+    {
+      key: "export",
+      targetId: "vv-export",
+      title: "Export",
+      text:
+        "Hotov\u00fd protokol m\u016f\u017ee\u0161 vytisknout do PDF nebo ulo\u017eit jako JSON pro archivaci.",
     },
   ];
 
@@ -596,7 +628,7 @@ export default function VvEditor() {
         `}</style>
 
         {/* Toolbar */}
-        <div className="no-print mb-3 flex items-center gap-2">
+        <div className="no-print mb-3 flex items-center gap-2" data-guide-id="vv-export">
           <button
             onClick={() => navigate("/")}
             className="rounded-lg border bg-white px-3 py-1.5 hover:bg-slate-50"

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload, defer
+from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from database import get_db
@@ -416,8 +417,13 @@ def delete_user(
 
         # cleanup dependent rows (for DBs without FK cascade)
         db.query(SnippetPreference).filter(SnippetPreference.user_id == uid).delete(synchronize_session=False)
-        db.query(UserInstrument).filter(UserInstrument.user_id == uid).delete(synchronize_session=False)
-        db.query(CompanyProfile).filter(CompanyProfile.user_id == uid).delete(synchronize_session=False)
+
+        inspector = inspect(db.bind)
+        existing_tables = set(inspector.get_table_names())
+        if "user_instruments" in existing_tables:
+            db.query(UserInstrument).filter(UserInstrument.user_id == uid).delete(synchronize_session=False)
+        if "company_profiles" in existing_tables:
+            db.query(CompanyProfile).filter(CompanyProfile.user_id == uid).delete(synchronize_session=False)
 
         projects = db.query(Project).filter(Project.owner_id == uid).all()
         project_ids = [p.id for p in projects]
