@@ -423,6 +423,9 @@ def delete_user(
         if "user_instruments" in existing_tables:
             db.query(UserInstrument).filter(UserInstrument.user_id == uid).delete(synchronize_session=False)
         if "company_profiles" in existing_tables:
+            # break circular FK (users.active_company_id -> company_profiles.id)
+            target.active_company_id = None
+            db.flush()
             db.query(CompanyProfile).filter(CompanyProfile.user_id == uid).delete(synchronize_session=False)
 
         projects = db.query(Project).filter(Project.owner_id == uid).all()
