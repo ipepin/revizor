@@ -266,6 +266,20 @@ function categorize(req: string): Category {
   if (/(ex |exd|60079|vybuch|horlav)/.test(r)) return "Požár a výbuch";
   return "Ostatní";
 }
+function expandRequirements(reqs: string[], dict: InfluenceDict | null) {
+  if (!dict) return reqs;
+  const ad2Reqs = dict["AD2"]?.requirements || [];
+  const out: string[] = [];
+  for (const req of reqs) {
+    const norm = normalize(req);
+    if (norm.includes("opatreni jako v ad2")) {
+      if (ad2Reqs.length) out.push(...ad2Reqs);
+      continue;
+    }
+    out.push(req);
+  }
+  return out;
+}
 function dedupAndGroup(lines: string[]) {
   const seen = new Set<string>();
 
@@ -411,6 +425,12 @@ export default function VvEditor() {
   >([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+  const [activeGroup, setActiveGroup] = useState<Group>("A");
+  const [familyIndexByGroup, setFamilyIndexByGroup] = useState<Record<Group, number>>({
+    A: 0,
+    B: 0,
+    C: 0,
+  });
 
   // GET /vv/:id
   useEffect(() => {
@@ -567,6 +587,20 @@ export default function VvEditor() {
 
   const activeSpace =
     data.spaces.find((s) => s.id === (activeSpaceId || "")) || data.spaces[0];
+  const familiesByGroup = useMemo(
+    () => ({
+      A: families.filter((f) => f.group === "A"),
+      B: families.filter((f) => f.group === "B"),
+      C: families.filter((f) => f.group === "C"),
+    }),
+    [families]
+  );
+  const activeFamilies = familiesByGroup[activeGroup] || [];
+  const activeFamilyIndex = Math.min(
+    familyIndexByGroup[activeGroup] ?? 0,
+    Math.max(0, activeFamilies.length - 1)
+  );
+  const activeFamily = activeFamilies[activeFamilyIndex];
 
   /** Requirements (dedup) */
   const requirementsForSpaceRaw = (space: SpaceRecord): string[] => {
@@ -579,13 +613,29 @@ export default function VvEditor() {
       if (!item) continue;
       reqs.push(...(item.requirements || []));
     }
-    return reqs;
+    return expandRequirements(reqs, influences);
   };
+  const groupedReqBySpace = useMemo(() => {
+    if (!influences) return {};
+    const map: Record<string, ReturnType<typeof dedupAndGroup>> = {};
+    for (const space of data.spaces) {
+      map[space.id] = dedupAndGroup(requirementsForSpaceRaw(space));
+    }
+    return map;
+  }, [data.spaces, influences, families]);
   const groupedReqForActive = useMemo(
-    () => dedupAndGroup(requirementsForSpaceRaw(activeSpace)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeSpaceId, JSON.stringify(activeSpace?.selections), influences, families]
+    () => groupedReqBySpace[activeSpace?.id || ""] || [],
+    [groupedReqBySpace, activeSpace?.id]
   );
+  useEffect(() => {
+    if (!activeFamilies.length) return;
+    if (activeFamilyIndex > activeFamilies.length - 1) {
+      setFamilyIndexByGroup((prev) => ({
+        ...prev,
+        [activeGroup]: Math.max(0, activeFamilies.length - 1),
+      }));
+    }
+  }, [activeFamilies.length, activeFamilyIndex, activeGroup]);
 
   const exportJson = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -619,11 +669,13 @@ export default function VvEditor() {
         {/* PRINT CSS */}
         <style>{`
           @media print {
-            @page { size: A4; margin: 10mm 12mm; }
+            @page { size: A4; margin: 8mm 10mm; }
             .no-print, .app-sidebar { display: none !important; }
             .print-sheet { display: block !important; }
+            .print-page { page-break-after: always; }
+            .print-page:last-child { page-break-after: auto; }
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            * { page-break-inside: avoid; }
+            table { page-break-inside: avoid; }
           }
         `}</style>
 
@@ -862,431 +914,555 @@ export default function VvEditor() {
                 </label>
               </div>
 
-              {/* Skupiny A/B/C – výběr */}
-              {groups.map((grp) => (
-                <section key={grp} className="mt-6">
-                  <h3 className="font-semibold mb-2 text-slate-700">
-                    {groupTitle(grp)}
-                  </h3>
-                  <div className="divide-y rounded-lg border">
-                    {families
-                      .filter((f) => f.group === grp)
-                      .map((fam) => {
-                        const sel = activeSpace.selections[fam.code];
-                        const selected = sel ? influences?.[sel] : undefined;
-                        const normals = fam.items
-                          .filter((x) => influences?.[x.code]?.normal)
-                          .map((x) => x.code)
-                          .join(", ");
-                        return (
-                          <div
-                            key={fam.code}
-                            className="p-3 grid md:grid-cols-[240px_1fr] gap-4"
-                          >
-                            <div className="font-medium flex items-center gap-2">
-                              <span className="font-mono text-xs bg-slate-100 rounded px-1.5 py-0.5">
-                                {fam.code}
-                              </span>
-                              <span className="text-slate-700">{fam.name}</span>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap gap-2">
-                                {fam.items.map((cls) => {
-                                  const meta = influences![cls.code];
-                                  const checked = sel === cls.code;
-                                  const isNormal = !!meta?.normal;
-                                  const base =
-                                    "cursor-pointer inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm hover:shadow-sm transition";
-                                  const normalStyle = isNormal
-                                    ? " bg-purple-50 border-purple-200 text-purple-900"
-                                    : " bg-white";
-                                  const checkedStyle = checked
-                                    ? " ring-1 ring-blue-300 bg-blue-50 border-blue-300"
-                                    : "";
-                                  return (
-                                    <label
-                                      key={cls.code}
-                                      className={`${base}${normalStyle}${checkedStyle}`}
-                                      title={meta.meaning}
-                                    >
-                                      <input
-                                        type="radio"
-                                        className="hidden"
-                                        name={`sel-${activeSpace.id}-${fam.code}`}
-                                        checked={checked}
-                                        onChange={() =>
-                                          updateSpace(activeSpace.id, {
-                                            selections: {
-                                              ...activeSpace.selections,
-                                              [fam.code]: cls.code,
-                                            },
-                                          })
-                                        }
-                                      />
-                                      <span className="font-mono text-xs bg-slate-100 rounded px-1.5 py-0.5">
-                                        {cls.code}
-                                      </span>
-                                      <span>{`${cls.code} — ${meta.meaning}`}</span>
-                                      {isNormal && (
-                                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-100 border border-purple-200 text-purple-900">
-                                          <BadgeCheck className="h-3 w-3" /> normální
-                                        </span>
-                                      )}
-                                    </label>
-                                  );
-                                })}
+              <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+                <div className="space-y-4">
+                  {/* Krokový průvodce A/B/C */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-semibold text-slate-700">Skupiny vlivů</div>
+                    <div className="flex gap-2">
+                      {groups.map((grp) => (
+                        <button
+                          key={grp}
+                          onClick={() => setActiveGroup(grp)}
+                          className={`rounded-full px-3 py-1.5 text-sm border transition ${
+                            activeGroup === grp
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          {grp}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="ml-auto flex gap-2">
+                      <button
+                        className="rounded border px-3 py-1.5 text-sm hover:bg-slate-50"
+                        onClick={() => {
+                          const idx = Math.max(0, groups.indexOf(activeGroup) - 1);
+                          setActiveGroup(groups[idx]);
+                        }}
+                        disabled={groups.indexOf(activeGroup) === 0}
+                      >
+                        Předchozí skupina
+                      </button>
+                      <button
+                        className="rounded border px-3 py-1.5 text-sm hover:bg-slate-50"
+                        onClick={() => {
+                          const idx = Math.min(groups.length - 1, groups.indexOf(activeGroup) + 1);
+                          setActiveGroup(groups[idx]);
+                        }}
+                        disabled={groups.indexOf(activeGroup) === groups.length - 1}
+                      >
+                        Další skupina
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Rodina vlivů */}
+                  <div className="rounded-lg border p-4">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div className="font-semibold text-slate-700">
+                        {groupTitle(activeGroup)}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {activeFamilies.length
+                          ? `Rodina ${activeFamilyIndex + 1} / ${activeFamilies.length}`
+                          : "Bez dat"}
+                      </div>
+                      <div className="ml-auto flex items-center gap-2">
+                        <button
+                          className="rounded border px-2 py-1 text-sm hover:bg-slate-50"
+                          onClick={() =>
+                            setFamilyIndexByGroup((prev) => ({
+                              ...prev,
+                              [activeGroup]: Math.max(0, activeFamilyIndex - 1),
+                            }))
+                          }
+                          disabled={activeFamilyIndex <= 0}
+                        >
+                          Předchozí
+                        </button>
+                        <select
+                          className="rounded border px-2 py-1 text-sm"
+                          value={activeFamily?.code || ""}
+                          onChange={(e) => {
+                            const idx = activeFamilies.findIndex((f) => f.code === e.target.value);
+                            setFamilyIndexByGroup((prev) => ({
+                              ...prev,
+                              [activeGroup]: Math.max(0, idx),
+                            }));
+                          }}
+                        >
+                          {activeFamilies.map((fam) => (
+                            <option key={fam.code} value={fam.code}>
+                              {fam.code} – {fam.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="rounded border px-2 py-1 text-sm hover:bg-slate-50"
+                          onClick={() =>
+                            setFamilyIndexByGroup((prev) => ({
+                              ...prev,
+                              [activeGroup]: Math.min(
+                                activeFamilies.length - 1,
+                                activeFamilyIndex + 1
+                              ),
+                            }))
+                          }
+                          disabled={activeFamilyIndex >= activeFamilies.length - 1}
+                        >
+                          Další
+                        </button>
+                      </div>
+                    </div>
+
+                    {activeFamily ? (
+                      <div className="space-y-3">
+                        <div className="font-medium flex items-center gap-2">
+                          <span className="font-mono text-xs bg-slate-100 rounded px-1.5 py-0.5">
+                            {activeFamily.code}
+                          </span>
+                          <span className="text-slate-700">{activeFamily.name}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {activeFamily.items.map((cls) => {
+                            const meta = influences![cls.code];
+                            const sel = activeSpace.selections[activeFamily.code];
+                            const checked = sel === cls.code;
+                            const isNormal = !!meta?.normal;
+                            const base =
+                              "cursor-pointer inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm hover:shadow-sm transition";
+                            const normalStyle = isNormal
+                              ? " bg-purple-50 border-purple-200 text-purple-900"
+                              : " bg-white";
+                            const checkedStyle = checked
+                              ? " ring-1 ring-blue-300 bg-blue-50 border-blue-300"
+                              : "";
+                            return (
+                              <label
+                                key={cls.code}
+                                className={`${base}${normalStyle}${checkedStyle}`}
+                                title={meta.meaning}
+                              >
+                                <input
+                                  type="radio"
+                                  className="hidden"
+                                  name={`sel-${activeSpace.id}-${activeFamily.code}`}
+                                  checked={checked}
+                                  onChange={() =>
+                                    updateSpace(activeSpace.id, {
+                                      selections: {
+                                        ...activeSpace.selections,
+                                        [activeFamily.code]: cls.code,
+                                      },
+                                    })
+                                  }
+                                />
+                                <span className="font-mono text-xs bg-slate-100 rounded px-1.5 py-0.5">
+                                  {cls.code}
+                                </span>
+                                <span>{`${cls.code} – ${meta.meaning}`}</span>
+                                {isNormal && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-100 border border-purple-200 text-purple-900">
+                                    <BadgeCheck className="h-3 w-3" /> normální
+                                  </span>
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        {activeSpace.selections[activeFamily.code] && (
+                          <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+                            <div className="grid md:grid-cols-[160px_1fr] gap-2">
+                              <div className="text-slate-600">Vybraná třída</div>
+                              <div className="font-mono">
+                                {activeSpace.selections[activeFamily.code]}
                               </div>
 
-                              {sel && selected && (
-                                <div className="rounded-lg border bg-slate-50 p-3 text-sm">
-                                  <div className="grid md:grid-cols-[160px_1fr] gap-2">
-                                    <div className="text-slate-600">
-                                      Vybraná třída
-                                    </div>
-                                    <div className="font-mono">{sel}</div>
+                              <div className="text-slate-600">Normální vliv?</div>
+                              <div>
+                                {influences![activeSpace.selections[activeFamily.code]!]?.normal ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Ano
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-700">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    Ne
+                                  </span>
+                                )}
+                              </div>
 
-                                    <div className="text-slate-600">
-                                      Normální vliv?
-                                    </div>
-                                    <div>
-                                      {selected.normal ? (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                                          <CheckCircle2 className="h-4 w-4" />
-                                          Ano
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 text-amber-700">
-                                          <AlertTriangle className="h-4 w-4" />
-                                          Ne
-                                        </span>
-                                      )}
-                                    </div>
+                              <div className="text-slate-600">Význam</div>
+                              <div>
+                                {influences![activeSpace.selections[activeFamily.code]!]?.meaning ||
+                                  "—"}
+                              </div>
 
-                                    <div className="text-slate-600">Význam</div>
-                                    <div>{selected.meaning || "—"}</div>
+                              <div className="text-slate-600">Požadavky</div>
+                              <div>
+                                {influences![activeSpace.selections[activeFamily.code]!]
+                                  ?.requirements?.length ? (
+                                  <ul className="list-disc ml-5 space-y-1">
+                                    {influences![activeSpace.selections[activeFamily.code]!].requirements.map(
+                                      (t, i) => (
+                                        <li key={i}>{t}</li>
+                                      )
+                                    )}
+                                  </ul>
+                                ) : (
+                                  "—"
+                                )}
+                              </div>
 
-                                    <div className="text-slate-600">
-                                      Požadavky
-                                    </div>
-                                    <div>
-                                      {selected.requirements?.length ? (
-                                        <ul className="list-disc ml-5 space-y-1">
-                                          {selected.requirements.map((t, i) => (
-                                            <li key={i}>{t}</li>
-                                          ))}
-                                        </ul>
-                                      ) : (
-                                        "—"
-                                      )}
-                                    </div>
-
-                                    <div className="text-slate-600">
-                                      Vlivy považované za normální
-                                    </div>
-                                    <div className="font-mono">
-                                      {normals || "—"}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                              <div className="text-slate-600">
+                                Vlivy považované za normální
+                              </div>
+                              <div className="font-mono">
+                                {activeFamily.items
+                                  .filter((x) => influences![x.code]?.normal)
+                                  .map((x) => x.code)
+                                  .join(", ") || "—"}
+                              </div>
                             </div>
                           </div>
-                        );
-                      })}
-                  </div>
-                </section>
-              ))}
-
-              {/* Opatření / intervaly */}
-              <section className="mt-6 grid md:grid-cols-2 gap-4">
-                <label className="flex flex-col gap-2">
-                  <div className="font-semibold flex items-center gap-2">
-                    Návrh technických opatření{" "}
-                    <Info className="h-4 w-4 opacity-60" />
-                  </div>
-                  <textarea
-                    className="min-h-[120px] rounded-lg border px-3 py-1.5"
-                    value={activeSpace.measures || ""}
-                    onChange={(e) =>
-                      updateSpace(activeSpace.id, { measures: e.target.value })
-                    }
-                    placeholder="Doplň konkrétní technická opatření (IP, materiály, ochrany, značení, revizní body)…"
-                  />
-                </label>
-                <label className="flex flex-col gap-2">
-                  <div className="font-semibold flex items-center gap-2">
-                    Návrh termínů pravidelných revizí{" "}
-                    <Info className="h-4 w-4 opacity-60" />
-                  </div>
-                  <textarea
-                    className="min-h-[120px] rounded-lg border px-3 py-1.5"
-                    value={activeSpace.intervals || ""}
-                    onChange={(e) =>
-                      updateSpace(activeSpace.id, { intervals: e.target.value })
-                    }
-                    placeholder="Např. každé 3 roky (běžné prostory); častěji v agresivním prostředí – dle NV 190/2022 Sb. a norem."
-                  />
-                </label>
-              </section>
-
-              {/* Souhrn (screen) */}
-              <section className="mt-6">
-                <h3 className="font-semibold mb-2 text-slate-700">
-                  Souhrn požadavků (vybraný prostor) – setříděno
-                </h3>
-                {groupedReqForActive.length ? (
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {groupedReqForActive.map((g) => (
-                      <div key={g.category} className="rounded-lg border p-3">
-                        <div className="font-medium mb-2">{g.category}</div>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {g.items.map((t, i) => (
-                            <li key={i}>{t}</li>
-                          ))}
-                        </ul>
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="text-sm text-slate-500">Bez dat pro tuto skupinu.</div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-slate-500">—</div>
-                )}
-              </section>
+
+                  {/* Opatření / intervaly */}
+                  <section className="grid md:grid-cols-2 gap-4">
+                    <label className="flex flex-col gap-2">
+                      <div className="font-semibold flex items-center gap-2">
+                        Návrh technických opatření{" "}
+                        <Info className="h-4 w-4 opacity-60" />
+                      </div>
+                      <textarea
+                        className="min-h-[110px] rounded-lg border px-3 py-1.5"
+                        value={activeSpace.measures || ""}
+                        onChange={(e) =>
+                          updateSpace(activeSpace.id, { measures: e.target.value })
+                        }
+                        placeholder="Doplň konkrétní technická opatření (IP, materiály, ochrany, značení, revizní body)…"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2">
+                      <div className="font-semibold flex items-center gap-2">
+                        Návrh termínů pravidelných revizí{" "}
+                        <Info className="h-4 w-4 opacity-60" />
+                      </div>
+                      <textarea
+                        className="min-h-[110px] rounded-lg border px-3 py-1.5"
+                        value={activeSpace.intervals || ""}
+                        onChange={(e) =>
+                          updateSpace(activeSpace.id, { intervals: e.target.value })
+                        }
+                        placeholder="Např. každé 3 roky (běžné prostory); častěji v agresivním prostředí – dle NV 190/2022 Sb. a norem."
+                      />
+                    </label>
+                  </section>
+                </div>
+
+                {/* Sticky souhrn */}
+                <aside className="lg:sticky lg:top-4 h-max rounded-lg border bg-white p-3">
+                  <h3 className="font-semibold mb-2 text-slate-700">
+                    Souhrn požadavků (vybraný prostor)
+                  </h3>
+                  {groupedReqForActive.length ? (
+                    <div className="space-y-3 max-h-[70vh] overflow-auto pr-1">
+                      {groupedReqForActive.map((g) => (
+                        <div key={g.category} className="rounded-lg border p-2">
+                          <div className="font-medium mb-1">{g.category}</div>
+                          <ul className="list-disc ml-5 space-y-1">
+                            {g.items.map((t, i) => (
+                              <li key={i}>{t}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-slate-500">—</div>
+                  )}
+                </aside>
+              </div>
             </section>
           </div>
         )}
 
-        {/* ===== PRINT (A4, 1 strana) ===== */}
+        {/* ===== PRINT (A4, 1 prostor / strana) ===== */}
         {influences && (
           <div className="print-sheet hidden">
-            <div
-              style={{
-                maxWidth: "175mm",
-                margin: "0 auto",
-                fontSize: "11px",
-                lineHeight: 1.25,
-                paddingTop: "6mm",
-                paddingBottom: "6mm",
-              }}
-            >
-              {/* Nadpis + hlavička */}
-              <div
-                style={{
-                  textAlign: "center",
-                  fontWeight: 700,
-                  fontSize: "15px",
-                  marginBottom: "2.5mm",
-                }}
-              >
-                PROTOKOL o určení vnějších vlivů
-              </div>
-              <div style={{ textAlign: "center", marginBottom: "3mm" }}>
-                {data.objectName || "—"} · {data.address || "—"} ·{" "}
-                {data.date || "—"} · Zpracoval: {data.preparedBy || "—"}
-                {doc?.number ? <> · Číslo: {doc.number}</> : null}
-              </div>
+            {data.spaces.map((space) => {
+              const groupedReq = groupedReqBySpace[space.id] || [];
+              return (
+                <div key={space.id} className="print-page">
+                  <div
+                    style={{
+                      maxWidth: "180mm",
+                      margin: "0 auto",
+                      fontSize: "10.5px",
+                      lineHeight: 1.2,
+                      paddingTop: "4mm",
+                      paddingBottom: "4mm",
+                    }}
+                  >
+                    {/* Nadpis + hlavička */}
+                    <div
+                      style={{
+                        textAlign: "center",
+                        fontWeight: 700,
+                        fontSize: "14px",
+                        marginBottom: "2mm",
+                      }}
+                    >
+                      PROTOKOL o určení vnějších vlivů
+                    </div>
+                    <div style={{ textAlign: "center", marginBottom: "2.5mm" }}>
+                      {data.objectName || "—"} · {data.address || "—"} ·{" "}
+                      {data.date || "—"} · Zpracoval: {data.preparedBy || "—"}
+                      {doc?.number ? <> · Číslo: {doc.number}</> : null}
+                    </div>
 
-              {(data.submittedDocs || data.objectDescription) && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "4mm",
-                    marginBottom: "3mm",
-                  }}
-                >
-                  <div>
+                    {(data.submittedDocs || data.objectDescription) && (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "3mm",
+                          marginBottom: "2.5mm",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
+                            Předložená dokumentace
+                          </div>
+                          <div style={{ whiteSpace: "pre-wrap" }}>
+                            {data.submittedDocs || "—"}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
+                            Stručný popis objektu
+                          </div>
+                          <div style={{ whiteSpace: "pre-wrap" }}>
+                            {data.objectDescription || "—"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Komise */}
+                    <table
+                      style={{
+                        width: "100%",
+                        marginBottom: "2.5mm",
+                        borderCollapse: "collapse",
+                      }}
+                    >
+                      <tbody>
+                        <tr>
+                          <td style={{ width: "28mm", border: "1px solid #333", padding: "3px" }}>
+                            Předseda
+                          </td>
+                          <td style={{ border: "1px solid #333", padding: "3px" }}>
+                            {data.committee.find((m) => m.role === "Předseda")?.name ||
+                              "—"}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ border: "1px solid #333", padding: "3px" }}>
+                            Členové
+                          </td>
+                          <td style={{ border: "1px solid #333", padding: "3px" }}>
+                            {data.committee
+                              .filter((m) => m.role === "Člen")
+                              .map((m) => m.name)
+                              .filter(Boolean)
+                              .join(", ") || "—"}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Tabulka vlivů (prostor) */}
                     <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
-                      Předložená dokumentace
+                      Určení vnějších vlivů – {space?.name || "—"}
                     </div>
-                    <div style={{ whiteSpace: "pre-wrap" }}>
-                      {data.submittedDocs || "—"}
-                    </div>
-                  </div>
-                  <div>
+                    <table
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        marginBottom: "2.5mm",
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th
+                            style={{
+                              border: "1px solid #333",
+                              padding: "3px",
+                              textAlign: "left",
+                            }}
+                          >
+                            Vliv
+                          </th>
+                          <th
+                            style={{
+                              border: "1px solid #333",
+                              padding: "3px",
+                              textAlign: "left",
+                            }}
+                          >
+                            Označení
+                          </th>
+                          <th
+                            style={{
+                              border: "1px solid #333",
+                              padding: "3px",
+                              textAlign: "left",
+                            }}
+                          >
+                            Normální třídy
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {families.map((fam) => {
+                          const sel = space?.selections[fam.code] || "";
+                          const normals = fam.items
+                            .filter((x) => influences![x.code]?.normal)
+                            .map((x) => x.code)
+                            .join(", ");
+                          return (
+                            <tr key={fam.code}>
+                              <td style={{ border: "1px solid #333", padding: "3px" }}>
+                                <span style={{ fontFamily: "monospace" }}>{fam.code}</span>{" "}
+                                – {fam.name}
+                              </td>
+                              <td
+                                style={{
+                                  border: "1px solid #333",
+                                  padding: "3px",
+                                  fontFamily: "monospace",
+                                }}
+                              >
+                                {sel || "—"}
+                              </td>
+                              <td
+                                style={{
+                                  border: "1px solid #333",
+                                  padding: "3px",
+                                  fontFamily: "monospace",
+                                }}
+                              >
+                                {normals || "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {(space.measures || space.intervals) && (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "3mm",
+                          marginBottom: "2.5mm",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
+                            Návrh technických opatření
+                          </div>
+                          <div style={{ whiteSpace: "pre-wrap" }}>
+                            {space.measures || "—"}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
+                            Návrh termínů pravidelných revizí
+                          </div>
+                          <div style={{ whiteSpace: "pre-wrap" }}>
+                            {space.intervals || "—"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SOUHRN POŽADAVKŮ – 2–3 sloupce (dedup) */}
                     <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
-                      Stručný popis objektu
+                      Souhrn požadavků vyplývajících z určených vlivů
                     </div>
-                    <div style={{ whiteSpace: "pre-wrap" }}>
-                      {data.objectDescription || "—"}
+                    {groupedReq.length ? (
+                      groupedReq.map((g, gi) => {
+                        const cols = g.items.length > 14 ? 3 : 2;
+                        const rows = toColumns(g.items, cols);
+                        return (
+                          <div key={gi} style={{ marginBottom: "2mm" }}>
+                            <div style={{ fontWeight: 600, margin: "0 0 0.5mm 0" }}>
+                              {g.category}
+                            </div>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                              <tbody>
+                                {rows.map((r, ri) => (
+                                  <tr key={ri}>
+                                    {r.map((cell, ci) => (
+                                      <td
+                                        key={ci}
+                                        style={{
+                                          border: "1px solid #333",
+                                          padding: "2px 3px",
+                                          width: `${100 / cols}%`,
+                                        }}
+                                      >
+                                        {cell ? <span>• {cell}</span> : <span>&nbsp;</span>}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ color: "#555" }}>—</div>
+                    )}
+
+                    {/* Doložka – prázdné místo na ruční doplnění */}
+                    <div style={{ marginTop: "4mm" }}>V ____________ dne ____________</div>
+
+                    {/* Podpisy */}
+                    <div style={{ display: "flex", gap: "8mm", marginTop: "8mm" }}>
+                      {data.committee.map((m, i) => (
+                        <div key={i} style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              borderTop: "1px solid #333",
+                              paddingTop: "3mm",
+                              textAlign: "center",
+                            }}
+                          >
+                            {m.name || "__________"}
+                            <br />
+                            <span style={{ fontSize: "10px" }}>{m.role}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Komise */}
-              <table
-                style={{
-                  width: "100%",
-                  marginBottom: "3mm",
-                  borderCollapse: "collapse",
-                }}
-              >
-                <tbody>
-                  <tr>
-                    <td style={{ width: "28mm", border: "1px solid #333", padding: "3px" }}>
-                      Předseda
-                    </td>
-                    <td style={{ border: "1px solid #333", padding: "3px" }}>
-                      {data.committee.find((m) => m.role === "Předseda")?.name ||
-                        "—"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ border: "1px solid #333", padding: "3px" }}>
-                      Členové
-                    </td>
-                    <td style={{ border: "1px solid #333", padding: "3px" }}>
-                      {data.committee
-                        .filter((m) => m.role === "Člen")
-                        .map((m) => m.name)
-                        .filter(Boolean)
-                        .join(", ") || "—"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Tabulka vlivů (aktivní prostor) */}
-              <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
-                Určení vnějších vlivů — {activeSpace?.name || "—"}
-              </div>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  marginBottom: "3mm",
-                }}
-              >
-                <thead>
-                  <tr>
-                    <th
-                      style={{
-                        border: "1px solid #333",
-                        padding: "3px",
-                        textAlign: "left",
-                      }}
-                    >
-                      Vliv
-                    </th>
-                    <th
-                      style={{
-                        border: "1px solid #333",
-                        padding: "3px",
-                        textAlign: "left",
-                      }}
-                    >
-                      Označení
-                    </th>
-                    <th
-                      style={{
-                        border: "1px solid #333",
-                        padding: "3px",
-                        textAlign: "left",
-                      }}
-                    >
-                      Normální třídy
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {families.map((fam) => {
-                    const sel = activeSpace?.selections[fam.code] || "";
-                    const normals = fam.items
-                      .filter((x) => influences![x.code]?.normal)
-                      .map((x) => x.code)
-                      .join(", ");
-                    return (
-                      <tr key={fam.code}>
-                        <td style={{ border: "1px solid #333", padding: "3px" }}>
-                          <span style={{ fontFamily: "monospace" }}>{fam.code}</span>{" "}
-                          — {fam.name}
-                        </td>
-                        <td
-                          style={{
-                            border: "1px solid #333",
-                            padding: "3px",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          {sel || "—"}
-                        </td>
-                        <td
-                          style={{
-                            border: "1px solid #333",
-                            padding: "3px",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          {normals || "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {/* SOUHRN POŽADAVKŮ – 2–3 sloupce (dedup) */}
-              <div style={{ fontWeight: 600, marginBottom: "1mm" }}>
-                Souhrn požadavků vyplývajících z určených vlivů
-              </div>
-              {groupedReqForActive.length ? (
-                groupedReqForActive.map((g, gi) => {
-                  const cols = g.items.length > 14 ? 3 : 2;
-                  const rows = toColumns(g.items, cols);
-                  return (
-                    <div key={gi} style={{ marginBottom: "2mm" }}>
-                      <div style={{ fontWeight: 600, margin: "0 0 0.5mm 0" }}>
-                        {g.category}
-                      </div>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <tbody>
-                          {rows.map((r, ri) => (
-                            <tr key={ri}>
-                              {r.map((cell, ci) => (
-                                <td
-                                  key={ci}
-                                  style={{
-                                    border: "1px solid #333",
-                                    padding: "2px 3px",
-                                    width: `${100 / cols}%`,
-                                  }}
-                                >
-                                  {cell ? <span>• {cell}</span> : <span>&nbsp;</span>}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })
-              ) : (
-                <div style={{ color: "#555" }}>—</div>
-              )}
-
-              {/* Doložka – prázdné místo na ruční doplnění */}
-              <div style={{ marginTop: "5mm" }}>V ____________ dne ____________</div>
-
-              {/* Podpisy */}
-              <div style={{ display: "flex", gap: "8mm", marginTop: "10mm" }}>
-                {data.committee.map((m, i) => (
-                  <div key={i} style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        borderTop: "1px solid #333",
-                        paddingTop: "3mm",
-                        textAlign: "center",
-                      }}
-                    >
-                      {m.name || "__________"}
-                      <br />
-                      <span style={{ fontSize: "10px" }}>{m.role}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+              );
+            })}
           </div>
         )}
 

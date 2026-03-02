@@ -103,12 +103,12 @@ const RegisterPage: React.FC = () => {
       setRegistering(true);
       await register(form);
       setError(null);
-      setSuccess("Úspěšně zaregistrováno. Zkuste se přihlásit.");
+      setSuccess("Ověřovací e-mail byl odeslán. Ověřte účet a přihlaste se.");
       setForm(initialForm);
       setConfirm("");
       setDialogMode("success");
       setVerifyResult(null);
-      setTimeout(() => navigate("/login", { replace: true }), 2000);
+      setTimeout(() => navigate("/login?registered=1", { replace: true }), 2000);
     } catch (err) {
       const message =
         (err as any)?.response?.data?.detail ||
@@ -431,7 +431,7 @@ const RegisterPage: React.FC = () => {
                 <div>
                   <h3 className="text-xl font-semibold text-slate-900">Registrace dokončena</h3>
                   <p className="mt-2 text-sm text-slate-700">
-                    Úspěšně zaregistrováno. Zkuste se přihlásit.
+                    Ověřovací e-mail byl odeslán. Po ověření účtu se můžete přihlásit.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -443,7 +443,7 @@ const RegisterPage: React.FC = () => {
                   </button>
                   <button
                     className="btn btn-accent w-full rounded-xl normal-case sm:w-auto"
-                    onClick={() => navigate("/login")}
+                    onClick={() => navigate("/login?registered=1")}
                   >
                     <span className="flex items-center justify-center gap-2">
                       <LogIn className="h-5 w-5" />

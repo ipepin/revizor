@@ -6,7 +6,7 @@ from datetime import date
 import json as _json
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import select
@@ -32,6 +32,35 @@ router = APIRouter(prefix="/revisions", tags=["revisions"])
 
 
 # ---------- Helpers ----------
+
+def _generate_revision_number(db: Session, user_id: int, year: int, prefix: str) -> str:
+    """
+    Format: <prefix>-<year>-<userId>-<seq>
+    seq is per-user and per-year, derived from existing revision numbers.
+    """
+    prefix_base = str(prefix)
+    prefix = f"{prefix_base}-{year}-{user_id}-"
+    suffix = ""
+
+    rows = (
+        db.query(Revision.number)
+        .filter(Revision.number.like(f"{prefix}%"))
+        .all()
+    )
+
+    max_seq = 0
+    for (num,) in rows:
+        parts = (num or "").split("-")
+        if len(parts) >= 4 and parts[0] == prefix_base and parts[1] == str(year) and parts[2] == str(user_id):
+            try:
+                max_seq = max(max_seq, int(parts[3]))
+            except Exception:
+                pass
+
+    next_seq = max_seq + 1
+    return f"{prefix}{next_seq:03d}"
+
+
 
 def _can_access_project(user: UserModel, prj: Project) -> bool:
     """VlastnĂ­k projektu, nebo uĹľivatel, se kterĂ˝m je projekt sdĂ­len."""
@@ -129,22 +158,15 @@ def create_revision(
     if not _can_access_project(user, prj):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    # poĹ™adĂ­ pro ÄŤĂ­slovĂˇnĂ­
-    existing_count = (
-        db.query(func.count(Revision.id))
-        .filter(Revision.project_id == payload.project_id)
-        .scalar()
-    ) or 0
-    seq = existing_count + 1
-
     # datumy (date_done vÄ›tĹˇinou vyĹľadujeme)
     d_done = _ensure_date(getattr(payload, "date_done", None))  
     v_until = _ensure_date(getattr(payload, "valid_until", None))
     if not d_done:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="date_done is required")
 
-    # evidenÄŤnĂ­ ÄŤĂ­slo â€“ pouĹľij to z payloadu pokud ho FE poslal, jinak vygeneruj
-    number = getattr(payload, "number", None) or f"RZ-{payload.project_id}-{seq}-{d_done.year}"
+    # Evidence number (generated per user/year)
+    prefix_val = "LPS" if (getattr(payload, "type", "").upper() == "LPS") else "RZ"
+    number = _generate_revision_number(db, user.id, d_done.year, prefix_val)
 
     # status â€“ fallback, pokud DB vyĹľaduje NOT NULL
     status_val = getattr(payload, "status", None) or "RozpracovanĂˇ"
@@ -361,4 +383,3 @@ def unlock_revision(
     db.commit()
     db.refresh(rev)
     return _to_schema(rev)
-

@@ -386,7 +386,7 @@ class VvDoc(Base):
 
     # FE generuje UUID → držíme jako String(36)
     id         = Column(String(36), primary_key=True, index=True)
-    # Evidenční číslo ve tvaru "VV-YYYY-0001" (unikátní). Vygenerujeme v routeru při POST.
+    # Evidence number format: VV-<userId>-<seq>-<year> (generated on POST).
     number     = Column(String(32), unique=True, nullable=False)
 
     # JSON protokolu (stejný přístup jako Revision.data_json)

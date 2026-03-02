@@ -616,12 +616,6 @@ export default function Dashboard() {
                                         };
                                       }
                                       if (owner_id != null) newRevision.owner_id = owner_id;
-                                      if (type === "LPS") {
-                                        const existingLps = Array.isArray(proj.revisions) ? proj.revisions.filter((r: any) => (r?.type || "").toUpperCase() === "LPS") : [];
-                                        const seq = (existingLps?.length || 0) + 1;
-                                        newRevision.number = `LPS-${proj.id}-${String(seq).padStart(3, '0')}`;
-                                      }
-
                                       try {
                                         const response = await fetch(apiUrl(`/revisions`), {
                                           method: "POST",

@@ -43,38 +43,32 @@ def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Pro
     return prj
 
 
-def _generate_vv_number(db: Session, project_id: int) -> str:
+def _generate_vv_number(db: Session, user_id: int) -> str:
     """
-    Formát: VV-<projectId>-<seq>-<year>
-    - seq je pořadí v rámci (project_id, rok), 1..N
+    Format: VV-<userId>-<seq>-<year>
+    seq is per-user and per-year, derived from existing VV numbers.
     """
     year = datetime.now().year
-    prefix = f"VV-{project_id}-"
+    prefix = f"VV-{user_id}-"
     suffix = f"-{year}"
 
     rows = (
         db.query(VvDocModel.number)
-        .filter(
-            and_(
-                VvDocModel.project_id == project_id,
-                VvDocModel.number.like(f"{prefix}%{suffix}"),
-            )
-        )
+        .filter(VvDocModel.number.like(f"{prefix}%{suffix}"))
         .all()
     )
 
     max_seq = 0
     for (num,) in rows:
         parts = (num or "").split("-")
-        if len(parts) >= 4 and parts[0] == "VV" and parts[1] == str(project_id) and parts[-1] == str(year):
+        if len(parts) >= 4 and parts[0] == "VV" and parts[1] == str(user_id) and parts[-1] == str(year):
             try:
                 max_seq = max(max_seq, int(parts[2]))
             except Exception:
                 pass
 
     next_seq = max_seq + 1
-    seq_str = f"{next_seq:0{SEQ_PAD}d}"
-    return f"{prefix}{seq_str}{suffix}"
+    return f"{prefix}{next_seq}{suffix}"
 
 
 def _default_protocol_data(project: Project) -> dict:
@@ -112,7 +106,7 @@ def create_vv(
     if db.get(VvDocModel, payload.id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document with this ID already exists")
 
-    number = _generate_vv_number(db, payload.project_id)
+    number = _generate_vv_number(db, user.id)
 
     row = VvDocModel(
         id=payload.id,
