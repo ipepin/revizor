@@ -19,6 +19,25 @@ function normalizeStatus(s?: string): string {
   return raw;
 }
 
+function displayProjectNumber(value: any): string {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "-";
+  const normalized = raw.replace(/^0+(?=\d)/, "");
+  return normalized || "0";
+}
+
+function getProjectValidity(revisions: any[]) {
+  const doneRevisions = (Array.isArray(revisions) ? revisions : [])
+    .filter((rev) => normalizeStatus(rev?.status).toLowerCase().startsWith("dokon"))
+    .filter((rev) => rev?.valid_until);
+
+  if (!doneRevisions.length) return null;
+
+  return [...doneRevisions].sort(
+    (a, b) => new Date(b.valid_until).getTime() - new Date(a.valid_until).getTime()
+  )[0];
+}
+
 type TrainingBundle = {
   projectId: number;
   elektroRevId: number;
@@ -385,9 +404,10 @@ export default function Dashboard() {
               <th className="p-2 text-left">📄 Revize</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredProjects.map((proj: any) => {
-              const expired = proj.revisions?.some((r: any) => isExpired(r.valid_until));
+            <tbody>
+              {filteredProjects.map((proj: any) => {
+              const projectValidity = getProjectValidity(proj.revisions);
+              const expired = projectValidity ? isExpired(projectValidity.valid_until) : false;
               const isSelected = expandedProjectId === proj.id;
               const sortedRevisions = Array.isArray(proj.revisions)
                 ? [...proj.revisions].sort(
@@ -423,11 +443,11 @@ export default function Dashboard() {
                       }
                     }}
                   >
-                    <td className="p-2 font-mono">{proj.id}</td>
+                    <td className="p-2 font-mono font-semibold text-slate-700">{displayProjectNumber(proj.number)}</td>
                     <td className="p-2">{proj.address}</td>
                     <td className="p-2">{proj.client}</td>
-                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : "text-green-700"}`}>
-                      {expired ? "Revize po platnosti" : "OK"}
+                    <td className={`p-2 ${expired ? "text-red-600 font-semibold" : projectValidity ? "text-green-700" : "text-slate-500"}`}>
+                      {projectValidity ? projectValidity.valid_until : "—"}
                     </td>
                     <td className="p-2">{proj.revisions?.length ?? 0}</td>
                   </tr>
@@ -441,7 +461,7 @@ export default function Dashboard() {
                             className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
                             onClick={() => handleAdd(proj.id)}
                           >
-                            ➕ Přidat
+                            ➕ Přidat RZ/VV do projektu
                           </button>
                           <button
                             className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
@@ -465,17 +485,20 @@ export default function Dashboard() {
                           </thead>
                           <tbody>
                             {sortedRevisions.map((rev: any) => {
-                              const isDone = normalizeStatus(rev.status) === "Dokončená";
+                              const normStatus = normalizeStatus(rev.status);
+                              const isDone = normStatus.toLowerCase().startsWith("dokon");
+                              const expired = isExpired(rev.valid_until);
+                              const rowClass = isDone ? (expired ? "bg-red-100" : "bg-green-50") : "";
                               return (
-                                <tr key={rev.id} className={`border-t ${isDone ? "bg-green-50" : ""}`}>
+                                <tr key={rev.id} className={`border-t ${rowClass}`}>
                                   <td className="p-2">{rev.number}</td>
                                   <td className="p-2">{rev.type}</td>
                                   <td className="p-2">{rev.date_done}</td>
                                   <td className={`p-2 ${isExpired(rev.valid_until) ? "text-red-600 font-semibold" : ""}`}>
                                     {rev.valid_until}
                                   </td>
-                                  <td className={`p-2 ${isDone ? "text-green-700" : "text-blue-600"}`}>
-{normalizeStatus(rev.status)}
+                                  <td className={`p-2 ${isDone ? (expired ? "text-red-700" : "text-green-700") : "text-blue-600"}`}>
+{normStatus}
                                   </td>
                                   <td className="p-2 space-x-2">
                                     <button

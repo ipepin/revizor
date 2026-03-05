@@ -52,6 +52,7 @@ function angularParser(tag: string) {
 // ---------- data builder ----------
 function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: GenArgs) {
   const EVIDENCNI = dash(safeForm?.evidencni || revId);
+  const UUID = dash(safeForm?.uuid);
   const TYP_REVIZE = dash(safeForm?.typRevize);
   const NORMY = normsAll?.length ? normsAll.join(", ") : "-";
 
@@ -160,6 +161,7 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
 
   return {
     EVIDENCNI,
+    UUID,
     TYP_REVIZE,
     NORMY,
 

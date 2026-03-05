@@ -236,12 +236,17 @@ export const kvNoBorders = (
 /* ---------- Header & Footer ---------- */
 
 /** Záhlaví s evidenčním číslem (vpravo) */
-export const makeHeader = (evid: string) =>
+export const makeHeader = (evid: string, uuid?: string) =>
   new Header({
     children: [
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        children: [tr(`Evidenční číslo: ${evid}`, { size: SMALL, color: COL_MUTE })],
+        children: [tr(`Eviden\u010dn\u00ed \u010d\u00edslo: ${evid}`, { size: SMALL, color: COL_MUTE })],
+        spacing: { after: 0 },
+      }),
+            new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [tr(`UUID revize: ${uuid || "?"}`, { size: SMALL, color: COL_MUTE })],
         spacing: { after: 0 },
       }),
     ],

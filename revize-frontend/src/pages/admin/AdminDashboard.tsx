@@ -7,6 +7,13 @@ type Revision = { id: number; number?: string; status?: string; type?: string };
 type Project = { id: number; address?: string; client?: string; revisions?: Revision[] };
 type VvDoc = { id: string; number?: string };
 
+const displayProjectNumber = (value: any) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.replace(/^0+(?=\d)/, "");
+  return normalized || "0";
+};
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -110,7 +117,8 @@ export default function AdminDashboard() {
                             <div key={p.id} className="p-2">
                               <div className="flex items-center justify-between">
                                 <div>
-                                  <div className="font-medium">{p.address || `Projekt #${p.id}`}</div>
+                                  <div className="font-medium">{p.number ? `Projekt ${displayProjectNumber(p.number)}` : `Projekt #${p.id}`}</div>
+                                  <div className="text-sm text-gray-700">{p.address || "Bez adresy"}</div>
                                   <div className="text-xs text-gray-500">{p.client || "—"}</div>
                                 </div>
                                 {/* VV se načítají automaticky při rozbalení uživatele */}

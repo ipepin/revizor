@@ -6,6 +6,7 @@ import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
 import { generateSummaryDocx } from "./summary-export/word";
 import { renderAndDownloadLpsDocx } from "./summary-export/lpsDocxTemplate";
+import { renderAndDownloadElectroTemplateDocx } from "./summary-export/electroTemplateExport";
 import LpsSummaryPage from "./LpsSummaryPage";
 import html2canvas from "html2canvas";
 
@@ -70,6 +71,7 @@ export default function SummaryPage() {
   const safeForm: any = useMemo(
     () => ({
       evidencni: "",
+      uuid: "",
       objekt: "",
       adresa: "",
       objednatel: "",
@@ -311,6 +313,20 @@ export default function SummaryPage() {
       templateUrl: "/templates/lps_report.docx",
     });
   };
+  const handleGenerateTemplateDocx = async () => {
+    try {
+      await renderAndDownloadElectroTemplateDocx({
+        safeForm,
+        technician,
+        normsAll,
+        usedInstruments,
+        revId,
+        templateUrl: "/templates/elektro_rz_template.docx",
+      });
+    } catch (e: any) {
+      alert(`Nepodařilo se vyplnit šablonu: ${e?.message || e}`);
+    }
+  };
   const handleDownloadJson = () => {
     const blob = new Blob([JSON.stringify(safeForm, null, 2)], {
       type: "application/json",
@@ -418,6 +434,7 @@ export default function SummaryPage() {
               mode="summary"
               actions={[
                 { label: "Export do Wordu", onClick: handleGenerateDocx, variant: "primary" },
+                { label: "Export do šablony", onClick: handleGenerateTemplateDocx, variant: "outline" },
                 { label: "Export JSON", onClick: handleDownloadJson, variant: "outline" },
               ]}
             />
@@ -475,14 +492,15 @@ export default function SummaryPage() {
             <section className="a4">
               <HeaderBlock
                 evidencni={safeForm.evidencni}
+                uuid={safeForm.uuid}
                 revId={revId}
                 typRevize={safeForm.typRevize}
                 normsAll={normsAll}
               />
 
-              <TechnicianCard tech={technician} />
-
-              <hr className="my-5 border-slate-200" />
+              <div className="mt-5">
+                <TechnicianCard tech={technician} />
+              </div>
 
               {/* Revidovaný objekt (stručně) */}
               <section className="mt-3" style={{ breakInside: "avoid" }}>

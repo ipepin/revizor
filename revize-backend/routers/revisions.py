@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from database import get_db
 from routers.auth import get_current_user
-from models import Revision, Project, User as UserModel
+from models import Revision, Project, User as UserModel, generate_revision_uuid
 from schemas import RevisionRead, RevisionCreate, RevisionUpdate
 
 try:
@@ -33,17 +33,37 @@ router = APIRouter(prefix="/revisions", tags=["revisions"])
 
 # ---------- Helpers ----------
 
-def _generate_revision_number(db: Session, user_id: int, year: int, prefix: str) -> str:
+def _normalize_project_number(project_number: Any, project_id: Any) -> str:
+    raw = str(project_number or "").strip()
+    if raw:
+        try:
+            return str(int(raw))
+        except ValueError:
+            return raw
+    try:
+        return str(int(project_id))
+    except Exception:
+        return "0"
+
+
+def _generate_revision_number(
+    db: Session,
+    project_id: int,
+    project_number: str,
+    year: int,
+    prefix: str,
+) -> str:
     """
-    Format: <prefix>-<year>-<userId>-<seq>
-    seq is per-user and per-year, derived from existing revision numbers.
+    Format: <prefix>-<year>-<projectNumber>-<seq>
+    seq is per-project, per-prefix and per-year.
     """
     prefix_base = str(prefix)
-    prefix = f"{prefix_base}-{year}-{user_id}-"
-    suffix = ""
+    normalized_project_number = _normalize_project_number(project_number, project_id)
+    prefix = f"{prefix_base}-{year}-{normalized_project_number}-"
 
     rows = (
         db.query(Revision.number)
+        .filter(Revision.project_id == project_id)
         .filter(Revision.number.like(f"{prefix}%"))
         .all()
     )
@@ -51,7 +71,7 @@ def _generate_revision_number(db: Session, user_id: int, year: int, prefix: str)
     max_seq = 0
     for (num,) in rows:
         parts = (num or "").split("-")
-        if len(parts) >= 4 and parts[0] == prefix_base and parts[1] == str(year) and parts[2] == str(user_id):
+        if len(parts) >= 4 and parts[0] == prefix_base and parts[1] == str(year):
             try:
                 max_seq = max(max_seq, int(parts[3]))
             except Exception:
@@ -166,7 +186,15 @@ def create_revision(
 
     # Evidence number (generated per user/year)
     prefix_val = "LPS" if (getattr(payload, "type", "").upper() == "LPS") else "RZ"
-    number = _generate_revision_number(db, user.id, d_done.year, prefix_val)
+    number = _generate_revision_number(
+        db,
+        prj.id,
+        getattr(prj, "number", None),
+        d_done.year,
+        prefix_val,
+    )
+
+    rev_uuid = generate_revision_uuid()
 
     # status â€“ fallback, pokud DB vyĹľaduje NOT NULL
     status_val = getattr(payload, "status", None) or "RozpracovanĂˇ"
@@ -178,6 +206,7 @@ def create_revision(
         rev = Revision(
             project_id=payload.project_id,
             type=getattr(payload, "type", None),
+            uuid=rev_uuid,
             number=number,
             date_done=d_done,
             valid_until=v_until,

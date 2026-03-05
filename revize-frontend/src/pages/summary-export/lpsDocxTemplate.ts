@@ -15,6 +15,7 @@ export async function renderAndDownloadLpsDocx(args: LpsGenArgs) {
 
   const blob = await buildLpsWordBlob(safeForm, sketchBytes, sketchSize);
   const fileId = String(safeForm?.evidencni || args.revId || "lps");
+  const UUID = dash(safeForm?.uuid);
   saveAs(blob, `lps_revizni_zprava_${fileId}.docx`);
 }
 
@@ -71,6 +72,7 @@ function buildDataMap(safe: any, lps: any) {
   return {
     REVISION_TYPE: dash(safe.typRevize),
     EVIDENCE_NUMBER: dash(safe.evidencni),
+    UUID,
     PROJECT_ID: dash(lps.projectNo || safe.projectId),
     OBJECT_NAME: dash(safe.objekt),
     OBJECT_ADDRESS: dash(safe.adresa),

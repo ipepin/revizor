@@ -16,48 +16,73 @@ const defaultTests = [
   "Zkouška funkčnosti jištění",
 ];
 
+const DEFAULT_NOTE = "Bez závad";
+
 export default function ZkouskySection() {
   const { form, setForm } = useContext(RevisionFormContext);
 
-  // Toggle checkbox
   const toggleTest = (label: string) => {
     setForm((f) => {
       const prev: TestData = f.tests[label] ?? { checked: false, note: "" };
-      const updated = {
-        ...f.tests,
-        [label]: { ...prev, checked: !prev.checked },
+      return {
+        ...f,
+        tests: {
+          ...f.tests,
+          [label]: { ...prev, checked: !prev.checked },
+        },
       };
-      return { ...f, tests: updated };
     });
   };
 
-  // Poznámka
   const handleNoteChange = (label: string, note: string) => {
     setForm((f) => {
       const prev: TestData = f.tests[label] ?? { checked: false, note: "" };
-      const updated = {
-        ...f.tests,
-        [label]: { ...prev, note },
+      return {
+        ...f,
+        tests: {
+          ...f.tests,
+          [label]: { ...prev, note },
+        },
       };
-      return { ...f, tests: updated };
+    });
+  };
+
+  const fillDefaultNote = (label: string) => {
+    setForm((f) => {
+      const prev: TestData = f.tests[label] ?? { checked: false, note: "" };
+      return {
+        ...f,
+        tests: {
+          ...f.tests,
+          [label]: { ...prev, note: DEFAULT_NOTE },
+        },
+      };
+    });
+  };
+
+  const clearNote = (label: string) => {
+    setForm((f) => {
+      const prev: TestData = f.tests[label] ?? { checked: false, note: "" };
+      return {
+        ...f,
+        tests: {
+          ...f.tests,
+          [label]: { ...prev, note: "" },
+        },
+      };
     });
   };
 
   return (
     <div className="space-y-4 text-sm text-gray-800">
-      <h2 className="text-xl font-semibold text-blue-800 mb-3">
-        🔍 Provedené zkoušky
-      </h2>
+      <h2 className="text-xl font-semibold text-blue-800">Provedené zkoušky</h2>
 
       <div data-guide-id="zk-tests" className="space-y-3">
         {defaultTests.map((label) => {
           const data: TestData = form.tests[label] ?? { checked: false, note: "" };
           return (
-            <div
-              key={label}
-              className="flex flex-col md:flex-row md:items-center gap-2"
-            >
-              <label className="flex items-center gap-2 w-full md:w-1/2 text-sm">
+            <div key={label} className="flex flex-col gap-2 md:flex-row md:items-center">
+              <label className="flex w-full items-center gap-2 text-sm md:w-1/2">
                 <input
                   type="checkbox"
                   checked={data.checked}
@@ -69,12 +94,25 @@ export default function ZkouskySection() {
               <input
                 type="text"
                 className="flex-1 rounded border px-3 py-1.5"
-                placeholder="Poznámka např. Bez závad"
+                placeholder="Poznámka, např. Bez závad"
                 value={data.note}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  handleNoteChange(label, e.target.value)
-                }
+                onChange={(e: ChangeEvent<HTMLInputElement>) => handleNoteChange(label, e.target.value)}
               />
+              <button
+                type="button"
+                className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                onClick={() => fillDefaultNote(label)}
+              >
+                Bez závad
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                onClick={() => clearNote(label)}
+                title="Vymazat poznámku"
+              >
+                X
+              </button>
             </div>
           );
         })}

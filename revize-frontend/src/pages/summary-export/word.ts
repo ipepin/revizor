@@ -51,8 +51,8 @@ type GenArgs = {
 const PAGE_WIDTH_MM = 210;
 const PAGE_HEIGHT_MM = 297;
 const PAGE_MARGIN_MM = 14;
-const MAX_SCHEMA_WIDTH_PX = Math.round(((PAGE_WIDTH_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96);
-const MAX_SCHEMA_HEIGHT_PX = Math.round(((PAGE_HEIGHT_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96);
+const MAX_SCHEMA_WIDTH_PX = Math.round(((PAGE_WIDTH_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96 * 0.95);
+const MAX_SCHEMA_HEIGHT_PX = Math.round(((PAGE_HEIGHT_MM - PAGE_MARGIN_MM * 2) / 25.4) * 96 * 0.75);
 
 function calculateSchemaTransform(size?: { width: number; height: number }) {
   if (!size) {
@@ -208,9 +208,9 @@ export async function generateSummaryDocx({
 }: GenArgs) {
   // ---------- Head / titul ----------
   const headTitle: Paragraph[] = [
-    P("Zpráva o elektrické instalaci", { center: true, bold: true, size: 32, after: 120 }),
+    P("Revizn\u00ed zpr\u00e1va o elektrick\u00e9 instalaci", { center: true, bold: true, size: 32, after: 120 }),
     P(dash(safeForm.typRevize), { bold: true, center: true, after: 30 }),
-    P(normsAll.length ? `V souladu s ${normsAll.join(", ")}` : `V souladu s Chybí informace`, {
+    P(normsAll.length ? `V souladu s ${normsAll.join(", ")}` : `V souladu s Chyb\u00ed informace`, {
       center: true,
       color: COL_MUTE,
     }),
@@ -302,11 +302,11 @@ export async function generateSummaryDocx({
 
   // ---------- 2. Prohlídka ----------
   const prohlidka: Paragraph[] = [
-    H("2. Prohlídka", 26),
-    P("Soupis provedených úkonů dle ČSN 33 2000-6 čl. 6.4.2.3", { color: COL_MUTE }),
+    P("2. Prohlídka", { bold: true, size: 26, center: true }),
+    P("Soupis provedených úkonů dle ČSN 33 2000-6 čl. 6.4.2.3", { color: COL_MUTE, center: true }),
     ...(safeForm.performedTasks?.length
-      ? safeForm.performedTasks.map((t: string) => P(`• ${t}`, { after: 30 }))
-      : [P("—")]),
+      ? safeForm.performedTasks.map((t: string) => P(`• ${t}`, { after: 30, center: true }))
+      : [P("—", { center: true })]),
   ];
 
   // ---------- 3. Zkoušení ----------
@@ -322,7 +322,7 @@ export async function generateSummaryDocx({
       });
 
   const tests = [
-    H("3. Zkoušení", 26),
+    P("3. Zkoušení", { bold: true, size: 26, center: true }),
     tableBorderedNarrow(
       ["Název zkoušky", "Poznámka / výsledek"],
       testsLocal.length ? testsLocal.map((r) => [r.name, r.note]) : [["—", ""]],
@@ -330,12 +330,12 @@ export async function generateSummaryDocx({
     ),
   ];
 
-  // ---------- 4. Měření – rozvaděče ----------
+// ---------- 4-A Měření rozvaděčů ----------
   const boardsBlocks: (Paragraph | Table)[] = [];
   if (!(safeForm.boards || []).length) {
-    boardsBlocks.push(H("4. Měření – rozvaděče", 26), P("—"));
+    boardsBlocks.push(H("4-A Měření rozvaděčů", 26));
   } else {
-    boardsBlocks.push(H("4. Měření – rozvaděče", 26));
+    boardsBlocks.push(H("4-A Měření rozvaděčů", 26));
     for (const [idx, b] of (safeForm.boards || []).entries()) {
       boardsBlocks.push(P("", { after: 300 }));
       boardsBlocks.push(P(`Rozvaděč: ${dash(b?.name) || `#${idx + 1}`}`, { bold: true, size: XS, after: 20 }));
@@ -437,7 +437,7 @@ export async function generateSummaryDocx({
   // ---------- 4. Měření – místnosti ----------
   const roomsBlocks: (Paragraph | Table)[] = [];
   if ((safeForm.rooms || []).length) {
-    roomsBlocks.push(H("4. Měření – místnosti", 26));
+    roomsBlocks.push(H("4-B Měření v prostorech", 26));
     (safeForm.rooms || []).forEach((r: any, idx: number) => {
       roomsBlocks.push(P("", { after: 300 }));
       roomsBlocks.push(P(`Místnost: ${dash(r?.name) || `#${idx + 1}`}`, { bold: true, after: 10 }));
@@ -457,7 +457,7 @@ export async function generateSummaryDocx({
       );
     });
   } else {
-    roomsBlocks.push(H("4. Měření – místnosti", 26), P("—"));
+    roomsBlocks.push(H("4-B Měření v prostorech", 26), P("???"));
   }
 
   // ---------- 5. Závady ----------
@@ -474,16 +474,51 @@ export async function generateSummaryDocx({
   ];
 
   // ---------- 6. Závěr ----------
+  const safetySummaryLabel = (() => {
+    const s = safeForm.conclusion?.safety;
+    if (s === "able") return "Revize vyhovuje";
+    if (s === "not_able") return "Revize nevyhovuje";
+    return "Chybí informace";
+  })();
+
+  const safetyBox = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 2, color: "444444" },
+      bottom: { style: BorderStyle.SINGLE, size: 2, color: "444444" },
+      left: { style: BorderStyle.SINGLE, size: 2, color: "444444" },
+      right: { style: BorderStyle.SINGLE, size: 2, color: "444444" },
+    },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            margins: { top: 120, bottom: 120, left: 120, right: 120 },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: safetySummaryLabel, bold: true, size: 28, font: FONT })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
   const zav = [
     P("", { after: 300 }),
-    H("6. Závěr", 26),
+    P("6. Závěr", { bold: true, size: 26 }),
     P(dash(safeForm.conclusion?.text)),
+    safetyBox,
     P(`Další revize: ${dash(safeForm.conclusion?.validUntil)}`),
   ];
 
   // ---------- Dokument ----------
   const evid = dash(safeForm.evidencni || revId);
-  const header = makeHeader(evid);
+  const uuid = dash(safeForm.uuid);
+  const header = makeHeader(evid, uuid);
 
   const doc = new Document({
     features: { updateFields: true },

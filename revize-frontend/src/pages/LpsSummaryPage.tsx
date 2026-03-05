@@ -201,6 +201,7 @@ export default function LpsSummaryPage({ safeForm, technician, isPrintView }: Pr
           <div className="text-right">
             <span className="text-xs uppercase tracking-wide text-slate-500">Evidenční číslo</span>
             <div className="text-2xl font-bold text-slate-900">{valueOrDash(safeForm?.evidencni)}</div>
+            <div className="text-xs text-slate-600">UUID revize: {valueOrDash(safeForm?.uuid)}</div>
             <div className="mt-4 text-xs text-slate-600 space-y-1">
               <div>Datum zahájení: {formatDate(safeForm?.date_start)}</div>
               <div>Datum ukončení: {formatDate(safeForm?.date_end)}</div>

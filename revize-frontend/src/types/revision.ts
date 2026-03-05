@@ -72,6 +72,7 @@ export interface Conclusion {
 /** Hlavní rozhraní pro revisionFormContext */
 export interface RevisionData {
   evidencni: string;
+  uuid?: string;
   objekt: string;
   adresa: string;
   objednatel: string;

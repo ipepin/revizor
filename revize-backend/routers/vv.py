@@ -17,8 +17,6 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/vv", tags=["vv"])
 
-SEQ_PAD = 3  # VV-<pid>-<seq:03d>-<year>
-
 # password verify
 try:
     from utils.security import verify_password  # type: ignore
@@ -43,17 +41,29 @@ def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Pro
     return prj
 
 
-def _generate_vv_number(db: Session, user_id: int) -> str:
+def _normalize_project_number(project_number: str | None, project_id: int) -> str:
+    raw = str(project_number or "").strip()
+    if raw:
+        try:
+            return str(int(raw))
+        except ValueError:
+            return raw
+    return str(project_id)
+
+
+def _generate_vv_number(db: Session, project_id: int, project_number: str | None) -> str:
     """
-    Format: VV-<userId>-<seq>-<year>
-    seq is per-user and per-year, derived from existing VV numbers.
+    Format: VV-<projectNumber>-<seq>-<year>
+    seq is per-project and per-year.
     """
     year = datetime.now().year
-    prefix = f"VV-{user_id}-"
+    normalized_project_number = _normalize_project_number(project_number, project_id)
+    prefix = f"VV-{normalized_project_number}-"
     suffix = f"-{year}"
 
     rows = (
         db.query(VvDocModel.number)
+        .filter(VvDocModel.project_id == project_id)
         .filter(VvDocModel.number.like(f"{prefix}%{suffix}"))
         .all()
     )
@@ -61,7 +71,7 @@ def _generate_vv_number(db: Session, user_id: int) -> str:
     max_seq = 0
     for (num,) in rows:
         parts = (num or "").split("-")
-        if len(parts) >= 4 and parts[0] == "VV" and parts[1] == str(user_id) and parts[-1] == str(year):
+        if len(parts) >= 4 and parts[0] == "VV" and parts[-1] == str(year):
             try:
                 max_seq = max(max_seq, int(parts[2]))
             except Exception:
@@ -106,7 +116,7 @@ def create_vv(
     if db.get(VvDocModel, payload.id):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document with this ID already exists")
 
-    number = _generate_vv_number(db, user.id)
+    number = _generate_vv_number(db, prj.id, getattr(prj, "number", None))
 
     row = VvDocModel(
         id=payload.id,

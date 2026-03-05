@@ -2,6 +2,8 @@
 # Full SQLAlchemy models.py with User, Project, Revision, Defect, Component hierarchy.
 
 from datetime import datetime
+import base64
+import uuid as _uuid
 
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Text, Boolean,
@@ -25,6 +27,11 @@ except Exception:
     PG_ARRAY = None  # type: ignore
 
 JSONType = JSONB if POSTGRES else JSON
+
+# --- Helpers ---
+def generate_revision_uuid() -> str:
+    token = base64.b32encode(_uuid.uuid4().bytes).decode("ascii").rstrip("=")
+    return f"REV-{token}"
 
 
 # 📎 Many-to-many: shared projects ↔ users
@@ -93,6 +100,7 @@ class Project(Base):
     __tablename__ = "projects"
 
     id      = Column(Integer, primary_key=True, index=True)
+    number  = Column(String, nullable=False, index=True)
     address = Column(String, nullable=False)
     client  = Column(String, nullable=False)
 
@@ -113,6 +121,7 @@ class Revision(Base):
     __tablename__ = "revisions"
 
     id     = Column(Integer, primary_key=True, index=True)
+    uuid   = Column(String(40), unique=True, nullable=False, index=True, default=generate_revision_uuid)
     number = Column(String, unique=True, nullable=False)
     type   = Column(String, nullable=False)
 

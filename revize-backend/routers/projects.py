@@ -76,6 +76,39 @@ def _ensure_project_access_or_404(db: Session, pid: int, user: UserModel) -> Pro
     return prj
 
 
+def _generate_project_number(db: Session, owner_id: int) -> str:
+    rows = (
+        db.query(Project.number)
+        .filter(Project.owner_id == owner_id)
+        .all()
+    )
+
+    max_seq = 0
+    for (number,) in rows:
+        raw = str(number or "").strip()
+        if not raw:
+            continue
+        try:
+            max_seq = max(max_seq, int(raw))
+        except ValueError:
+            continue
+
+    return str(max_seq + 1)
+
+
+def _ensure_project_number(db: Session, project: Project) -> Project:
+    if getattr(project, "number", None):
+        return project
+
+    owner_id = getattr(project, "owner_id", None)
+    if owner_id is None:
+        project.number = str(project.id)
+    else:
+        project.number = _generate_project_number(db, owner_id)
+    db.add(project)
+    return project
+
+
 # --------- Routes ---------
 @router.get("", response_model=List[ProjectRead])
 def list_projects(
@@ -87,6 +120,15 @@ def list_projects(
     Vrací i vložené revize (dle ProjectRead schématu).
     """
     projects = _query_user_projects(db, user.id).order_by(Project.id.desc()).all()
+    changed = False
+    for project in projects:
+        if not getattr(project, "number", None):
+            _ensure_project_number(db, project)
+            changed = True
+    if changed:
+        db.commit()
+        for project in projects:
+            db.refresh(project)
     return projects
 
 
@@ -100,6 +142,10 @@ def get_project(
     Detail projektu se všemi daty (včetně revizí).
     """
     prj = _ensure_project_access_or_404(db, pid, user)
+    if not getattr(prj, "number", None):
+        _ensure_project_number(db, prj)
+        db.commit()
+        db.refresh(prj)
     return prj
 
 
@@ -114,6 +160,7 @@ def create_project(
     Lze rovnou nasdílet dalším uživatelům.
     """
     prj = Project(
+        number=_generate_project_number(db, user.id),
         address=payload.address or "",
         client=payload.client or "",
         owner_id=user.id,
@@ -141,6 +188,8 @@ def patch_project(
     (můžeš upravit, pokud patch smí provádět jen vlastník).
     """
     prj = _ensure_project_access_or_404(db, pid, user)
+    if not getattr(prj, "number", None):
+        _ensure_project_number(db, prj)
 
     # pokud chceš patch omezit jen na vlastníka, odkomentuj:
     # if prj.owner_id != user.id:

@@ -137,6 +137,10 @@ export default function IdentifikaceSection() {
           <input type="text" value={form.evidencni || ""} readOnly className="p-2 border rounded w-full bg-gray-100" />
         </div>
         <div>
+          <label className="font-semibold">UUID revize</label>
+          <input type="text" value={form.uuid || ""} readOnly className="p-2 border rounded w-full bg-gray-100" />
+        </div>
+        <div>
           <label className="font-semibold">Revidovaný objekt</label>
           <input type="text" className="p-2 border rounded w-full" value={form.objekt || ""} onChange={onField("objekt")} />
         </div>

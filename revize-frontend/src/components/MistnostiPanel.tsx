@@ -90,6 +90,38 @@ export default function MistnostiPanel() {
 
   const selectedRoom = rooms.find((r) => r.id === selectedRoomId) || null;
 
+  useEffect(() => {
+    if (editingRoomId == null) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const container = target.closest(`[data-room-editor-id="${editingRoomId}"]`);
+      if (!container) {
+        setEditingRoomId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [editingRoomId]);
+
+  useEffect(() => {
+    if (editingDeviceId == null) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const container = target.closest(`[data-device-editor-id="${editingDeviceId}"]`);
+      if (!container) {
+        setEditingDeviceId(null);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [editingDeviceId]);
+
   // načíst katalog
   useEffect(() => {
     let alive = true;
@@ -328,8 +360,25 @@ export default function MistnostiPanel() {
                         r.id === selectedRoomId ? "bg-blue-100" : ""
                       }`}
                       onClick={() => setSelectedRoomId(r.id)}
+                      onDoubleClick={() => {
+                        setSelectedRoomId(r.id);
+                        setEditingRoomId(r.id);
+                      }}
+                      data-room-editor-id={r.id}
                     >
-                      <td className="p-2">{r.name || "(bez názvu)"}</td>
+                      <td className="p-2">
+                        {editingRoomId === r.id ? (
+                          <input
+                            className="w-full rounded border px-2 py-1"
+                            value={r.name}
+                            onChange={(e) => updateRoomField(r.id, "name", e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                          />
+                        ) : (
+                          r.name || "(bez názvu)"
+                        )}
+                      </td>
                       <td className="p-2 text-right">{(r.devices || []).length}</td>
                     </tr>
                   ))}
@@ -384,6 +433,7 @@ export default function MistnostiPanel() {
               {/* VLASTNOSTI (název + poznámky) – bez rámečků; ukončit editaci klikem mimo */}
               <div
                 className="grid md:grid-cols-2 gap-4 mb-6"
+                data-room-editor-id={selectedRoom.id}
                 onBlur={(e) => {
                   const related = e.relatedTarget as Node | null;
                   if (!e.currentTarget.contains(related)) setEditingRoomId(null);
@@ -399,7 +449,11 @@ export default function MistnostiPanel() {
                       autoFocus
                     />
                   ) : (
-                    <div className="whitespace-pre-wrap">
+                    <div
+                      className="whitespace-pre-wrap cursor-text"
+                      onDoubleClick={() => setEditingRoomId(selectedRoom.id)}
+                      title="Dvojklik pro úpravu"
+                    >
                       {selectedRoom.name || <span className="text-gray-400">(nenastaveno)</span>}
                     </div>
                   )}
@@ -414,7 +468,11 @@ export default function MistnostiPanel() {
                       onChange={(e) => updateRoomField(selectedRoom.id, "details", e.target.value)}
                     />
                   ) : (
-                    <div className="whitespace-pre-wrap">
+                    <div
+                      className="whitespace-pre-wrap cursor-text"
+                      onDoubleClick={() => setEditingRoomId(selectedRoom.id)}
+                      title="Dvojklik pro úpravu"
+                    >
                       {selectedRoom.details || <span className="text-gray-400">(žádné)</span>}
                     </div>
                   )}
@@ -447,7 +505,12 @@ export default function MistnostiPanel() {
                 {(selectedRoom.devices || []).map((d) => {
                   const isEd = editingDeviceId === d.id;
                   return (
-                    <tr key={d.id} className="border-t">
+                    <tr
+                      key={d.id}
+                      className={`border-t ${isEd ? "bg-blue-50/60" : ""}`}
+                      onDoubleClick={() => setEditingDeviceId(d.id)}
+                      data-device-editor-id={d.id}
+                    >
                       <td className="p-2 text-center">
                         {isEd ? (
                           <input
@@ -469,6 +532,7 @@ export default function MistnostiPanel() {
                             className="w-full p-1 border rounded"
                             value={d.typ}
                             onChange={(e) => updateDevice(selectedRoom.id, d.id, "typ", e.target.value)}
+                            autoFocus
                           />
                         ) : (
                           d.typ

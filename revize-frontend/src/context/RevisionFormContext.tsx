@@ -92,6 +92,7 @@ export type UserInstrument = {
 export interface RevisionForm {
   // IdentifikaÄŤnĂ­ Ăşdaje
   evidencni: string;
+  uuid: string;
   objekt: string;
   adresa: string;
   objednatel: string;
@@ -204,6 +205,7 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
 
   return {
     evidencni: p.evidencni ?? "",
+    uuid: p.uuid ?? "",
     objekt: p.objekt ?? "",
     adresa: p.adresa ?? "",
     objednatel: p.objednatel ?? "",
@@ -265,6 +267,23 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
   };
 }
 
+function syncRevisionValidity(
+  form: RevisionForm,
+  backendValidUntil?: string | null
+): RevisionForm {
+  const editorValue = String(form?.conclusion?.validUntil ?? "").trim();
+  const fallbackValue = String(backendValidUntil ?? "").trim();
+  const nextValidUntil = editorValue || fallbackValue;
+
+  return {
+    ...form,
+    conclusion: {
+      ...form.conclusion,
+      validUntil: nextValidUntil,
+    },
+  };
+}
+
 export function RevisionFormProvider({
   revId,
   children,
@@ -295,7 +314,14 @@ export function RevisionFormProvider({
         // SlouÄŤenĂ­ s defaulty + pĹ™epsĂˇnĂ­ ÄŤĂ­slem revize
         setForm((prev) => {
           const merged = withDefaults({ ...prev, ...parsed });
-          return { ...merged, evidencni: data?.number ?? merged.evidencni };
+          return syncRevisionValidity(
+            {
+              ...merged,
+              evidencni: data?.number ?? merged.evidencni,
+              uuid: data?.uuid ?? merged.uuid,
+            },
+            data?.valid_until ?? data?.conclusion_valid_until ?? ""
+          );
         });
       } catch (err: any) {
         if (err?.name !== "CanceledError") {
@@ -309,9 +335,15 @@ export function RevisionFormProvider({
   // Funkce pro okamĹľitĂ© uloĹľenĂ­ (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
     if (training) return;
+    const syncedForm = syncRevisionValidity(form);
+    const validUntil = syncedForm.conclusion.validUntil || null;
     // backend ÄŤekĂˇ objekt (dict), ne string
     api
-      .patch(`/revisions/${revId}`, { data_json: form })
+      .patch(`/revisions/${revId}`, {
+        data_json: syncedForm,
+        valid_until: validUntil,
+        conclusion_valid_until: validUntil,
+      })
       .catch((err) => console.warn("UloĹľenĂ­ revize selhalo:", err?.response?.data || err));
   }, [form, revId, training]);
 
@@ -325,16 +357,24 @@ export function RevisionFormProvider({
   // Označit Dokončení revize
   const finish = useCallback(async () => {
     if (training) return;
+    const syncedForm = syncRevisionValidity(form);
+    const validUntil = syncedForm.conclusion.validUntil || null;
     try {
       await api.patch(`/revisions/${revId}`, {
-        data_json: form,
+        data_json: syncedForm,
+        valid_until: validUntil,
+        conclusion_valid_until: validUntil,
         status: "Dokončená",
       });
       console.log("Revize označena jako 'Dokončená'");
     } catch (err1: any) {
       console.warn("PATCH combined selhal, zkouĹˇĂ­m sekvenčně:", err1?.response?.data || err1);
       try {
-        await api.patch(`/revisions/${revId}`, { data_json: form });
+        await api.patch(`/revisions/${revId}`, {
+          data_json: syncedForm,
+          valid_until: validUntil,
+          conclusion_valid_until: validUntil,
+        });
         await api.patch(`/revisions/${revId}`, { status: "Dokončená" });
         console.log("Revize označena jako 'Dokončená' (sekvenčně).");
       } catch (err2) {

@@ -499,6 +499,9 @@ function LpsFormContent() {
           <Field label="Evidenční číslo">
             <input value={evidencni} readOnly className="w-full p-2 border rounded bg-gray-100" />
           </Field>
+          <Field label="UUID revize">
+            <input value={(form as any)?.uuid || ""} readOnly className="w-full p-2 border rounded bg-gray-100" />
+          </Field>
           <Field label="Norma">
             <select
               className="w-full p-2 border rounded"

@@ -40,6 +40,7 @@ class RevisionUpdate(RevisionBase):
 class RevisionRead(BaseModel):
     id: int
     project_id: int
+    uuid: str | None = None
     type: Optional[str] = None
     status: Optional[str] = None
     date_done: Optional[date] = None
@@ -96,6 +97,7 @@ class ProjectUpdate(BaseModel):
 
 class ProjectRead(BaseModel):
     id: int
+    number: Optional[str] = None
     address: Optional[str] = None
     client: Optional[str] = None
     created_at: Optional[datetime] = None
