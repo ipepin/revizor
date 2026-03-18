@@ -1,6 +1,7 @@
 import React from "react";
-import { H1, Th, Td } from "./ui";
+import { Th, Td } from "./ui";
 import { dash } from "../../summary-utils/text";
+import { buildRoomDeviceSummary, hasRoomNote, roomNoteText } from "../../summary-utils/rooms";
 
 export function RoomsBlock({ rooms }: { rooms: any[] }) {
   return (
@@ -12,35 +13,34 @@ export function RoomsBlock({ rooms }: { rooms: any[] }) {
               <div className="font-semibold">
                 Prostor: {dash(room?.name) || `#${rIdx + 1}`}
               </div>
-              <div className="text-sm text-slate-600">
-                Poznámka: {dash(room?.details)}
-              </div>
+              {hasRoomNote(room) ? (
+                <div className="text-sm text-slate-600">Poznámka: {roomNoteText(room)}</div>
+              ) : null}
               <table className="w-full text-sm border mt-2" style={{ breakInside: "avoid" }}>
                 <thead>
                   <tr className="text-left">
-                    <Th>Typ</Th>
-                    <Th>Počet</Th>
-                    <Th>Dimenze</Th>
-                    <Th>Riso [MΩ]</Th>
-                    <Th>Ochrana [Ω]</Th>
-                    <Th>Poznámka</Th>
+                    <Th>Prvek</Th>
+                    <Th>Parametry</Th>
+                    <Th>Měření</Th>
+                    <Th>Pozn.</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {room.devices?.length ? (
-                    room.devices.map((dev: any, i: number) => (
-                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                        <Td>{dash(dev?.typ)}</Td>
-                        <Td>{dash(dev?.pocet)}</Td>
-                        <Td>{dash(dev?.dimenze)}</Td>
-                        <Td>{dash(dev?.riso)}</Td>
-                        <Td>{dash(dev?.ochrana)}</Td>
-                        <Td>{dash(dev?.podrobnosti || dev?.note)}</Td>
-                      </tr>
-                    ))
+                    room.devices.map((dev: any, i: number) => {
+                      const item = buildRoomDeviceSummary(dev);
+                      return (
+                        <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                          <Td><div className="whitespace-pre-line leading-6">{[item.prvek, item.prvekSubtext].filter(Boolean).join("\n")}</div></Td>
+                          <Td><div className="whitespace-pre-line leading-6">{item.parametry}</div></Td>
+                          <Td><div className="whitespace-pre-line leading-6">{item.mereni}</div></Td>
+                          <Td><div className="whitespace-pre-line leading-6">{item.poznamka}</div></Td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <Td colSpan={6}>—</Td>
+                      <Td colSpan={4}>—</Td>
                     </tr>
                   )}
                 </tbody>

@@ -4,6 +4,7 @@ import ImageModuleCtor from "open-docxtemplater-image-module";
 import { saveAs } from "file-saver";
 import { htmlToBulletText } from "../summary-utils/text";
 import { defectFullText, defectNormSuffix } from "../summary-utils/defects";
+import { buildRoomDeviceSummary } from "../summary-utils/rooms";
 import {
   prepareDefectTemplateImages,
   type DefectPhotoMeta,
@@ -226,14 +227,21 @@ function buildTemplateData(
   const mistnosti = (safeForm?.rooms || []).map((room: any) => ({
     nazev: dash(room?.name),
     poznamka: dash(room?.details),
-    prvky: (Array.isArray(room?.devices) ? room.devices : []).map((device: any) => ({
+    prvky: (Array.isArray(room?.devices) ? room.devices : []).map((device: any) => {
+      const item = buildRoomDeviceSummary(device, "");
+      return ({
       typ: dash(device?.typ),
       pocet: dash(device?.pocet),
       dimenze: dash(device?.dimenze),
       riso: dash(device?.riso),
       ochrana: dash(device?.ochrana),
       podrobnosti: dash(device?.podrobnosti || device?.note),
-    })),
+      prvek_text: item.prvek,
+      prvek_subtext: item.prvekSubtext,
+      parametry_text: item.parametry,
+      mereni_text: item.mereni,
+      poznamka: item.poznamka,
+    })}),
   }));
 
   const zavady = (safeForm?.defects || []).map((defect: any, index: number) => {

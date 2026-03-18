@@ -36,6 +36,7 @@ import {
 import { normalizeComponents, depthPrefix, pick, num, buildComponentTitle } from "../summary-utils/board";
 import { dash, htmlToBulletText } from "../summary-utils/text";
 import { defectFullText, defectNormSuffix } from "../summary-utils/defects";
+import { buildRoomDeviceSummary, hasRoomNote, roomNoteText } from "../summary-utils/rooms";
 import { dataUrlToBytes, getSketchSize } from "./lpsWordBuilder";
 
 type GenArgs = {
@@ -462,19 +463,17 @@ export async function generateSummaryDocx({
     (safeForm.rooms || []).forEach((r: any, idx: number) => {
       roomsBlocks.push(P("", { after: 300 }));
       roomsBlocks.push(P(`Prostor: ${dash(r?.name) || `#${idx + 1}`}`, { bold: true, after: 10 }));
-      roomsBlocks.push(P(`PoznĂˇmka: ${dash(r?.details)}`, { color: COL_MUTE, after: 20 }));
+      if (hasRoomNote(r)) {
+        roomsBlocks.push(P(`Poznámka: ${roomNoteText(r, "")}`, { color: COL_MUTE, after: 20 }));
+      }
       const rows = (r?.devices || []).length
-        ? r.devices.map((d: any) => [
-            dash(d?.typ),
-            dash(d?.pocet),
-            dash(d?.dimenze),
-            dash(d?.riso),
-            dash(d?.ochrana),
-            dash(d?.podrobnosti || d?.note),
-          ])
-        : [["â€”", "â€”", "â€”", "â€”", "â€”", "â€”"]];
+        ? r.devices.map((d: any) => {
+            const item = buildRoomDeviceSummary(d);
+            return [[item.prvek, item.prvekSubtext].filter(Boolean).join("\n"), item.parametry, item.mereni, item.poznamka];
+          })
+        : [["—", "—", "—", "—"]];
       roomsBlocks.push(
-        tableBordered(["Typ", "PoÄŤet", "Dimenze", "Riso [MÎ©]", "Ochrana [Î©]", "PoznĂˇmka"], rows, [18, 10, 18, 14, 14, 26])
+        tableBordered(["Prvek", "Parametry", "Měření", "Pozn."], rows, [38, 22, 24, 16])
       );
     });
   } else {
