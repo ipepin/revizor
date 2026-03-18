@@ -257,6 +257,23 @@ class ComponentTypeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RevisionPhotoRead(BaseModel):
+    id: int
+    revision_id: int
+    defect_uid: Optional[str] = None
+    caption: str = ""
+    original_name: Optional[str] = None
+    mime_type: str
+    file_size: int
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ComponentTypeCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+
+
 class ComponentModelRead(BaseModel):
     id: int
     name: Optional[str] = None
@@ -266,6 +283,11 @@ class ComponentModelRead(BaseModel):
     extra: Optional[Any] = None         # libovolná metadata
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ManufacturerCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    type_id: int
 
 
 class ComponentRead(BaseModel):

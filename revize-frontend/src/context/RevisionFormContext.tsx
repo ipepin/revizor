@@ -21,6 +21,9 @@ export interface Komponenta {
   riso: string;
   ochrana: string;
   poznamka: string;
+  vybavovaciCasMs?: string;
+  vybavovaciProudmA?: string;
+  dotykoveNapetiV?: string;
 }
 
 export interface Device {
@@ -54,11 +57,13 @@ export interface Board {
   ip: string;
   odpor: string;
   umisteni: string;
+  poznamkyHtml: string;
   komponenty: Komponenta[];
 }
 
 // â€”â€“â€“ Data pro jednu zĂˇvadu
 export interface Defect {
+  uid: string;
   description: string;
   standard: string;
   article: string;
@@ -144,6 +149,7 @@ export interface RevisionForm {
 
   // ZĂˇvady
   defects: Defect[];
+  defectsRichText: string;
 
   // ProhlĂ­dka
   performedTasks: string[];
@@ -166,9 +172,19 @@ interface ContextValue {
   setForm: React.Dispatch<React.SetStateAction<RevisionForm>>;
   saveNow: () => void;
   finish: () => Promise<void>;
+  revId: number;
+  defectPhotosVersion: number;
+  notifyDefectPhotosChanged: () => void;
 }
 
 export const RevisionFormContext = createContext<ContextValue>({} as ContextValue);
+
+function makeUid(prefix: string) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 // â€”â€“â€“ PomocnĂ©: bezpeÄŤnĂ© naÄŤtenĂ­ JSONu (umĂ­ objekt i historicky uloĹľenĂ˝ string)
 function safeParseDataJson(raw: unknown): Partial<RevisionForm> {
@@ -249,7 +265,15 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
     rooms: Array.isArray(p.rooms) ? p.rooms : [],
     instruments: Array.isArray(p.instruments) ? p.instruments : undefined,
 
-    defects: Array.isArray(p.defects) ? p.defects : [],
+    defects: Array.isArray(p.defects)
+      ? p.defects.map((d: any) => ({
+          uid: String(d?.uid || d?.id || makeUid("defect")),
+          description: String(d?.description || ""),
+          standard: String(d?.standard || ""),
+          article: String(d?.article || ""),
+        }))
+      : [],
+    defectsRichText: p.defectsRichText ?? "",
 
     performedTasks: Array.isArray(p.performedTasks) ? p.performedTasks : [],
     inspectionTemplate: p.inspectionTemplate ?? "",
@@ -298,6 +322,7 @@ export function RevisionFormProvider({
   const [form, setForm] = useState<RevisionForm>(() =>
     withDefaults(initialData ?? {})
   );
+  const [defectPhotosVersion, setDefectPhotosVersion] = useState(0);
 
   // NaÄŤtenĂ­ existujĂ­cĂ­ revize (s JWT pĹ™es api klient)
   useEffect(() => {
@@ -383,8 +408,14 @@ export function RevisionFormProvider({
     }
   }, [form, revId, training]);
 
+  const notifyDefectPhotosChanged = useCallback(() => {
+    setDefectPhotosVersion((value) => value + 1);
+  }, []);
+
   return (
-    <RevisionFormContext.Provider value={{ form, setForm, saveNow, finish }}>
+    <RevisionFormContext.Provider
+      value={{ form, setForm, saveNow, finish, revId, defectPhotosVersion, notifyDefectPhotosChanged }}
+    >
       {children}
     </RevisionFormContext.Provider>
   );

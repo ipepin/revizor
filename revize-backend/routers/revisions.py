@@ -4,8 +4,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from datetime import date
 import json as _json
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, defer
@@ -14,8 +17,14 @@ from pydantic import BaseModel
 
 from database import get_db
 from routers.auth import get_current_user
-from models import Revision, Project, User as UserModel, generate_revision_uuid
-from schemas import RevisionRead, RevisionCreate, RevisionUpdate
+from models import Project, Revision, RevisionPhoto, User as UserModel, generate_revision_uuid
+from schemas import RevisionCreate, RevisionPhotoRead, RevisionRead, RevisionUpdate
+
+try:
+    from PIL import Image, ImageOps  # type: ignore
+except Exception:  # pragma: no cover
+    Image = None
+    ImageOps = None
 
 try:
     # oÄŤekĂˇvĂˇ se soubor auth/security.py s funkcĂ­ verify_password(plain, hashed)
@@ -30,8 +39,95 @@ except Exception:  # pragma: no cover
 
 router = APIRouter(prefix="/revisions", tags=["revisions"])
 
+UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "uploads" / "revision_photos"
+MAX_PHOTO_SIZE = 15 * 1024 * 1024
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+}
+
 
 # ---------- Helpers ----------
+
+def _revision_photo_to_schema(photo: RevisionPhoto) -> RevisionPhotoRead:
+    return RevisionPhotoRead.model_validate(photo, from_attributes=True)
+
+
+def _get_revision_or_403(db: Session, rev_id: int, user: UserModel) -> Revision:
+    rev = (
+        db.query(Revision)
+        .options(joinedload(Revision.project))
+        .filter(Revision.id == rev_id)
+        .first()
+    )
+    if not rev:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
+    if not _can_access_project(user, rev.project):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return rev
+
+
+def _get_revision_photo_or_404(db: Session, rev_id: int, photo_id: int) -> RevisionPhoto:
+    photo = (
+        db.query(RevisionPhoto)
+        .filter(RevisionPhoto.id == photo_id, RevisionPhoto.revision_id == rev_id)
+        .first()
+    )
+    if not photo:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Photo not found")
+    return photo
+
+
+def _revision_upload_dir(rev_id: int) -> Path:
+    return UPLOAD_ROOT / str(rev_id)
+
+
+def _safe_photo_extension(upload: UploadFile) -> str:
+    content_type = (upload.content_type or "").lower().strip()
+    if content_type in ALLOWED_IMAGE_TYPES:
+        return ALLOWED_IMAGE_TYPES[content_type]
+
+    suffix = Path(upload.filename or "").suffix.lower()
+    if suffix in ALLOWED_IMAGE_TYPES.values():
+        return suffix
+
+    raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only image uploads are supported")
+
+
+def _delete_file_if_exists(path_str: str | None) -> None:
+    if not path_str:
+        return
+    path = Path(path_str)
+    try:
+        if path.is_file():
+            path.unlink()
+    except Exception:
+        pass
+
+
+def _thumb_path_for(path: Path) -> Path:
+    return path.with_name(f"{path.stem}_thumb.jpg")
+
+
+def _generate_thumbnail(image_path: Path) -> Path:
+    thumb_path = _thumb_path_for(image_path)
+    if thumb_path.is_file():
+        return thumb_path
+    if Image is None or ImageOps is None:
+        return image_path
+    try:
+        with Image.open(image_path) as img:
+            img = ImageOps.exif_transpose(img)
+            img = img.convert("RGB")
+            img.thumbnail((480, 360))
+            img.save(thumb_path, format="JPEG", quality=82, optimize=True)
+        return thumb_path
+    except Exception:
+        return image_path
 
 def _normalize_project_number(project_number: Any, project_id: Any) -> str:
     raw = str(project_number or "").strip()
@@ -270,6 +366,135 @@ def get_revision(
     return _to_schema(rev)
 
 
+# ---------- Revision photos ----------
+
+@router.get("/{rev_id}/photos", response_model=List[RevisionPhotoRead])
+def list_revision_photos(
+    rev_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+    rows = (
+        db.query(RevisionPhoto)
+        .filter(RevisionPhoto.revision_id == rev_id)
+        .order_by(RevisionPhoto.created_at.desc(), RevisionPhoto.id.desc())
+        .all()
+    )
+    return [_revision_photo_to_schema(row) for row in rows]
+
+
+@router.post("/{rev_id}/photos", response_model=RevisionPhotoRead, status_code=status.HTTP_201_CREATED)
+async def upload_revision_photo(
+    rev_id: int,
+    file: UploadFile = File(...),
+    caption: str = Form(""),
+    defect_uid: str = Form(""),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+
+    ext = _safe_photo_extension(file)
+    payload = await file.read()
+    if not payload:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
+    if len(payload) > MAX_PHOTO_SIZE:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Photo is too large")
+
+    upload_dir = _revision_upload_dir(rev_id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{ext}"
+    target_path = upload_dir / filename
+    target_path.write_bytes(payload)
+    _generate_thumbnail(target_path)
+
+    photo = RevisionPhoto(
+        revision_id=rev_id,
+        caption=str(caption or "").strip(),
+        defect_uid=str(defect_uid or "").strip() or None,
+        original_name=file.filename or filename,
+        mime_type=(file.content_type or "application/octet-stream").lower(),
+        file_size=len(payload),
+        file_path=str(target_path),
+    )
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return _revision_photo_to_schema(photo)
+
+
+@router.get("/{rev_id}/photos/{photo_id}/file")
+def get_revision_photo_file(
+    rev_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+    photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+    path = Path(photo.file_path)
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
+    return FileResponse(path, media_type=photo.mime_type, filename=photo.original_name or path.name)
+
+
+@router.get("/{rev_id}/photos/{photo_id}/thumb")
+def get_revision_photo_thumb(
+    rev_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+    photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+    path = Path(photo.file_path)
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
+    thumb_path = _generate_thumbnail(path)
+    media_type = "image/jpeg" if thumb_path.suffix.lower() == ".jpg" else photo.mime_type
+    return FileResponse(thumb_path, media_type=media_type, filename=thumb_path.name)
+
+
+@router.patch("/{rev_id}/photos/{photo_id}", response_model=RevisionPhotoRead)
+def patch_revision_photo(
+    rev_id: int,
+    photo_id: int,
+    payload: RevisionPhotoPatchBody,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+    photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+
+    data = payload.model_dump(exclude_unset=True)
+    if "caption" in data:
+        photo.caption = str(data["caption"] or "").strip()
+    if "defect_uid" in data:
+        photo.defect_uid = str(data["defect_uid"] or "").strip() or None
+
+    db.commit()
+    db.refresh(photo)
+    return _revision_photo_to_schema(photo)
+
+
+@router.delete("/{rev_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_revision_photo(
+    rev_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    _get_revision_or_403(db, rev_id, user)
+    photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+    file_path = photo.file_path
+    thumb_path = str(_thumb_path_for(Path(file_path))) if file_path else None
+    db.delete(photo)
+    db.commit()
+    _delete_file_if_exists(file_path)
+    _delete_file_if_exists(thumb_path)
+
+
 # ---------- Update ----------
 
 @router.patch("/{rev_id}", response_model=RevisionRead)
@@ -342,12 +567,93 @@ def delete_revision(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="User has no password set")
     if not verify_password(payload.password, pwd_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    photo_paths = [
+        row.file_path
+        for row in db.query(RevisionPhoto).filter(RevisionPhoto.revision_id == rev_id).all()
+    ]
     db.delete(rev)
     db.commit()
+    for path in photo_paths:
+        _delete_file_if_exists(path)
+        _delete_file_if_exists(str(_thumb_path_for(Path(path))))
     # 204 No Content# ---------- Stav: dokonÄŤit / odemknout ----------
 
 class PasswordBody(BaseModel):
     password: str
+
+
+class CopyRevisionBody(BaseModel):
+    target_project_id: int
+
+
+class RevisionPhotoPatchBody(BaseModel):
+    caption: Optional[str] = None
+    defect_uid: Optional[str] = None
+
+
+@router.post("/{rev_id}/copy", response_model=RevisionRead, status_code=status.HTTP_201_CREATED)
+def copy_revision(
+    rev_id: int,
+    payload: CopyRevisionBody,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    src = db.get(Revision, rev_id)
+    if not src:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Revision not found")
+
+    src_project = db.get(Project, src.project_id)
+    if not src_project or not _can_access_project(user, src_project):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    target_project = db.get(Project, payload.target_project_id)
+    if not target_project:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Target project not found")
+    if not _can_access_project(user, target_project):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    src_date_done = _ensure_date(src.date_done) or date.today()
+    src_valid_until = _ensure_date(src.valid_until)
+    prefix_val = "LPS" if (str(src.type or "").upper() == "LPS") else "RZ"
+    number = _generate_revision_number(
+        db,
+        target_project.id,
+        getattr(target_project, "number", None),
+        src_date_done.year,
+        prefix_val,
+    )
+    rev_uuid = generate_revision_uuid()
+
+    data_json_val = _ensure_dict(src.data_json)
+    data_json_val["evidencni"] = number
+    data_json_val["uuid"] = rev_uuid
+
+    try:
+        copied = Revision(
+            project_id=target_project.id,
+            type=src.type,
+            uuid=rev_uuid,
+            number=number,
+            date_done=src_date_done,
+            valid_until=src_valid_until,
+            status="Rozpracovaná",
+            data_json=data_json_val,
+            conclusion_text=src.conclusion_text,
+            conclusion_safety=src.conclusion_safety,
+            conclusion_valid_until=_ensure_date(src.conclusion_valid_until),
+            defects=src.defects,
+        )
+        db.add(copied)
+        db.flush()
+        db.commit()
+        db.refresh(copied)
+        return _to_schema(copied)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to copy revision: {type(e).__name__}: {str(e)}",
+        )
 
 
 @router.post("/{rev_id}/complete", response_model=RevisionRead)

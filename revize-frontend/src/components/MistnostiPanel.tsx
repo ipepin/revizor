@@ -205,7 +205,7 @@ export default function MistnostiPanel() {
     }
   }
 
-  // přidání zařízení do místnosti
+  // přidání zařízení do prostoru
   function addDeviceToRoom(typ: string, init?: Partial<RoomDevice>) {
     if (!selectedRoom) return;
     const newItem: RoomDevice = {
@@ -259,10 +259,10 @@ export default function MistnostiPanel() {
     resetAddState();
   }
 
-  // CRUD – místnosti
+  // CRUD – prostory
   function addRoom() {
     const id = Date.now();
-    const newRoom: Room = { id, name: "Nová místnost", details: "", devices: [] };
+    const newRoom: Room = { id, name: "Nový prostor", details: "", devices: [] };
     setForm((f) => ({ ...f, rooms: [...(f.rooms as Room[]), newRoom] }));
     setSelectedRoomId(id);
     setEditingRoomId(id);
@@ -284,7 +284,7 @@ export default function MistnostiPanel() {
   }
 
   function deleteRoom(id: number) {
-    if (!confirm("Opravdu smazat místnost včetně zařízení?")) return;
+    if (!confirm("Opravdu smazat prostor včetně zařízení?")) return;
     setForm((f) => ({ ...f, rooms: (f.rooms as Room[]).filter((r) => r.id !== id) }));
     if (selectedRoomId === id) {
       const left = rooms.filter((r) => r.id !== id);
@@ -322,7 +322,7 @@ export default function MistnostiPanel() {
     if (editingDeviceId === devId) setEditingDeviceId(null);
   }
 
-  // KOPIE – duplikuj přístroj v místnosti (nové id, jinak stejné hodnoty)
+  // KOPIE – duplikuj přístroj v prostoru (nové id, jinak stejné hodnoty)
   function copyDevice(roomId: number, dev: RoomDevice) {
     const clone: RoomDevice = {
       ...dev,
@@ -338,11 +338,11 @@ export default function MistnostiPanel() {
 
   return (
     <section className="bg-white p-4 rounded shadow mb-8">
-      {/* HLAVNÍ DVOUSLOUPCOVÝ LAYOUT (vlevo seznam místností, vpravo detail) */}
+      {/* HLAVNÍ DVOUSLOUPCOVÝ LAYOUT (vlevo seznam prostor, vpravo detail) */}
       <div className="flex gap-6">
-        {/* LEVÁ STRANA: tabulka místností */}
+        {/* LEVÁ STRANA: tabulka prostor */}
         <aside className="w-80">
-          <h2 className="text-lg font-semibold mb-2">Místnosti</h2>
+          <h2 className="text-lg font-semibold mb-2">Prostory</h2>
           <div className="border rounded overflow-hidden">
             <div className="max-h-[60vh] overflow-auto">
               <table className="w-full text-sm">
@@ -385,7 +385,7 @@ export default function MistnostiPanel() {
                   {rooms.length === 0 && (
                     <tr>
                       <td className="p-3 text-center text-gray-500" colSpan={2}>
-                        Žádné místnosti.
+                        Žádné prostory.
                       </td>
                     </tr>
                   )}
@@ -420,10 +420,10 @@ export default function MistnostiPanel() {
             <>
               {/* HLAVIČKA DETAILU + tužka vpravo */}
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold">Detail místnosti</h3>
+                <h3 className="text-lg font-semibold">Detail prostoru</h3>
                 <button
                   className="px-3 py-2 border rounded"
-                  title={editingRoomId === selectedRoom.id ? "Ukončit editaci" : "Upravit název a poznámky"}
+                  title={editingRoomId === selectedRoom.id ? "Ukončit editaci" : "Upravit název a poznámky prostoru"}
                   onClick={() => setEditingRoomId((p) => (p === selectedRoom.id ? null : selectedRoom.id))}
                 >
                   ✏️ {editingRoomId === selectedRoom.id ? "Uložit" : "Upravit"}
@@ -440,7 +440,7 @@ export default function MistnostiPanel() {
                 }}
               >
                 <div>
-                  <label className="block text-sm font-medium mb-1">Název místnosti</label>
+                  <label className="block text-sm font-medium mb-1">Název prostoru</label>
                   {editingRoomId === selectedRoom.id ? (
                     <input
                       className="w-full p-2 border rounded"
@@ -480,7 +480,7 @@ export default function MistnostiPanel() {
               </div>
             </>
           ) : (
-            <div className="text-gray-500">Vyber místnost vlevo.</div>
+            <div className="text-gray-500">Vyber prostor vlevo.</div>
           )}
         </div>
       </div>
@@ -615,7 +615,7 @@ export default function MistnostiPanel() {
                 {(!selectedRoom.devices || selectedRoom.devices.length === 0) && (
                   <tr>
                     <td className="p-4 text-center text-gray-500" colSpan={7}>
-                      Žádné přístroje. Přidej níže vpravo.
+                      Žádné přístroje. Přidej je níže vpravo.
                     </td>
                   </tr>
                 )}
@@ -646,7 +646,7 @@ export default function MistnostiPanel() {
       {showAddDialog && selectedRoom && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded shadow w-full max-w-5xl relative">
-            <h3 className="text-lg font-semibold mb-4">Přidat přístroj do místnosti</h3>
+            <h3 className="text-lg font-semibold mb-4">Přidat přístroj do prostoru</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Obecné položky */}
@@ -818,7 +818,7 @@ export default function MistnostiPanel() {
                       Zpět
                     </button>
                     <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={confirmAddPending}>
-                      Přidat do místnosti
+                      Přidat do prostoru
                     </button>
                   </div>
                 </div>

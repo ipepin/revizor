@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
+import api from "../api/axios";
 import { generateSummaryDocx } from "./summary-export/word";
 import { renderAndDownloadLpsDocx } from "./summary-export/lpsDocxTemplate";
 import { renderAndDownloadElectroTemplateDocx } from "./summary-export/electroTemplateExport";
@@ -17,13 +18,52 @@ import {
 } from "./summary/components";
 
 import { dash, listOrDash } from "./summary-utils/text";
+import { defectNormSuffix } from "./summary-utils/defects";
 
-// đź”§ utilitky pro rozvaděče (nutné pro vykreslení komponent)
+// utilitky pro rozvaděče (nutné pro vykreslení komponent)
 import { normalizeComponents, depthPrefix, buildComponentLine } from "./summary-utils/board";
 
 /* =============================== */
 /* ======== Summary Page ========= */
 /* =============================== */
+
+type DefectPhoto = {
+  id: number;
+  revision_id: number;
+  defect_uid?: string | null;
+  caption: string;
+  original_name?: string | null;
+};
+
+function SummaryDefectThumb({ revId, photo }: { revId: string; photo: DefectPhoto }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    (async () => {
+      try {
+        const res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+          responseType: "blob",
+        });
+        objectUrl = URL.createObjectURL(res.data);
+        if (active) setSrc(objectUrl);
+      } catch (e) {
+        console.warn("Nepodařilo se načíst thumbnail do summary:", e);
+      }
+    })();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photo.id, revId]);
+
+  if (!src) {
+    return <div className="flex aspect-[5/4] items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">Načítám…</div>;
+  }
+
+  return <img src={src} alt={photo.caption || photo.original_name || "Fotografie závady"} className="aspect-[5/4] w-full rounded-lg object-cover" />;
+}
 
 export default function SummaryPage() {
   const { revId } = useParams();
@@ -31,6 +71,7 @@ export default function SummaryPage() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const schemaCaptureRef = useRef<HTMLDivElement | null>(null);
   const { profile, company } = useUser();
+  const [defectPhotos, setDefectPhotos] = useState<DefectPhoto[]>([]);
   const [showWordGuide, setShowWordGuide] = useState(() => {
     const sp = new URLSearchParams(window.location.search);
     return sp.get("guide") === "word";
@@ -38,6 +79,24 @@ export default function SummaryPage() {
   // Print-view flag
   const sp = new URLSearchParams(window.location.search);
   const isPrintView = sp.get("print") === "1";
+
+  useEffect(() => {
+    if (!revId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<DefectPhoto[]>(`/revisions/${revId}/photos`);
+        if (!cancelled) {
+          setDefectPhotos(Array.isArray(res.data) ? res.data : []);
+        }
+      } catch (e) {
+        if (!cancelled) console.warn("Nepodařilo se načíst fotografie závad do summary:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [revId]);
 
   // Auto-print
   useEffect(() => {
@@ -320,8 +379,9 @@ export default function SummaryPage() {
         technician,
         normsAll,
         usedInstruments,
+        defectPhotos,
         revId,
-        templateUrl: "/templates/elektro_rz_template.docx",
+        templateUrl: "/templates/elektro_rz_template_compact_conditional_images_boxed.docx",
       });
     } catch (e: any) {
       alert(`Nepodařilo se vyplnit šablonu: ${e?.message || e}`);
@@ -354,7 +414,7 @@ export default function SummaryPage() {
               />
             </div>
           )}
-          <main className={isPrintView ? "flex-1" : "flex-1 p-6 md:p-10"}>
+          <main className={isPrintView ? "flex-1 font-sans" : "flex-1 p-6 font-sans md:p-10"}>
             <LpsSummaryPage safeForm={safeForm} technician={technician} isPrintView={isPrintView} />
           </main>
         </div>
@@ -440,7 +500,7 @@ export default function SummaryPage() {
             />
           </div>
         )}
-        <main className={isPrintView ? "flex-1" : "flex-1 p-6 md:p-10"}>
+        <main className={isPrintView ? "flex-1 font-sans" : "flex-1 p-6 font-sans md:p-10"}>
           <style>{`
             @font-face{ font-family:'Carlito'; src:url('/fonts/Carlito-Regular.woff2') format('woff2'); font-weight:400; font-style:normal; font-display:swap; }
             @font-face{ font-family:'Carlito'; src:url('/fonts/Carlito-Bold.woff2') format('woff2'); font-weight:700; font-style:normal; font-display:swap; }
@@ -457,6 +517,7 @@ export default function SummaryPage() {
               padding: 12mm 14mm 20mm;
               box-shadow: 0 4px 18px rgba(0,0,0,.12);
               border-radius: 2px;
+              font-family: Carlito, Calibri, Arial, sans-serif;
             }
             .a4 + .a4 { page-break-before: always; }
             .print-only { display: none; }
@@ -606,8 +667,8 @@ export default function SummaryPage() {
               <section className="mt-4" style={{ breakInside: "avoid" }}>
                 <h2 className="font-semibold text-sm mb-2">Rozdělovník</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 text-sm gap-2">
-                  <div>Provozovatel – 1Ă—</div>
-                  <div>Revizní technik – 1Ă—</div>
+                  <div>Provozovatel – 1×</div>
+                  <div>Revizní technik – 1×</div>
                 </div>
                 <div className="text-sm mt-2">
                   <div>....................................................</div>
@@ -645,7 +706,7 @@ export default function SummaryPage() {
                 <div className="space-y-1 text-sm">
                   <KV label="Základní ochrana" value={listOrDash(safeForm.protection_basic)} />
                   <KV label="Ochrana při poruše" value={listOrDash(safeForm.protection_fault)} />
-                  <KV label="DoplĹková ochrana" value={listOrDash(safeForm.protection_additional)} />
+                  <KV label="Doplňková ochrana" value={listOrDash(safeForm.protection_additional)} />
                 </div>
               </section>
 
@@ -723,6 +784,7 @@ export default function SummaryPage() {
                 <div className="space-y-6">
                   {safeForm.boards.map((board: any, bIdx: number) => {
                     const flat = normalizeComponents(board?.komponenty || []);
+                    const boardNotes = String(board?.poznamkyHtml || board?.poznamky || "").trim();
                     return (
                       <div key={bIdx} className="mt-6">
                         <div className="font-semibold">Rozvaděč: {dash(board?.name) || `#${bIdx + 1}`}</div>
@@ -731,6 +793,12 @@ export default function SummaryPage() {
                           {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP:{" "}
                           {dash(board?.ip)}
                         </div>
+                        {boardNotes ? (
+                          <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Poznámky</div>
+                            <Rich value={boardNotes} />
+                          </div>
+                        ) : null}
 
                         {/* Ĺádky komponent */}
                         <div className="mt-2 border border-slate-200 rounded divide-y" data-paginate="board-box">
@@ -769,14 +837,14 @@ export default function SummaryPage() {
               )}
             </section>
 
-            {/* ===== A4 #4 – Místnosti + Závady + Závěr ===== */}
+            {/* ===== A4 #4 – Prostory + Závady + Závěr ===== */}
             <section className="a4">
-              <H1>4. Měření – místnosti</H1>
+              <H1>4. Měření – prostory</H1>
               {safeForm.rooms?.length ? (
                 <div className="space-y-6">
                   {safeForm.rooms.map((room: any, rIdx: number) => (
                     <div key={rIdx} className="mt-6">
-                      <div className="font-semibold">Místnost: {dash(room?.name) || `#${rIdx + 1}`}</div>
+                      <div className="font-semibold">Prostor: {dash(room?.name) || `#${rIdx + 1}`}</div>
                       <div className="text-sm text-slate-600">Poznámka: {dash(room?.details)}</div>
                       <table className="w-full text-sm border mt-2" style={{ breakInside: "avoid" }}>
                         <thead>
@@ -820,24 +888,29 @@ export default function SummaryPage() {
               <section className="break-before-page">
                 <H1>5. Závady</H1>
                 {safeForm.defects?.length ? (
-                  <table className="w-full text-sm" style={{ breakInside: "avoid" }}>
-                    <thead>
-                      <tr className="text-left">
-                        <Th>Popis závady</Th>
-                        <Th>ČSN</Th>
-                        <Th>Článek</Th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {safeForm.defects.map((d: any, i: number) => (
-                        <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                          <Td>{dash(d?.description)}</Td>
-                          <Td>{dash(d?.standard)}</Td>
-                          <Td>{dash(d?.article)}</Td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="space-y-4" style={{ breakInside: "avoid" }}>
+                    {safeForm.defects.map((d: any, i: number) => {
+                      const assignedPhotos = defectPhotos.filter((photo) => photo.defect_uid && photo.defect_uid === d?.uid);
+                      return (
+                        <div key={d?.uid || i} className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="text-sm leading-relaxed text-slate-800">
+                            <strong>{i + 1}.</strong> <span>{dash(d?.description)}</span>{" "}
+                            {defectNormSuffix(d) ? <strong>{defectNormSuffix(d)}</strong> : null}
+                          </div>
+
+                          {assignedPhotos.length > 0 && revId ? (
+                            <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+                              {assignedPhotos.map((photo) => (
+                                <div key={photo.id} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                  <SummaryDefectThumb revId={revId} photo={photo} />
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
                   <div className="italic text-slate-400">—</div>
                 )}

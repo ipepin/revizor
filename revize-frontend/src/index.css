@@ -10,6 +10,11 @@ body {
   font-size: 12px;
 }
 
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+}
+
 @layer components {
   .compact-main {
     @apply text-[13px] leading-4 text-slate-800;

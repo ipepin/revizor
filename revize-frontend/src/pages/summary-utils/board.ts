@@ -82,8 +82,9 @@ export const num = (x: any) => {
 export function buildComponentTitle(c: any): string {
   const name = pick(c, ["nazev", "name"]);
   const manufacturer = pick(c, ["vyrobce", "manufacturer", "maker", "popis", "description"]);
+  const manufacturerDisplay = String(manufacturer || "").trim() === "Ostatní" ? "" : manufacturer;
   const typ = pick(c, ["typ", "type", "model"]);
-  return [name, manufacturer, typ].filter((v) => String(v || "").trim()).join(" ");
+  return [name, manufacturerDisplay, typ].filter((v) => String(v || "").trim()).join(" ");
 }
 
 

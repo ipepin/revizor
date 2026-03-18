@@ -1,11 +1,13 @@
-// src/components/AddCompDialog.tsx
-import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Komponenta } from "../context/RevisionFormContext";
 import api from "../api/axios";
 
 type CompWithParent = Komponenta & { parentId?: number | null; rowId?: number | null };
-
 type SearchManufacturer = { id: number; name: string; typeId: number };
+type CatalogItem = { id: number; name: string; typeId?: number; type_id?: number };
+
+const OTHER_MANUFACTURER_ID = "__other__";
+const OTHER_MANUFACTURER_NAME = "Ostatní";
 
 type SearchOption = {
   kind: "type" | "typeManufacturer" | "typeManufacturerModel";
@@ -26,19 +28,40 @@ interface AddCompDialogProps {
   isCustom: boolean;
   setIsCustom: React.Dispatch<React.SetStateAction<boolean>>;
   types: { id: number; name: string }[];
-  manufacturers: { id: number; name: string; typeId?: number; type_id?: number }[];
+  manufacturers: CatalogItem[];
   models: { id: number; name: string }[];
   polesOptions: string[];
   dimenzeOptions: string[];
   favoriteDimenze?: string[];
   parentCandidates: { id: number; label: string }[];
   rowOptions?: { id: number; label: string }[];
+  initialFocusField?:
+    | "search"
+    | "row"
+    | "parent"
+    | "poles"
+    | "dimenze"
+    | "riso"
+    | "ochrana"
+    | "poznamka"
+    | "vybavovaciCasMs"
+    | "vybavovaciProudmA";
   onRowChange?: (rowId: number | null) => void;
   onParentChange: (pid: number | null) => void;
   polesWarning?: string;
   onCancel: () => void;
   onAdd: () => void;
 }
+
+const INLINE_EMPTY_STATE = {
+  typeMode: "existing" as "existing" | "new",
+  manufacturerMode: "existing" as "existing" | "new",
+  typeId: "",
+  typeName: "",
+  manufacturerId: "",
+  manufacturerName: "",
+  modelName: "",
+};
 
 export default function AddCompDialog({
   newComp,
@@ -54,6 +77,7 @@ export default function AddCompDialog({
   favoriteDimenze,
   parentCandidates,
   rowOptions,
+  initialFocusField = "search",
   onRowChange,
   onParentChange,
   polesWarning,
@@ -73,6 +97,23 @@ export default function AddCompDialog({
   >({});
   const [modelCache, setModelCache] = useState<Record<string, { id: number; name: string }[]>>({});
 
+  const [inlineOpen, setInlineOpen] = useState(false);
+  const [inlineBusy, setInlineBusy] = useState(false);
+  const [inlineError, setInlineError] = useState("");
+  const [inlineSuccess, setInlineSuccess] = useState("");
+  const [inlineForm, setInlineForm] = useState({ ...INLINE_EMPTY_STATE });
+  const [inlineManufacturers, setInlineManufacturers] = useState<CatalogItem[]>([]);
+  const rowSelectRef = useRef<HTMLSelectElement | null>(null);
+  const parentSelectRef = useRef<HTMLSelectElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const polesSelectRef = useRef<HTMLSelectElement | null>(null);
+  const dimenzeSelectRef = useRef<HTMLSelectElement | null>(null);
+  const risoInputRef = useRef<HTMLInputElement | null>(null);
+  const ochranaInputRef = useRef<HTMLInputElement | null>(null);
+  const poznamkaInputRef = useRef<HTMLInputElement | null>(null);
+  const vybavovaciCasInputRef = useRef<HTMLInputElement | null>(null);
+  const vybavovaciProudInputRef = useRef<HTMLInputElement | null>(null);
+
   const selectedType = useMemo(() => {
     if (newComp.nazevId) {
       const hit = types.find((t) => String(t.id) === String(newComp.nazevId));
@@ -86,11 +127,25 @@ export default function AddCompDialog({
 
   const selectedTypeName = selectedType?.name || "";
   const selectedTypeId = newComp.nazevId ? String(newComp.nazevId) : undefined;
-
   const searchManufacturers = useMemo(
     () => Object.values(searchManufacturerCache).flat(),
     [searchManufacturerCache]
   );
+  const inlineTypeId =
+    inlineForm.typeMode === "existing" ? inlineForm.typeId : selectedTypeId || inlineForm.typeId;
+  const inlineTypeName =
+    inlineForm.typeMode === "new"
+      ? inlineForm.typeName
+      : types.find((t) => String(t.id) === String(inlineForm.typeId))?.name || "";
+  const manufacturersWithOther = useMemo(() => {
+    if (!newComp.nazevId) return [] as Array<CatalogItem | { id: string; name: string }>;
+
+    const hasOther = manufacturers.some((m) => m.name === OTHER_MANUFACTURER_NAME);
+
+    return hasOther
+      ? manufacturers
+      : [...manufacturers, { id: OTHER_MANUFACTURER_ID, name: OTHER_MANUFACTURER_NAME }];
+  }, [manufacturers, newComp.nazevId]);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -102,10 +157,12 @@ export default function AddCompDialog({
         .filter((id) => !searchManufacturerCache[id]);
 
       const nextManufacturerCache = { ...searchManufacturerCache };
-      const pendingManufacturers = Object.values(nextManufacturerCache).flat();
-      const missingManufacturers = pendingManufacturers.filter((m) => !modelCache[String(m.id)]);
-
-      if (!missingTypeIds.length && !missingManufacturers.length) return;
+      if (!missingTypeIds.length) {
+        const missingModels = Object.values(nextManufacturerCache)
+          .flat()
+          .filter((m) => !modelCache[String(m.id)]);
+        if (!missingModels.length) return;
+      }
 
       setSearchBusy(true);
       try {
@@ -114,10 +171,7 @@ export default function AddCompDialog({
             missingTypeIds.map((typeId) =>
               api
                 .get("/catalog/manufacturers", { params: { type_id: typeId } })
-                .then((r) => ({
-                  typeId: Number(typeId),
-                  rows: Array.isArray(r.data) ? r.data : [],
-                }))
+                .then((r) => ({ typeId: Number(typeId), rows: Array.isArray(r.data) ? r.data : [] }))
                 .catch(() => ({ typeId: Number(typeId), rows: [] }))
             )
           );
@@ -161,6 +215,86 @@ export default function AddCompDialog({
     fetchSearchData();
   }, [searchQuery, types, searchManufacturerCache, modelCache]);
 
+  useEffect(() => {
+    if (!inlineOpen) return;
+    if (inlineForm.typeMode !== "existing" || !inlineForm.typeId) {
+      setInlineManufacturers([]);
+      return;
+    }
+
+    let cancel = false;
+    api
+      .get("/catalog/manufacturers", { params: { type_id: inlineForm.typeId } })
+      .then((r) => {
+        if (!cancel) setInlineManufacturers(Array.isArray(r.data) ? r.data : []);
+      })
+      .catch(() => {
+        if (!cancel) setInlineManufacturers([]);
+      });
+
+    return () => {
+      cancel = true;
+    };
+  }, [inlineOpen, inlineForm.typeId, inlineForm.typeMode]);
+
+  useEffect(() => {
+    if (!inlineOpen) return;
+    setInlineForm((prev) => ({
+      ...prev,
+      typeId:
+        prev.typeId ||
+        (selectedTypeId && types.some((t) => String(t.id) === String(selectedTypeId)) ? selectedTypeId : ""),
+      manufacturerId: "",
+      manufacturerName: "",
+    }));
+  }, [inlineOpen, selectedTypeId, types]);
+
+  useEffect(() => {
+    const focusTarget = () => {
+      switch (initialFocusField) {
+        case "row":
+          rowSelectRef.current?.focus();
+          return;
+        case "parent":
+          parentSelectRef.current?.focus();
+          return;
+        case "poles":
+          polesSelectRef.current?.focus();
+          return;
+        case "dimenze":
+          dimenzeSelectRef.current?.focus();
+          return;
+        case "riso":
+          risoInputRef.current?.focus();
+          risoInputRef.current?.select();
+          return;
+        case "ochrana":
+          ochranaInputRef.current?.focus();
+          ochranaInputRef.current?.select();
+          return;
+        case "poznamka":
+          poznamkaInputRef.current?.focus();
+          poznamkaInputRef.current?.select();
+          return;
+        case "vybavovaciCasMs":
+          vybavovaciCasInputRef.current?.focus();
+          vybavovaciCasInputRef.current?.select();
+          return;
+        case "vybavovaciProudmA":
+          vybavovaciProudInputRef.current?.focus();
+          vybavovaciProudInputRef.current?.select();
+          return;
+        case "search":
+        default:
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+      }
+    };
+
+    const rafId = window.requestAnimationFrame(focusTarget);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [initialFocusField]);
+
   const searchOptions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [] as SearchOption[];
@@ -197,9 +331,7 @@ export default function AddCompDialog({
 
     manufacturersAll.forEach((m) => {
       const typeName = types.find((t) => t.id === m.typeId)?.name;
-      if (!typeName) return;
-      if (!m.name.toLowerCase().includes(q)) return;
-
+      if (!typeName || !m.name.toLowerCase().includes(q)) return;
       add({
         kind: "typeManufacturer",
         id: `type-manufacturer-${m.typeId}-${m.id}`,
@@ -215,13 +347,10 @@ export default function AddCompDialog({
       const typeName = types.find((t) => t.id === m.typeId)?.name;
       if (!typeName) return;
       const modelsForM = modelCache[String(m.id)] || [];
-
       modelsForM.forEach((model) => {
         const modelLabel = model.name || "";
-        const modelLower = modelLabel.toLowerCase();
-        const matchModel = modelLower.includes(q) || q.includes(modelLower);
+        const matchModel = modelLabel.toLowerCase().includes(q) || q.includes(modelLabel.toLowerCase());
         if (!matchModel) return;
-
         add({
           kind: "typeManufacturerModel",
           id: `tmm-${m.typeId}-${m.id}-${model.id}`,
@@ -237,7 +366,7 @@ export default function AddCompDialog({
     });
 
     return out.slice(0, 20);
-  }, [searchQuery, types, manufacturers, searchManufacturers, modelCache]);
+  }, [searchQuery, types, manufacturers, searchManufacturers, modelCache, selectedTypeId]);
 
   const handleSearchSelect = (opt: SearchOption) => {
     if (opt.kind === "type") {
@@ -262,7 +391,7 @@ export default function AddCompDialog({
         typId: "",
         typ: "",
       });
-    } else if (opt.kind === "typeManufacturerModel") {
+    } else {
       setIsCustom(false);
       setNewComp({
         ...defaultComp,
@@ -280,22 +409,150 @@ export default function AddCompDialog({
   };
 
   const showBreakerFields = useMemo(() => {
-    const src = `${newComp.nazev || ""} ${newComp.typ || ""}`.toLowerCase();
-    return /chránič|chráničojistič|rcd|rcbo/.test(src);
-  }, [newComp.nazev, newComp.typ]);
+    const normalizedType = (newComp.nazev || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+    return normalizedType === "chranic jistic" || normalizedType === "proudovy chranic";
+  }, [newComp.nazev]);
+
+  const saveInlineCatalogItem = async () => {
+    setInlineError("");
+    setInlineSuccess("");
+    const modelName = inlineForm.modelName.trim();
+
+    setInlineBusy(true);
+    try {
+      let typeId = inlineForm.typeId;
+      let typeName = inlineTypeName.trim();
+
+      if (inlineForm.typeMode === "new") {
+        if (!inlineForm.typeName.trim()) throw new Error("Doplňte název přístroje.");
+        const typeResp = await api.post("/catalog/types", { name: inlineForm.typeName.trim() });
+        typeId = String(typeResp.data?.id || "");
+        typeName = typeResp.data?.name || inlineForm.typeName.trim();
+      }
+      if (!typeId) throw new Error("Vyberte přístroj.");
+
+      const wantsManufacturer =
+        inlineForm.manufacturerMode === "new"
+          ? !!inlineForm.manufacturerName.trim()
+          : !!inlineForm.manufacturerId;
+      const wantsModel = !!modelName;
+
+      if (!wantsManufacturer && !wantsModel) {
+        setIsCustom(false);
+        setNewComp((current) => ({
+          ...current,
+          nazevId: String(typeId),
+          nazev: typeName,
+          popisId: "",
+          popis: "",
+          typId: "",
+          typ: "",
+        }));
+        setInlineSuccess("Přístroj byl přidán do katalogu a předvyplněn.");
+        setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
+        setInlineOpen(false);
+        return;
+      }
+
+      let manufacturerId = inlineForm.manufacturerId;
+      let manufacturerName = inlineForm.manufacturerName.trim();
+
+      if (inlineForm.manufacturerMode === "new") {
+        if (!inlineForm.manufacturerName.trim()) throw new Error("Doplňte název výrobce.");
+        const manufacturerResp = await api.post("/catalog/manufacturers", {
+          name: inlineForm.manufacturerName.trim(),
+          type_id: Number(typeId),
+        });
+        manufacturerId = String(manufacturerResp.data?.id || "");
+        manufacturerName = manufacturerResp.data?.name || inlineForm.manufacturerName.trim();
+      } else {
+        manufacturerName =
+          inlineManufacturers.find((m) => String(m.id) === String(manufacturerId))?.name || "";
+      }
+      if (!manufacturerId) throw new Error("Vyberte výrobce.");
+
+      if (!wantsModel) {
+        setIsCustom(false);
+        setNewComp((current) => ({
+          ...current,
+          nazevId: String(typeId),
+          nazev: typeName,
+          popisId: String(manufacturerId),
+          popis: manufacturerName,
+          typId: "",
+          typ: "",
+        }));
+        setInlineSuccess("Výrobce byl přidán do katalogu a předvyplněn.");
+        setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
+        setInlineOpen(false);
+        return;
+      }
+
+      const modelResp = await api.post("/catalog/models", {
+        name: modelName,
+        manufacturer_id: Number(manufacturerId),
+      });
+
+      const manufacturersResp = await api.get("/catalog/manufacturers", {
+        params: { type_id: Number(typeId) },
+      });
+      const refreshedManufacturers = Array.isArray(manufacturersResp.data) ? manufacturersResp.data : [];
+      const modelsResp = await api.get("/catalog/models", {
+        params: { manufacturer_id: Number(manufacturerId) },
+      });
+      const refreshedModels = Array.isArray(modelsResp.data) ? modelsResp.data : [];
+
+      setSearchManufacturerCache((prev) => ({
+        ...prev,
+        [String(typeId)]: refreshedManufacturers.map((m: any) => ({
+          id: m.id,
+          name: m.name || "",
+          typeId: Number(typeId),
+        })),
+      }));
+      setModelCache((prev) => ({ ...prev, [String(manufacturerId)]: refreshedModels }));
+      setInlineManufacturers(refreshedManufacturers);
+
+      setIsCustom(false);
+      setNewComp((current) => ({
+        ...current,
+        nazevId: String(typeId),
+        nazev: typeName,
+        popisId: String(manufacturerId),
+        popis: manufacturerName,
+        typId: String(modelResp.data?.id || ""),
+        typ: modelResp.data?.name || modelName,
+      }));
+
+      setInlineSuccess("Položka byla přidána do katalogu a vybrána.");
+      setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
+      setInlineOpen(false);
+    } catch (error: any) {
+      setInlineError(error?.response?.data?.detail || error?.message || "Uložení do katalogu selhalo.");
+    } finally {
+      setInlineBusy(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded shadow w-full max-w-3xl">
-        <h3 className="text-lg font-semibold mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded bg-white p-6 shadow">
+        <h3 className="mb-4 text-lg font-semibold">
           {(newComp as any).id ? "Upravit komponentu" : "Nová komponenta"}
         </h3>
 
         {rowOptions?.length ? (
           <div className="mb-4">
-            <label className="block text-xs font-medium mb-1">Řada</label>
+            <label className="mb-1 block text-xs font-medium">Řada</label>
             <select
-              className="w-full p-1.5 border rounded text-sm"
+              ref={rowSelectRef}
+              className="w-full rounded border p-1.5 text-sm"
               value={newComp.rowId ?? rowOptions[0]?.id ?? 1}
               onChange={(e) => onRowChange?.(Number(e.target.value) || null)}
             >
@@ -309,9 +566,10 @@ export default function AddCompDialog({
         ) : null}
 
         <div className="mb-4">
-          <label className="block text-xs font-medium mb-1">Nadřazený prvek</label>
+          <label className="mb-1 block text-xs font-medium">Nadřazený prvek</label>
           <select
-            className="w-full p-1.5 border rounded text-sm"
+            ref={parentSelectRef}
+            className="w-full rounded border p-1.5 text-sm"
             value={newComp.parentId ?? 0}
             onChange={(e) => {
               const v = Number(e.target.value);
@@ -327,24 +585,25 @@ export default function AddCompDialog({
         </div>
 
         <div className="mb-4">
-          <label className="block text-xs font-medium mb-1">Vyhledat v katalogu</label>
+          <label className="mb-1 block text-xs font-medium">Vyhledat v katalogu</label>
           <input
-            className="w-full p-1.5 border rounded text-sm"
-            placeholder="Napiš např. Eaton nebo PL7"
+            ref={searchInputRef}
+            className="w-full rounded border p-1.5 text-sm"
+            placeholder="Napište např. Eaton nebo PL7"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchBusy && <div className="mt-1 text-xs text-gray-500">Načítám možnosti…</div>}
           {searchOptions.length > 0 && (
-            <div className="mt-1 border rounded bg-white max-h-48 overflow-auto text-sm">
+            <div className="mt-1 max-h-48 overflow-auto rounded border bg-white text-sm">
               {searchOptions.map((opt) => (
                 <button
                   key={`${opt.kind}-${opt.id}`}
                   type="button"
-                  className="w-full text-left px-2 py-1 hover:bg-slate-100"
+                  className="w-full px-2 py-1 text-left hover:bg-slate-100"
                   onClick={() => handleSearchSelect(opt)}
                 >
-                  <span className="text-[11px] uppercase text-slate-500 mr-2">
+                  <span className="mr-2 text-[11px] uppercase text-slate-500">
                     {opt.kind === "type" || opt.kind === "typeManufacturer" ? "Přístroj" : "Model"}
                   </span>
                   {opt.label}
@@ -354,10 +613,196 @@ export default function AddCompDialog({
           )}
         </div>
 
-        <div className="mb-4">
-          <label className="block text-xs font-medium mb-1">Přístroj</label>
+        <div className="mb-4 rounded border border-slate-200 bg-slate-50/70">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-slate-700"
+            onClick={() => {
+              setInlineOpen((prev) => !prev);
+              setInlineError("");
+              setInlineSuccess("");
+            }}
+          >
+            <span>Nenalezli jste položku? Přidat nový komponent</span>
+            <span className="text-slate-500">{inlineOpen ? "−" : "+"}</span>
+          </button>
+
+          {inlineOpen && (
+            <div className="border-t border-slate-200 px-3 py-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium">Přístroj</label>
+                  <div className="mb-2 flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      className={`rounded border px-2 py-1 ${inlineForm.typeMode === "existing" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"}`}
+                      onClick={() =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          typeMode: "existing",
+                          typeId: prev.typeId || selectedTypeId || "",
+                          typeName: "",
+                          manufacturerId: "",
+                          manufacturerName: "",
+                        }))
+                      }
+                    >
+                      Vybrat existující
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded border px-2 py-1 ${inlineForm.typeMode === "new" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"}`}
+                      onClick={() =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          typeMode: "new",
+                          typeName: selectedTypeName || "",
+                          manufacturerId: "",
+                          manufacturerName: "",
+                        }))
+                      }
+                    >
+                      Založit nový
+                    </button>
+                  </div>
+
+                  {inlineForm.typeMode === "existing" ? (
+                    <select
+                      className="w-full rounded border p-1.5 text-sm"
+                      value={inlineForm.typeId}
+                      onChange={(e) =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          typeId: e.target.value,
+                          manufacturerId: "",
+                          manufacturerName: "",
+                        }))
+                      }
+                    >
+                      <option value="">-- vyberte přístroj --</option>
+                      {types.map((t) => (
+                        <option key={t.id} value={String(t.id)}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="w-full rounded border p-1.5 text-sm"
+                      value={inlineForm.typeName}
+                      placeholder="Např. Jistič"
+                      onChange={(e) => setInlineForm((prev) => ({ ...prev, typeName: e.target.value }))}
+                    />
+                  )}
+                </div>
+
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium">Výrobce</label>
+                  <div className="mb-2 flex gap-2 text-xs">
+                    <button
+                      type="button"
+                      className={`rounded border px-2 py-1 ${inlineForm.manufacturerMode === "existing" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"}`}
+                      onClick={() =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          manufacturerMode: "existing",
+                          manufacturerName: "",
+                        }))
+                      }
+                    >
+                      Vybrat existující
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded border px-2 py-1 ${inlineForm.manufacturerMode === "new" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"}`}
+                      onClick={() =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          manufacturerMode: "new",
+                          manufacturerId: "",
+                        }))
+                      }
+                    >
+                      Založit nový
+                    </button>
+                  </div>
+
+                  {inlineForm.manufacturerMode === "existing" ? (
+                    <select
+                      className="w-full rounded border p-1.5 text-sm"
+                      value={inlineForm.manufacturerId}
+                      disabled={!inlineTypeId}
+                      onChange={(e) =>
+                        setInlineForm((prev) => ({
+                          ...prev,
+                          manufacturerId: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">
+                        {inlineTypeId ? "-- vyberte výrobce --" : "-- nejprve vyberte přístroj --"}
+                      </option>
+                      {inlineManufacturers.map((m) => (
+                        <option key={m.id} value={String(m.id)}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      className="w-full rounded border p-1.5 text-sm"
+                      value={inlineForm.manufacturerName}
+                      placeholder="Např. Eaton"
+                      onChange={(e) =>
+                        setInlineForm((prev) => ({ ...prev, manufacturerName: e.target.value }))
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-1 block text-xs font-medium">Typ / model</label>
+                <input
+                  className="w-full rounded border p-1.5 text-sm"
+                  value={inlineForm.modelName}
+                  placeholder="Např. PL7-B16/1"
+                  onChange={(e) => setInlineForm((prev) => ({ ...prev, modelName: e.target.value }))}
+                />
+                <div className="mt-1 text-xs text-slate-500">
+                  Můžete vybrat existující přístroj a výrobce a doplnit jen chybějící typ/model.
+                </div>
+              </div>
+
+              {inlineError && (
+                <div className="mt-3 rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+                  {inlineError}
+                </div>
+              )}
+              {inlineSuccess && (
+                <div className="mt-3 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+                  {inlineSuccess}
+                </div>
+              )}
+
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  className="rounded bg-slate-800 px-3 py-2 text-sm text-white disabled:opacity-60"
+                  disabled={inlineBusy}
+                  onClick={saveInlineCatalogItem}
+                >
+                  {inlineBusy ? "Ukládám…" : "Přidat do katalogu a vybrat"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {!inlineOpen && <div className="mb-4">
+          <label className="mb-1 block text-xs font-medium">Přístroj</label>
           <select
-            className="w-full p-1.5 border rounded text-sm"
+            className="w-full rounded border p-1.5 text-sm"
             value={isCustom ? "vlastni" : newComp.nazevId}
             onChange={(e) => {
               const val = e.target.value;
@@ -383,7 +828,7 @@ export default function AddCompDialog({
               }
             }}
           >
-            <option value="">-- vyber --</option>
+            <option value="">-- vyberte --</option>
             {types.map((t) => (
               <option key={t.id} value={String(t.id)}>
                 {t.name}
@@ -391,15 +836,15 @@ export default function AddCompDialog({
             ))}
             <option value="vlastni">Vlastní</option>
           </select>
-        </div>
+        </div>}
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        {!inlineOpen && <div className="mb-4 grid grid-cols-2 gap-4">
           {isCustom ? (
             <>
               {([
                 ["nazev", "Název"],
-                ["popis", "Výrobce / Popis"],
-                ["typ", "Model / Typ"],
+                ["popis", "Výrobce / popis"],
+                ["typ", "Model / typ"],
                 ["poles", "Počet pólů"],
                 ["dimenze", "Dimenze"],
                 ["riso", "Riso [MΩ]"],
@@ -410,7 +855,7 @@ export default function AddCompDialog({
                   <label className="block text-xs font-medium">{label}</label>
                   <input
                     type="text"
-                    className="w-full p-1.5 border rounded text-sm"
+                    className="w-full rounded border p-1.5 text-sm"
                     value={(newComp as any)[field] || ""}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       setNewComp((c) => ({ ...c, [field]: e.target.value }))
@@ -424,7 +869,7 @@ export default function AddCompDialog({
               <div>
                 <label className="block text-xs font-medium">Výrobce</label>
                 <select
-                  className="w-full p-1.5 border rounded text-sm"
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.popisId}
                   onChange={(e) => {
                     const id = e.target.value;
@@ -438,9 +883,9 @@ export default function AddCompDialog({
                     }));
                   }}
                 >
-                  <option value="">-- vyber --</option>
-                  {manufacturers.map((m) => (
-                    <option key={m.id} value={String(m.id)}>
+                  <option value="">-- vyberte --</option>
+                  {manufacturersWithOther.map((m) => (
+                    <option key={String(m.id)} value={String(m.id)}>
                       {m.name}
                     </option>
                   ))}
@@ -448,9 +893,9 @@ export default function AddCompDialog({
               </div>
 
               <div>
-                <label className="block text-xs font-medium">Typ / Model</label>
+                <label className="block text-xs font-medium">Typ / model</label>
                 <select
-                  className="w-full p-1.5 border rounded text-sm"
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.typId}
                   onChange={(e) => {
                     const id = e.target.value;
@@ -458,7 +903,7 @@ export default function AddCompDialog({
                     setNewComp((c) => ({ ...c, typId: id, typ: txt }));
                   }}
                 >
-                  <option value="">-- vyber --</option>
+                  <option value="">-- vyberte --</option>
                   {models.map((m) => (
                     <option key={m.id} value={String(m.id)}>
                       {m.name}
@@ -470,11 +915,12 @@ export default function AddCompDialog({
               <div>
                 <label className="block text-xs font-medium">Počet pólů</label>
                 <select
-                  className="w-full p-1.5 border rounded text-sm"
+                  ref={polesSelectRef}
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.poles}
                   onChange={(e) => setNewComp((c) => ({ ...c, poles: e.target.value }))}
                 >
-                  <option value="">-- vyber --</option>
+                  <option value="">-- vyberte --</option>
                   {polesOptions.map((o) => (
                     <option key={o} value={o}>
                       {o}
@@ -491,11 +937,12 @@ export default function AddCompDialog({
               <div>
                 <label className="block text-xs font-medium">Dimenze</label>
                 <select
-                  className="w-full p-1.5 border rounded text-sm"
+                  ref={dimenzeSelectRef}
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.dimenze}
                   onChange={(e) => setNewComp((c) => ({ ...c, dimenze: e.target.value }))}
                 >
-                  <option value="">-- vyber --</option>
+                  <option value="">-- vyberte --</option>
                   {dimenzeOptions.map((o) => (
                     <option key={o} value={o}>
                       {favoriteSet.has(normalizeDim(o)) ? `★ ${o}` : o}
@@ -508,7 +955,8 @@ export default function AddCompDialog({
                 <label className="block text-xs font-medium">Riso [MΩ]</label>
                 <input
                   type="text"
-                  className="w-full p-1.5 border rounded text-sm"
+                  ref={risoInputRef}
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.riso || ""}
                   onChange={(e) => setNewComp((c) => ({ ...c, riso: e.target.value }))}
                 />
@@ -518,7 +966,8 @@ export default function AddCompDialog({
                 <label className="block text-xs font-medium">Zs [Ω]</label>
                 <input
                   type="text"
-                  className="w-full p-1.5 border rounded text-sm"
+                  ref={ochranaInputRef}
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.ochrana || ""}
                   onChange={(e) => setNewComp((c) => ({ ...c, ochrana: e.target.value }))}
                 />
@@ -528,26 +977,52 @@ export default function AddCompDialog({
                 <label className="block text-xs font-medium">Název obvodu</label>
                 <input
                   type="text"
-                  className="w-full p-1.5 border rounded text-sm"
+                  ref={poznamkaInputRef}
+                  className="w-full rounded border p-1.5 text-sm"
                   value={newComp.poznamka || ""}
                   onChange={(e) => setNewComp((c) => ({ ...c, poznamka: e.target.value }))}
                 />
               </div>
             </>
           )}
-        </div>
+        </div>}
 
-        {showBreakerFields && (
-          <div className="text-xs text-gray-500 mb-4">
-            U proudových chráničů a chráničojističů vyplňte vybavovací proud a čas.
+        {!inlineOpen && showBreakerFields && (
+          <div className="mb-4 rounded border border-blue-200 bg-blue-50/60 p-3">
+            <div className="mb-3 text-xs text-gray-600">
+              U proudových chráničů a jističochráničů vyplňte vybavovací čas a proud.
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium">t [ms]</label>
+                <input
+                  type="text"
+                  ref={vybavovaciCasInputRef}
+                  className="w-full rounded border p-1.5 text-sm"
+                  value={newComp.vybavovaciCasMs || ""}
+                  onChange={(e) => setNewComp((c) => ({ ...c, vybavovaciCasMs: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium">IΔ [mA]</label>
+                <input
+                  type="text"
+                  ref={vybavovaciProudInputRef}
+                  className="w-full rounded border p-1.5 text-sm"
+                  value={newComp.vybavovaciProudmA || ""}
+                  onChange={(e) => setNewComp((c) => ({ ...c, vybavovaciProudmA: e.target.value }))}
+                />
+              </div>
+            </div>
           </div>
         )}
 
         <div className="flex justify-end gap-2">
-          <button className="px-4 py-2 bg-gray-300 rounded" onClick={onCancel}>
+          <button className="rounded bg-gray-300 px-4 py-2" onClick={onCancel}>
             Zrušit
           </button>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={onAdd}>
+          <button className="rounded bg-blue-600 px-4 py-2 text-white" onClick={onAdd}>
             {(newComp as any).id ? "Uložit" : "Přidat"}
           </button>
         </div>

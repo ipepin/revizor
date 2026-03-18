@@ -1,11 +1,12 @@
 ﻿﻿// src/components/Sidebar.tsx
-import React, { useEffect, useState } from "react";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useAuth } from "../context/AuthContext";
 import lbRevizeLogo from "../pngs/lb-revize.png";
 import { API_DISPLAY_URL, apiUrl } from "../api/base";
+import api from "../api/axios";
 
 type Props = {
   mode: "dashboard" | "edit" | "catalog" | "summary";
@@ -25,17 +26,26 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [photoCaption, setPhotoCaption] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // User context (profil technika + firma)
   const { profile, company, loading } = useUser();
 
   // dostupné jen pokud jsme uvnitř RevisionEdit provideru
-  const { finish } = (() => {
+  const { finish, revId, notifyDefectPhotosChanged } = (() => {
     try {
       return useRevisionForm();
     } catch {
       // mimo provider – vrátíme dummy
-      return { finish: () => Promise.resolve() } as any;
+      return {
+        finish: () => Promise.resolve(),
+        revId: 0,
+        notifyDefectPhotosChanged: () => undefined,
+      } as any;
     }
   })();
 
@@ -82,6 +92,51 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
     const timeout = setTimeout(() => setToast(null), 2500);
     return () => clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    if (showPhotoModal) return;
+    setPhotoFile(null);
+    setPhotoCaption("");
+    setUploadingPhoto(false);
+  }, [showPhotoModal]);
+
+  const openPhotoPicker = () => {
+    if (!revId) {
+      setToast({ type: "error", message: "Fotky lze pridavat jen v revizi." });
+      return;
+    }
+    photoInputRef.current?.click();
+  };
+
+  const onPhotoSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoCaption("");
+    setShowPhotoModal(true);
+    event.target.value = "";
+  };
+
+  const uploadDefectPhoto = async () => {
+    if (!photoFile || !revId) return;
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("file", photoFile);
+      body.append("caption", photoCaption.trim());
+      await api.post(`/revisions/${revId}/photos`, body, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      notifyDefectPhotosChanged();
+      setShowPhotoModal(false);
+      setToast({ type: "success", message: "Fotografie ulozena." });
+    } catch (e) {
+      console.warn("Photo upload failed:", e);
+      setToast({ type: "error", message: "Nahrani fotografie selhalo." });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const sendTestEmail = async () => {
     if (!token) {
@@ -171,6 +226,23 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                   </button>
                 ))}
               </nav>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={onPhotoSelected}
+              />
+
+              <button
+                className="mb-3 w-full rounded bg-amber-500 px-4 py-2 text-left text-white transition hover:bg-amber-600"
+                onClick={openPhotoPicker}
+                title="Rychle vyfotit nebo vybrat fotografii a pozdeji ji priradit k zavade"
+              >
+                📷 Vyfotit
+              </button>
 
               {/* Dokončit revizi (s potvrzením) */}
               <button
@@ -409,6 +481,62 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 title="Dokončit revizi"
               >
                 {finishing ? "Dokončuji…" : "Dokončit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPhotoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-base font-semibold text-slate-800">Nová fotografie</div>
+                <div className="text-sm text-slate-500">
+                  Fotka se uloží do revize a v sekci závad ji pak přiřadíš ke konkrétní závadě.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-slate-500 hover:text-slate-800"
+                onClick={() => setShowPhotoModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {photoFile && (
+              <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                {photoFile.name}
+              </div>
+            )}
+
+            <label className="mb-1 block text-sm font-medium text-slate-700">Krátký popis</label>
+            <textarea
+              className="mb-4 w-full rounded border px-3 py-2 text-sm"
+              rows={4}
+              placeholder="Např. chybějící kryt svorkovnice"
+              value={photoCaption}
+              onChange={(e) => setPhotoCaption(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded bg-slate-200 px-3 py-2 text-sm text-slate-800 hover:bg-slate-300"
+                onClick={() => setShowPhotoModal(false)}
+                disabled={uploadingPhoto}
+              >
+                Zrušit
+              </button>
+              <button
+                type="button"
+                className="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
+                onClick={uploadDefectPhoto}
+                disabled={!photoFile || uploadingPhoto}
+              >
+                {uploadingPhoto ? "Nahrávám…" : "Uložit fotografii"}
               </button>
             </div>
           </div>

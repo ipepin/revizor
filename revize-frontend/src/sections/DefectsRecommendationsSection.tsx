@@ -1,16 +1,29 @@
 // src/sections/DefectsRecommendationsSection.tsx
-import React, { useState, useEffect, ChangeEvent, useContext, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import api from "../api/axios"; // ← náš axios klient s JWT
 import { RevisionFormContext } from "../context/RevisionFormContext";
+import { defectNormSuffix } from "../pages/summary-utils/defects";
 
 type Defect = {
+  uid: string;
   id?: number;
   description: string;
   standard: string;
   article: string;
 };
 
-type CatalogDefect = Defect & {
+type DefectPhoto = {
+  id: number;
+  revision_id: number;
+  defect_uid?: string | null;
+  caption: string;
+  original_name?: string | null;
+  mime_type: string;
+  file_size: number;
+  created_at?: string | null;
+};
+
+type CatalogDefect = Omit<Defect, "uid"> & {
   visibility?: "global" | "user";
   moderation_status?: "none" | "pending" | "rejected";
   reject_reason?: string | null;
@@ -77,26 +90,69 @@ function normalizeDefect(raw: any): CatalogDefect {
   };
 }
 
+function makeUid(prefix: string) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function DefectPhotoThumb({ revId, photo }: { revId: number; photo: DefectPhoto }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    (async () => {
+      try {
+        const res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+          responseType: "blob",
+        });
+        objectUrl = URL.createObjectURL(res.data);
+        if (active) setSrc(objectUrl);
+      } catch (e) {
+        console.warn("Nepodařilo se načíst náhled fotografie:", e);
+      }
+    })();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photo.id, revId]);
+
+  if (!src) {
+    return <div className="flex aspect-[5/4] items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">Načítám…</div>;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={photo.caption || photo.original_name || "Fotografie"}
+      className="aspect-[5/4] w-full rounded-lg object-cover"
+    />
+  );
+}
+
 // ————————————————————————————————————————————————————————————————
 // Hlavní komponenta
 // ————————————————————————————————————————————————————————————————
 export default function DefectsRecommendationsSection() {
-  const { form, setForm } = useContext(RevisionFormContext);
+  const { form, setForm, revId, defectPhotosVersion, notifyDefectPhotosChanged } = useContext(RevisionFormContext);
 
   const [catalog, setCatalog] = useState<CatalogDefect[]>([]);
+  const [photos, setPhotos] = useState<DefectPhoto[]>([]);
+  const [previewPhoto, setPreviewPhoto] = useState<DefectPhoto | null>(null);
+  const [previewSrc, setPreviewSrc] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
   // nový, vylepšený dialog
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState<Defect>({ description: "", standard: "", article: "" });
+  const [addForm, setAddForm] = useState<Omit<Defect, "uid">>({ description: "", standard: "", article: "" });
   const [submitToGlobal, setSubmitToGlobal] = useState(false);
   const addFormValid = (addForm.description || "").trim().length >= 3;
 
   const [toDelete, setToDelete] = useState<CatalogDefect | null>(null);
-
-  // Controlled textarea state
-  const [defectsText, setDefectsText] = useState<string>("");
 
   // Vyhledávání v pickeru
   const [pickerQuery, setPickerQuery] = useState("");
@@ -110,15 +166,6 @@ export default function DefectsRecommendationsSection() {
   const [sortByEditor, setSortByEditor] = useState<SortBy>("id");
   const [sortDirEditor, setSortDirEditor] = useState<SortDir>("asc");
 
-  // Inicializace textarea z form.defects
-  useEffect(() => {
-    const initial = (form.defects || []).map(
-      (d, i) => `${i + 1}) ${d.description} - ${d.standard} - ${d.article}`
-    );
-    setDefectsText(initial.join("\n"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Načtení katalogu (normalizace polí)
   const loadCatalog = useCallback(async () => {
     try {
@@ -129,6 +176,45 @@ export default function DefectsRecommendationsSection() {
       alert("Chyba při načítání katalogu závad");
     }
   }, []);
+
+  const loadPhotos = useCallback(async () => {
+    if (!revId) return;
+    try {
+      const res = await api.get<DefectPhoto[]>(`/revisions/${revId}/photos`);
+      const next = Array.isArray(res.data) ? res.data : [];
+      setPhotos(next);
+    } catch (e) {
+      console.warn("Nepodařilo se načíst fotky závad:", e);
+    }
+  }, [revId]);
+
+  useEffect(() => {
+    void loadPhotos();
+  }, [loadPhotos, defectPhotosVersion]);
+
+  useEffect(() => {
+    if (!previewPhoto) {
+      setPreviewSrc("");
+      return;
+    }
+    let active = true;
+    let objectUrl = "";
+    (async () => {
+      try {
+        const res = await api.get(`/revisions/${revId}/photos/${previewPhoto.id}/file`, {
+          responseType: "blob",
+        });
+        objectUrl = URL.createObjectURL(res.data);
+        if (active) setPreviewSrc(objectUrl);
+      } catch (e) {
+        console.warn("Nepodařilo se načíst plnou fotografii:", e);
+      }
+    })();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [previewPhoto, revId]);
 
   // Při otevření pickeru vždy načti čerstvý katalog
   useEffect(() => {
@@ -143,6 +229,7 @@ export default function DefectsRecommendationsSection() {
   // Přidání ze seznamu do formuláře + do textarea
   async function addDefectToList(d: CatalogDefect) {
     const item: Defect = {
+      uid: makeUid("defect"),
       description: d.description || "",
       standard: d.standard || "",
       article: d.article || "",
@@ -161,38 +248,26 @@ export default function DefectsRecommendationsSection() {
         // ignore
       }
     }
-
-    setDefectsText((prev) => {
-      const lines = prev ? prev.split("\n") : [];
-      const nextIndex = lines.filter((l) => l.trim().length > 0).length + 1;
-      const newLine = `${nextIndex}) ${item.description} - ${item.standard} - ${item.article}`;
-      return prev && prev.trim().length ? prev + "\n" + newLine : newLine;
-    });
     setShowPicker(false);
   }
 
-  // Textarea → parsování do form.defects
-  function onChangeTextarea(e: ChangeEvent<HTMLTextAreaElement>) {
-    const text = e.target.value;
-    setDefectsText(text);
-    const lines = text
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => {
-        const cleaned = line.replace(/^\s*\d+\)\s*/, "");
-        const parts = cleaned.split(/\s-\s/); // očekáváme "popis - standard - článek"
-        return {
-          description: parts[0] || "",
-          standard: parts[1] || "",
-          article: parts[2] || "",
-        };
-      });
-    setForm((f) => ({ ...f, defects: lines }));
+  function updateDefect(uid: string, patch: Partial<Omit<Defect, "uid" | "id">>) {
+    setForm((f) => ({
+      ...f,
+      defects: (f.defects || []).map((defect) => (defect.uid === uid ? { ...defect, ...patch } : defect)),
+    }));
+  }
+
+  function deleteDefect(uid: string) {
+    if (!window.confirm("Opravdu smazat závadu?")) return;
+    setForm((f) => ({
+      ...f,
+      defects: (f.defects || []).filter((defect) => defect.uid !== uid),
+    }));
   }
 
   // ——— Editor katalogu ———
-  function onChangeCatalog(idx: number, field: keyof Omit<Defect, "id">, val: string) {
+  function onChangeCatalog(idx: number, field: keyof Omit<Defect, "id" | "uid">, val: string) {
     setCatalog((c) => c.map((d, i) => (i === idx ? { ...d, [field]: val } : d)));
   }
 
@@ -337,18 +412,216 @@ export default function DefectsRecommendationsSection() {
     return arr;
   }, [catalog, sortByEditor, sortDirEditor]);
 
+  const defectUidSet = useMemo(() => new Set((form.defects || []).map((d) => d.uid)), [form.defects]);
+  const unassignedPhotos = useMemo(
+    () => photos.filter((photo) => !photo.defect_uid || !defectUidSet.has(photo.defect_uid)),
+    [photos, defectUidSet]
+  );
+  const photosByDefect = useMemo(() => {
+    const map = new Map<string, DefectPhoto[]>();
+    for (const photo of photos) {
+      if (!photo.defect_uid || !defectUidSet.has(photo.defect_uid)) continue;
+      const bucket = map.get(photo.defect_uid) || [];
+      bucket.push(photo);
+      map.set(photo.defect_uid, bucket);
+    }
+    return map;
+  }, [photos, defectUidSet]);
+
+  const assignPhotoToDefect = async (photoId: number, defectUid: string) => {
+    const sourcePhoto = photos.find((photo) => photo.id === photoId);
+    const inferredText = String(sourcePhoto?.caption || "").trim();
+
+    if (defectUid && inferredText) {
+      setForm((f) => ({
+        ...f,
+        defects: (f.defects || []).map((defect) =>
+          defect.uid === defectUid && !String(defect.description || "").trim()
+            ? { ...defect, description: inferredText }
+            : defect
+        ),
+      }));
+    }
+
+    try {
+      await api.patch(`/revisions/${revId}/photos/${photoId}`, {
+        defect_uid: defectUid || "",
+      });
+      notifyDefectPhotosChanged();
+    } catch (e) {
+      console.warn("Přiřazení fotky k závadě selhalo:", e);
+    }
+  };
+
+  const deletePhoto = async (photoId: number) => {
+    if (!window.confirm("Opravdu smazat fotografii?")) return;
+    try {
+      await api.delete(`/revisions/${revId}/photos/${photoId}`);
+      notifyDefectPhotosChanged();
+    } catch (e) {
+      console.warn("Mazání fotografie selhalo:", e);
+    }
+  };
+
+  const createDefectFromPhoto = async (photo: DefectPhoto) => {
+    const newDefect: Defect = {
+      uid: makeUid("defect"),
+      description: photo.caption?.trim() || "Nová závada",
+      standard: "",
+      article: "",
+    };
+    setForm((f) => ({ ...f, defects: [...(f.defects || []), newDefect] }));
+    try {
+      await api.patch(`/revisions/${revId}/photos/${photo.id}`, {
+        defect_uid: newDefect.uid,
+      });
+      notifyDefectPhotosChanged();
+    } catch (e) {
+      console.warn("Vytvoření závady z fotografie selhalo:", e);
+    }
+  };
+
+  const renderPhotoCard = (photo: DefectPhoto, defectUid?: string) => (
+    <div key={photo.id} className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+      <button
+        type="button"
+        className="block w-full overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={() => setPreviewPhoto(photo)}
+        title="Otevřít fotografii"
+      >
+        <DefectPhotoThumb revId={revId} photo={photo} />
+      </button>
+
+      <div className="mt-2.5 space-y-2">
+        <div className="grid grid-cols-[minmax(0,118px)_auto] items-start gap-2">
+          <select
+            className="max-w-[118px] rounded border px-2 py-1 text-xs"
+            value={photo.defect_uid || ""}
+            onChange={(e) => void assignPhotoToDefect(photo.id, e.target.value)}
+          >
+            <option value="">Bez přiřazení</option>
+            {(form.defects || []).map((defect, index) => (
+              <option key={defect.uid} value={defect.uid}>
+                {`Závada ${index + 1}`}
+              </option>
+            ))}
+          </select>
+          {!defectUid ? (
+            <button
+              type="button"
+              className="rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700"
+              onClick={() => void createDefectFromPhoto(photo)}
+            >
+              Nová závada z fotky
+            </button>
+          ) : (
+            <div />
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="rounded bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+            onClick={() => void deletePhoto(photo.id)}
+          >
+            Smazat fotografii
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <section className="space-y-4 text-sm text-gray-800">
       <h2 className="text-lg font-semibold">Závady a doporučení</h2>
 
-      <textarea
-        data-guide-id="def-text"
-        className="w-full rounded border px-3 py-1.5 text-sm whitespace-pre-wrap"
-        rows={10}
-        placeholder="Každá závada na samostatném řádku"
-        value={defectsText}
-        onChange={onChangeTextarea}
-      />
+      <div data-guide-id="def-text" className="space-y-3">
+        {(form.defects || []).length > 0 ? (
+          (form.defects || []).map((defect, index) => (
+            <div key={defect.uid} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">Závada {index + 1}</div>
+                  <div className="text-xs text-slate-500">Text závady a norma jsou editované odděleně, bez parsování pomlček.</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                    {(photosByDefect.get(defect.uid) || []).length} foto
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                    onClick={() => deleteDefect(defect.uid)}
+                  >
+                    Smazat
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Text závady</label>
+                  <textarea
+                    className="w-full rounded border px-3 py-2 text-sm"
+                    rows={4}
+                    value={defect.description || ""}
+                    onChange={(e) => updateDefect(defect.uid, { description: e.target.value })}
+                    placeholder="Popis závady"
+                  />
+                </div>
+
+                <div className="grid gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Norma</label>
+                    <input
+                      className="w-full rounded border px-3 py-2 text-sm"
+                      value={defect.standard || ""}
+                      onChange={(e) => updateDefect(defect.uid, { standard: e.target.value })}
+                      placeholder="ČSN ..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">Článek</label>
+                    <input
+                      className="w-full rounded border px-3 py-2 text-sm"
+                      value={defect.article || ""}
+                      onChange={(e) => updateDefect(defect.uid, { article: e.target.value })}
+                      placeholder="např. 542.4"
+                    />
+                  </div>
+
+                  <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
+                    <div className="font-medium text-slate-700">Výsledný text do reportu</div>
+                    <div className="mt-1 leading-relaxed">
+                      <span>{defect.description || "Bez textu závady."}</span>{" "}
+                      {defectNormSuffix(defect) ? <strong>{defectNormSuffix(defect)}</strong> : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <div className="mb-2 text-sm font-semibold text-slate-700">Fotografie závady</div>
+                {(photosByDefect.get(defect.uid) || []).length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+                    {(photosByDefect.get(defect.uid) || []).map((photo) => renderPhotoCard(photo, defect.uid))}
+                  </div>
+                ) : (
+                  <div className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    K této závadě zatím není přiřazená žádná fotografie.
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            Zatím tu nejsou žádné závady. Přidej je přes katalog, nebo vytvoř novou závadu z fotografie.
+          </div>
+        )}
+      </div>
 
       <div data-guide-id="def-catalog" className="flex flex-wrap gap-2">
         <button
@@ -363,6 +636,34 @@ export default function DefectsRecommendationsSection() {
         >
           ⚙️ Editor katalogu
         </button>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-slate-800">Fotogalerie závad</h3>
+            <p className="text-sm text-slate-500">
+              Fotky pořízené přes tlačítko `Vyfotit` se ukládají sem. Odtud je přiřadíš ke konkrétním závadám.
+            </p>
+          </div>
+          <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
+            {photos.length} foto
+          </div>
+        </div>
+
+        {unassignedPhotos.length > 0 ? (
+          <div className="mb-5">
+            <div className="mb-2 text-sm font-semibold text-slate-700">Nepřiřazené fotografie</div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
+              {unassignedPhotos.map((photo) => renderPhotoCard(photo))}
+            </div>
+          </div>
+        ) : (
+          <div className="mb-5 rounded border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-500">
+            Zatím tu nejsou žádné nepřiřazené fotografie. V terénu je přidáš přes tlačítko `Vyfotit` v sidebaru.
+          </div>
+        )}
+
       </div>
 
       {/* ——— PICKER: Výběr ze seznamu závad ——— */}
@@ -710,6 +1011,45 @@ export default function DefectsRecommendationsSection() {
               <button className="rounded bg-red-600 px-3 py-1.5 text-white" onClick={deleteCatalogItem}>
                 Smazat
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+              <div>
+                <div className="text-base font-semibold text-slate-800">
+                  {previewPhoto.caption || "Fotografie závady"}
+                </div>
+                <div className="text-xs text-slate-500">{previewPhoto.original_name || "Bez názvu"}</div>
+              </div>
+              <button
+                type="button"
+                className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                onClick={() => setPreviewPhoto(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex max-h-[calc(90vh-72px)] items-center justify-center bg-slate-900/90 p-4">
+              {previewSrc ? (
+                <img
+                  src={previewSrc}
+                  alt={previewPhoto.caption || previewPhoto.original_name || "Fotografie"}
+                  className="max-h-[calc(90vh-110px)] max-w-full rounded object-contain"
+                />
+              ) : (
+                <div className="py-16 text-sm text-slate-300">Načítám fotografii…</div>
+              )}
             </div>
           </div>
         </div>

@@ -20,8 +20,8 @@ from routers.norms import router as norms_router
 from routers.inspection_templates import router as inspection_templates_router
 
 load_dotenv()
-
 app = FastAPI() 
+
 
 # â­ CORS â€“ povol frontend na 5173
 ALLOWED_ORIGINS = [
@@ -70,12 +70,17 @@ app.include_router(inspection_templates_router, dependencies=[Depends(get_curren
 # Admin router Ĺ™eĹˇĂ­ autorizaci uvnitĹ™ handlerĹŻ; neblokuj CORS preflight pĹ™es globĂˇlnĂ­ dependency
 app.include_router(admin_router)
 
+
+@app.on_event("startup")
+def _ensure_runtime_tables():
+    Base.metadata.create_all(bind=engine, tables=[RevisionPhoto.__table__])
+
 from fastapi import HTTPException, status
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from database import get_db
-from models import User as UserModel
+from database import Base, engine, get_db
+from models import RevisionPhoto, User as UserModel
 
 class _DeleteUserPayload(BaseModel):
     id: int

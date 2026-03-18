@@ -5,7 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException,status
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ComponentType, Manufacturer, ComponentModel
-from schemas import ComponentTypeRead, ManufacturerRead, ComponentModelRead,ComponentModelCreate,ComponentModelUpdate
+from schemas import (
+    ComponentTypeRead,
+    ComponentTypeCreate,
+    ManufacturerRead,
+    ManufacturerCreate,
+    ComponentModelRead,
+    ComponentModelCreate,
+    ComponentModelUpdate,
+)
 from sqlalchemy.exc import IntegrityError   # ← přidej
 
 
@@ -15,6 +23,23 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 def list_types(db: Session = Depends(get_db)):
     return db.query(ComponentType).order_by(ComponentType.name).all()
 
+
+@router.post("/types", response_model=ComponentTypeRead, status_code=status.HTTP_201_CREATED)
+def create_type(payload: ComponentTypeCreate, db: Session = Depends(get_db)):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Název přístroje je povinný")
+
+    dup = db.query(ComponentType).filter(ComponentType.name == name).first()
+    if dup:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Přístroj s tímto názvem už existuje")
+
+    obj = ComponentType(name=name)
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
 @router.get("/manufacturers", response_model=List[ManufacturerRead])
 def list_manufacturers(type_id: int, db: Session = Depends(get_db)):
     return (
@@ -23,6 +48,34 @@ def list_manufacturers(type_id: int, db: Session = Depends(get_db)):
           .order_by(Manufacturer.name)
           .all()
     )
+
+
+@router.post("/manufacturers", response_model=ManufacturerRead, status_code=status.HTTP_201_CREATED)
+def create_manufacturer(payload: ManufacturerCreate, db: Session = Depends(get_db)):
+    type_obj = db.query(ComponentType).filter(ComponentType.id == payload.type_id).first()
+    if type_obj is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Přístroj neexistuje")
+
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Název výrobce je povinný")
+
+    dup = (
+        db.query(Manufacturer)
+        .filter(Manufacturer.type_id == payload.type_id, Manufacturer.name == name)
+        .first()
+    )
+    if dup:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Výrobce s tímto názvem už u zvoleného přístroje existuje",
+        )
+
+    obj = Manufacturer(name=name, type_id=payload.type_id)
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
 
 @router.get("/models", response_model=List[ComponentModelRead])
 def list_models(manufacturer_id: int, db: Session = Depends(get_db)):
@@ -64,7 +117,7 @@ def create_model(payload: ComponentModelCreate, db: Session = Depends(get_db)):
 
     # 3) vytvoř a ulož – pole uprav dle svého SQLAlchemy modelu
     model = ComponentModel(
-        name=payload.name,
+        name=payload.name.strip(),
         manufacturer_id=payload.manufacturer_id,
     )
     db.add(model)

@@ -38,6 +38,24 @@ function getProjectValidity(revisions: any[]) {
   )[0];
 }
 
+function getKnownClients(projects: any[]): string[] {
+  const seen = new Set<string>();
+  const clients: string[] = [];
+
+  for (const project of Array.isArray(projects) ? projects : []) {
+    const raw = typeof project?.client === "string" ? project.client.trim() : "";
+    if (!raw) continue;
+
+    const normalized = raw.toLocaleLowerCase("cs-CZ");
+    if (seen.has(normalized)) continue;
+
+    seen.add(normalized);
+    clients.push(raw);
+  }
+
+  return clients.sort((a, b) => a.localeCompare(b, "cs"));
+}
+
 type TrainingBundle = {
   projectId: number;
   elektroRevId: number;
@@ -95,6 +113,25 @@ export default function Dashboard() {
     err: string | null;
   }>({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });
 
+  // Dialog kopírování revize do jiného projektu
+  const [copyDialog, setCopyDialog] = useState<{
+    open: boolean;
+    sourceRevId: number | null;
+    sourceProjectId: number | null;
+    targetProjectId: number | null;
+    busy: boolean;
+    err: string | null;
+  }>({
+    open: false,
+    sourceRevId: null,
+    sourceProjectId: null,
+    targetProjectId: null,
+    busy: false,
+    err: null,
+  });
+
+  const knownClients = getKnownClients(projects);
+
   const confirmDelete = async () => {
     if (!token || !deleteDialog.id) return;
     setDeleteDialog((d) => ({ ...d, busy: true, err: null }));
@@ -119,6 +156,37 @@ export default function Dashboard() {
       setDeleteDialog({ open: false, kind: 'project', id: null, projectId: null, password: '', busy: false, err: null });
     } catch (e: any) {
       setDeleteDialog((d) => ({ ...d, err: 'Mazání selhalo', busy: false }));
+    }
+  };
+
+  const confirmCopyRevision = async () => {
+    if (!token || !copyDialog.sourceRevId || !copyDialog.targetProjectId) return;
+    setCopyDialog((d) => ({ ...d, busy: true, err: null }));
+    try {
+      const res = await fetch(apiUrl(`/revisions/${copyDialog.sourceRevId}/copy`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token) },
+        body: JSON.stringify({ target_project_id: copyDialog.targetProjectId }),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const data = await res.json();
+          detail = data?.detail ? String(data.detail) : "";
+        } catch {}
+        throw new Error(detail || `${res.status}`);
+      }
+      await fetchProjects();
+      setCopyDialog({
+        open: false,
+        sourceRevId: null,
+        sourceProjectId: null,
+        targetProjectId: null,
+        busy: false,
+        err: null,
+      });
+    } catch (e: any) {
+      setCopyDialog((d) => ({ ...d, busy: false, err: e?.message || "Kopírování selhalo" }));
     }
   };
 
@@ -515,6 +583,22 @@ export default function Dashboard() {
                                       Smazat
                                     </button>
                                     <button
+                                      className="text-amber-700 hover:underline"
+                                      onClick={() => {
+                                        const target = (projects || []).find((p: any) => p.id !== proj.id)?.id ?? null;
+                                        setCopyDialog({
+                                          open: true,
+                                          sourceRevId: rev.id,
+                                          sourceProjectId: proj.id,
+                                          targetProjectId: target,
+                                          busy: false,
+                                          err: null,
+                                        });
+                                      }}
+                                    >
+                                      Kopírovat
+                                    </button>
+                                    <button
                                       onClick={() => navigate(`/summary/${rev.id}`)}
                                       className="text-green-600 hover:underline"
                                     >
@@ -699,9 +783,20 @@ export default function Dashboard() {
               type="text"
               className="w-full p-2 mb-4 border rounded"
               placeholder="Objednatel"
+              list="known-project-clients"
               value={newProjectData.client}
               onChange={(e) => setNewProjectData({ ...newProjectData, client: e.target.value })}
             />
+            <datalist id="known-project-clients">
+              {knownClients.map((client) => (
+                <option key={client} value={client} />
+              ))}
+            </datalist>
+            {!!knownClients.length && (
+              <p className="mb-4 text-xs text-gray-500">
+                Pole nabízí dříve použité objednatele, ale můžeš zadat i nového.
+              </p>
+            )}
             <div className="flex justify-end gap-2">
               <button className="px-4 py-2 bg-gray-300 rounded" onClick={() => setShowNewProjectDialog(false)}>
                 Zrušit
@@ -881,6 +976,58 @@ export default function Dashboard() {
             <div className="flex justify-end gap-2">
               <button className="px-3 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialog({ ...deleteDialog, open: false })} disabled={deleteDialog.busy}>Zrušit</button>
               <button className="px-3 py-2 bg-red-600 text-white rounded" onClick={confirmDelete} disabled={deleteDialog.busy || !deleteDialog.password}>Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Copy revision modal */}
+      {copyDialog.open && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 grid place-items-center"
+          onClick={() => !copyDialog.busy && setCopyDialog((d) => ({ ...d, open: false }))}
+        >
+          <div className="bg-white p-5 rounded shadow w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold mb-2">Kopírovat revizi do jiného projektu</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Vyber cílový projekt. Vytvoří se nová revize se stejnými daty.
+            </p>
+            <select
+              className="w-full p-2 border rounded mb-2"
+              value={copyDialog.targetProjectId ?? ""}
+              onChange={(e) =>
+                setCopyDialog((d) => ({
+                  ...d,
+                  targetProjectId: e.target.value ? Number(e.target.value) : null,
+                }))
+              }
+              disabled={copyDialog.busy}
+            >
+              <option value="">-- vyber projekt --</option>
+              {(projects || [])
+                .filter((p: any) => p.id !== copyDialog.sourceProjectId)
+                .map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {displayProjectNumber(p.number)} · {p.address} · {p.client}
+                  </option>
+                ))}
+            </select>
+            {copyDialog.err && <div className="text-red-600 text-sm mb-2">{copyDialog.err}</div>}
+            <div className="flex justify-end gap-2">
+              <button
+                className="px-3 py-2 bg-gray-200 rounded"
+                onClick={() => setCopyDialog((d) => ({ ...d, open: false }))}
+                disabled={copyDialog.busy}
+              >
+                Zrušit
+              </button>
+              <button
+                className="px-3 py-2 bg-amber-600 text-white rounded disabled:opacity-60"
+                onClick={confirmCopyRevision}
+                disabled={copyDialog.busy || !copyDialog.targetProjectId}
+              >
+                Kopírovat
+              </button>
             </div>
           </div>
         </div>

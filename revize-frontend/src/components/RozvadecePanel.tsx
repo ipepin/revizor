@@ -7,6 +7,7 @@ import api from "../api/axios";
 import { useRevisionForm, Board, Komponenta } from "../context/RevisionFormContext";
 
 import AddCompDialog from "./AddCompDialog";
+import RichTextEditor from "./RichTextEditor";
 
 
 
@@ -23,6 +24,29 @@ type GraphComp = Komponenta & {
   rowId?: number | null;
 
 };
+
+type ComponentEditFocusField =
+  | "search"
+  | "row"
+  | "parent"
+  | "poles"
+  | "dimenze"
+  | "riso"
+  | "ochrana"
+  | "poznamka";
+
+type InlineComponentField =
+  | "poles"
+  | "dimenze"
+  | "riso"
+  | "ochrana"
+  | "poznamka"
+  | "vybavovaciCasMs"
+  | "vybavovaciProudmA"
+  | "dotykoveNapetiV";
+
+const OTHER_MANUFACTURER_ID = "__other__";
+const OTHER_MANUFACTURER_NAME = "Ostatní";
 
 
 
@@ -79,6 +103,7 @@ export default function RozvadecePanel() {
   const [showCompDialog, setShowCompDialog] = useState(false);
 
   const [editingCompId, setEditingCompId] = useState<number | null>(null);
+  const [compDialogFocusField, setCompDialogFocusField] = useState<ComponentEditFocusField>("search");
 
 
 
@@ -87,6 +112,14 @@ export default function RozvadecePanel() {
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
 
   const [noteDraft, setNoteDraft] = useState("");
+
+  const [editingIdentityId, setEditingIdentityId] = useState<number | null>(null);
+
+  const [identityDraft, setIdentityDraft] = useState({ nazev: "", popis: "", typ: "" });
+
+  const [editingField, setEditingField] = useState<{ nodeId: number; field: InlineComponentField } | null>(null);
+
+  const [fieldDraft, setFieldDraft] = useState("");
 
 
 
@@ -115,6 +148,12 @@ export default function RozvadecePanel() {
     ochrana: "",
 
     poznamka: "",
+
+    vybavovaciCasMs: "",
+
+    vybavovaciProudmA: "",
+
+    dotykoveNapetiV: "",
 
     parentId: null,
 
@@ -172,6 +211,8 @@ export default function RozvadecePanel() {
 
     umisteni: "",
 
+    poznamkyHtml: "",
+
   });
 
 
@@ -224,7 +265,7 @@ export default function RozvadecePanel() {
 
     let cancel = false;
 
-    if (newComp.popisId) {
+    if (newComp.popisId && newComp.popisId !== OTHER_MANUFACTURER_ID) {
 
       api
 
@@ -322,7 +363,7 @@ export default function RozvadecePanel() {
 
   const fullName = (c: Partial<GraphComp>) =>
 
-    [c.nazev || c.name, c.vyrobce || c.popis, c.typ]
+    [c.nazev || c.name, (c.vyrobce || c.popis) === OTHER_MANUFACTURER_NAME ? "" : c.vyrobce || c.popis, c.typ]
 
       .filter((x) => (x ?? "").toString().trim())
 
@@ -648,9 +689,12 @@ export default function RozvadecePanel() {
 
       <div className="flex flex-col gap-2 w-full">
 
-        <span
+        <button
 
-          className={`inline-flex items-center px-4 py-2 rounded-full border text-base whitespace-normal break-words w-full ${
+          type="button"
+
+
+          className={`inline-flex items-center px-4 py-2 rounded-full border text-base whitespace-normal break-words w-full text-left transition hover:border-blue-400 hover:bg-blue-50 ${
 
             isMismatch ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-100"
 
@@ -662,7 +706,7 @@ export default function RozvadecePanel() {
 
           {label}
 
-        </span>
+        </button>
 
       </div>
 
@@ -762,6 +806,8 @@ export default function RozvadecePanel() {
 
       umisteni: "",
 
+      poznamkyHtml: "",
+
     });
 
     setSelectedBoardId(id);
@@ -836,6 +882,8 @@ export default function RozvadecePanel() {
 
       umisteni: selectedBoard.umisteni || "",
 
+      poznamkyHtml: (selectedBoard as any).poznamkyHtml || (selectedBoard as any).poznamky || "",
+
     });
 
     setShowBoardEditDialog(true);
@@ -866,7 +914,10 @@ export default function RozvadecePanel() {
 
   function openAddDialog(parentId: number | null, rowId: number) {
 
+    resetInlineEditors();
+
     setEditingCompId(null);
+    setCompDialogFocusField("search");
 
     setNewComp({ ...defaultComp, parentId, rowId });
 
@@ -878,7 +929,7 @@ export default function RozvadecePanel() {
 
   }
 
-  function openEditDialog(itemId: number) {
+  function openEditDialog(itemId: number, focusField: ComponentEditFocusField = "search") {
 
     if (!selectedBoard) return;
 
@@ -888,7 +939,10 @@ export default function RozvadecePanel() {
 
     if (!it) return;
 
+    resetInlineEditors();
+
     setEditingCompId(itemId);
+    setCompDialogFocusField(focusField);
 
     setNewComp({ ...defaultComp, ...it }); // předvyplnit
 
@@ -1096,11 +1150,179 @@ export default function RozvadecePanel() {
 
   }
 
+  function moveSiblingToTarget(draggedId: number, targetId: number) {
+
+    if (!selectedBoard || draggedId === targetId) return;
+
+    const all = [...(selectedBoard.komponenty as GraphComp[])];
+
+    const dragged = all.find((c) => c.id === draggedId);
+
+    const target = all.find((c) => c.id === targetId);
+
+    if (!dragged || !target) return;
+
+    const groupKey = dragged.parentId ?? null;
+
+    const rowKey = dragged.rowId ?? 1;
+
+    if ((target.parentId ?? null) !== groupKey || (target.rowId ?? 1) !== rowKey) return;
+
+    const siblings = all
+      .filter((c) => (c.parentId ?? null) === groupKey && (c.rowId ?? 1) === rowKey)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const fromIndex = siblings.findIndex((c) => c.id === draggedId);
+
+    const toIndex = siblings.findIndex((c) => c.id === targetId);
+
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+    const reordered = [...siblings];
+
+    const [moved] = reordered.splice(fromIndex, 1);
+
+    reordered.splice(toIndex, 0, moved);
+
+    const orderValues = siblings.map((c, index) => c.order ?? index);
+
+    const nextOrders = new Map(reordered.map((c, index) => [c.id, orderValues[index] ?? index]));
+
+    const updated = all.map((c) => {
+
+      const nextOrder = nextOrders.get(c.id);
+
+      return nextOrder === undefined ? c : { ...c, order: nextOrder };
+
+    });
+
+    setForm((f) => ({
+
+      ...f,
+
+      boards: f.boards.map((b) => (b.id === selectedBoard.id ? { ...b, komponenty: updated } : b)),
+
+    }));
+
+  }
+
 
 
   // inline edit poznámky – start/uložit/zrušit
 
+  function updateComponentInline(nodeId: number, updater: (component: GraphComp) => GraphComp) {
+
+    if (!selectedBoard) return;
+
+    const all = selectedBoard.komponenty as GraphComp[];
+
+    const updated = all.map((c) => (c.id === nodeId ? updater(c) : c));
+
+    setForm((f) => ({
+
+      ...f,
+
+      boards: f.boards.map((b) => (b.id === selectedBoard.id ? { ...b, komponenty: updated } : b)),
+
+    }));
+
+  }
+
+  function resetInlineEditors() {
+
+    setEditingNoteId(null);
+
+    setNoteDraft("");
+
+    setEditingIdentityId(null);
+
+    setIdentityDraft({ nazev: "", popis: "", typ: "" });
+
+    setEditingField(null);
+
+    setFieldDraft("");
+
+  }
+
+  function startEditIdentity(node: GraphComp) {
+
+    resetInlineEditors();
+
+    setEditingIdentityId(node.id);
+
+    setIdentityDraft({
+
+      nazev: node.nazev || "",
+
+      popis: node.popis || "",
+
+      typ: node.typ || "",
+
+    });
+
+  }
+
+  function cancelEditIdentity() {
+
+    setEditingIdentityId(null);
+
+    setIdentityDraft({ nazev: "", popis: "", typ: "" });
+
+  }
+
+  function saveEditIdentity(nodeId: number) {
+
+    updateComponentInline(nodeId, (component) => ({
+
+      ...component,
+
+      nazev: identityDraft.nazev,
+
+      popis: identityDraft.popis,
+
+      typ: identityDraft.typ,
+
+    }));
+
+    cancelEditIdentity();
+
+  }
+
+  function startEditField(nodeId: number, field: InlineComponentField, current: unknown) {
+
+    resetInlineEditors();
+
+    setEditingField({ nodeId, field });
+
+    setFieldDraft(String(current ?? ""));
+
+  }
+
+  function cancelEditField() {
+
+    setEditingField(null);
+
+    setFieldDraft("");
+
+  }
+
+  function saveEditField(nodeId: number, field: InlineComponentField) {
+
+    updateComponentInline(nodeId, (component) => ({
+
+      ...component,
+
+      [field]: fieldDraft,
+
+    }));
+
+    cancelEditField();
+
+  }
+
   function startEditNote(nodeId: number, current: string) {
+
+    resetInlineEditors();
 
     setEditingNoteId(nodeId);
 
@@ -1118,21 +1340,9 @@ export default function RozvadecePanel() {
 
   function saveEditNote(nodeId: number) {
 
-    if (!selectedBoard) return;
+    updateComponentInline(nodeId, (component) => ({ ...component, poznamka: noteDraft }));
 
-    const all = selectedBoard.komponenty as GraphComp[];
-
-    const updated = all.map((c) => (c.id === nodeId ? { ...c, poznamka: noteDraft } : c));
-
-    setForm((f) => ({
-
-      ...f,
-
-      boards: f.boards.map((b) => (b.id === selectedBoard.id ? { ...b, komponenty: updated } : b)),
-
-    }));
-
-    setEditingNoteId(null);
+    cancelEditNote();
 
   }
 
@@ -1170,9 +1380,9 @@ export default function RozvadecePanel() {
 
                     b.id === selectedBoardId ? "bg-blue-100 font-semibold" : ""
 
-                  }`}
+          }`}
 
-                >
+        >
 
                   {b.name || "(bez názvu)"}
 
@@ -1344,6 +1554,23 @@ export default function RozvadecePanel() {
 
               )}
 
+              <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-2 text-sm font-semibold">Poznámky k rozvaděči</div>
+                <RichTextEditor
+                  value={(selectedBoard as any).poznamkyHtml || (selectedBoard as any).poznamky || ""}
+                  onChange={(html) =>
+                    setForm((f) => ({
+                      ...f,
+                      boards: f.boards.map((b) =>
+                        b.id === selectedBoard.id ? { ...b, poznamkyHtml: html } : b
+                      ),
+                    }))
+                  }
+                  placeholder="Sem si můžete průběžně zapisovat závady nebo poznámky k rozvaděči"
+                  minHeightClassName="min-h-[110px]"
+                />
+              </div>
+
 
 
               {/* DIAGRAM */}
@@ -1468,15 +1695,41 @@ export default function RozvadecePanel() {
 
                           onAddChild={(pid) => openAddDialog(pid, row.id)}
 
-                          onEdit={(id) => openEditDialog(id)}
+                          onEdit={(id, focusField) => openEditDialog(id, focusField)}
 
                           onMoveUp={(id) => reorderSibling(id, -1)}
 
                           onMoveDown={(id) => reorderSibling(id, 1)}
 
+                          onMoveToSibling={moveSiblingToTarget}
+
                           onCopy={handleCopyComponent}
 
                           onDelete={handleDeleteComponent}
+
+                          onStartEditIdentity={startEditIdentity}
+
+                          editingIdentityId={editingIdentityId}
+
+                          identityDraft={identityDraft}
+
+                          setIdentityDraft={setIdentityDraft}
+
+                          onSaveIdentity={saveEditIdentity}
+
+                          onCancelIdentity={cancelEditIdentity}
+
+                          onStartEditField={startEditField}
+
+                          editingField={editingField}
+
+                          fieldDraft={fieldDraft}
+
+                          setFieldDraft={setFieldDraft}
+
+                          onSaveField={saveEditField}
+
+                          onCancelField={cancelEditField}
 
                           // inline edit poznamky:
 
@@ -1569,7 +1822,7 @@ export default function RozvadecePanel() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-          <div className="bg-white p-6 rounded shadow w-full max-w-md">
+          <div className="bg-white p-6 rounded shadow w-full max-w-3xl max-h-[90vh] overflow-y-auto">
 
             <h3 className="text-lg font-semibold mb-4">Nový rozvaděč</h3>
 
@@ -1690,7 +1943,7 @@ export default function RozvadecePanel() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-          <div className="bg-white p-6 rounded shadow w-full max-w-md">
+          <div className="bg-white p-6 rounded shadow w-full max-w-3xl max-h-[90vh] overflow-y-auto">
 
             <h3 className="text-lg font-semibold mb-4">Upravit rozvaděč</h3>
 
@@ -1850,6 +2103,8 @@ export default function RozvadecePanel() {
 
           rowOptions={rowOptions}
 
+          initialFocusField={compDialogFocusField}
+
           onRowChange={(rid) => {
 
             const rowId = rid ?? rowOptions[0]?.id ?? 1;
@@ -1910,9 +2165,35 @@ function CompactDiagram({
 
   onMoveDown,
 
+  onMoveToSibling,
+
   onCopy,
 
   onDelete,
+
+  onStartEditIdentity,
+
+  editingIdentityId,
+
+  identityDraft,
+
+  setIdentityDraft,
+
+  onSaveIdentity,
+
+  onCancelIdentity,
+
+  onStartEditField,
+
+  editingField,
+
+  fieldDraft,
+
+  setFieldDraft,
+
+  onSaveField,
+
+  onCancelField,
 
   // inline poznámka:
 
@@ -1936,15 +2217,41 @@ function CompactDiagram({
 
   onAddChild: (parentId: number) => void;
 
-  onEdit: (id: number) => void;
+  onEdit: (id: number, focusField?: ComponentEditFocusField) => void;
 
   onMoveUp: (id: number) => void;
 
   onMoveDown: (id: number) => void;
 
+  onMoveToSibling: (draggedId: number, targetId: number) => void;
+
   onCopy: (id: number) => void;
 
   onDelete: (id: number) => void;
+
+  onStartEditIdentity: (node: GraphComp) => void;
+
+  editingIdentityId: number | null;
+
+  identityDraft: { nazev: string; popis: string; typ: string };
+
+  setIdentityDraft: React.Dispatch<React.SetStateAction<{ nazev: string; popis: string; typ: string }>>;
+
+  onSaveIdentity: (id: number) => void;
+
+  onCancelIdentity: () => void;
+
+  onStartEditField: (id: number, field: InlineComponentField, current: unknown) => void;
+
+  editingField: { nodeId: number; field: InlineComponentField } | null;
+
+  fieldDraft: string;
+
+  setFieldDraft: (value: string) => void;
+
+  onSaveField: (id: number, field: InlineComponentField) => void;
+
+  onCancelField: () => void;
 
   onStartEditNote: (id: number, current: string) => void;
 
@@ -1960,17 +2267,108 @@ function CompactDiagram({
 
 }) {
 
+  const [draggedItem, setDraggedItem] = useState<{ id: number; parentId: number | null; rowId: number } | null>(null);
+
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+
+  function focusLeftEditor(event: React.FocusEvent<HTMLElement>) {
+
+    const nextFocused = event.relatedTarget as Node | null;
+
+    return !nextFocused || !event.currentTarget.contains(nextFocused);
+
+  }
+
+  function isSameSiblingLevel(node: GraphComp, dragged: { id: number; parentId: number | null; rowId: number } | null) {
+
+    if (!dragged || dragged.id === node.id) return false;
+
+    return (node.parentId ?? null) === dragged.parentId && (node.rowId ?? 1) === dragged.rowId;
+
+  }
+
   const render = (node: any, depth: number): React.ReactNode => {
 
     const hasChildren = (node.children?.length ?? 0) > 0;
 
     const title =
 
-      [node.nazev || node.name, node.vyrobce || node.popis, node.typ]
+      [node.nazev || node.name, (node.vyrobce || node.popis) === OTHER_MANUFACTURER_NAME ? "" : node.vyrobce || node.popis, node.typ]
 
         .filter((v) => (v ?? "").toString().trim())
 
         .join(" ") || fullName(node);
+
+    const renderInlineValueEditor = (
+      field: InlineComponentField,
+      label: string,
+      currentValue: unknown,
+      suffix = ""
+    ) => {
+      const isEditing = editingField?.nodeId === node.id && editingField.field === field;
+
+      if (isEditing) {
+        return (
+          <span
+            className="mr-3 inline-flex items-center gap-1"
+            onBlur={(e) => {
+              if (focusLeftEditor(e)) onSaveField(node.id, field);
+            }}
+          >
+            <span>{label}:</span>
+            <input
+              className="border px-1 py-0.5 text-[12px] rounded"
+              autoFocus
+              value={fieldDraft}
+              onChange={(e) => setFieldDraft(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSaveField(node.id, field);
+                if (e.key === "Escape") onCancelField();
+              }}
+              style={{ minWidth: 90 }}
+            />
+            {suffix ? <span>{suffix}</span> : null}
+            <button
+              className="text-[12px] px-1 py-0.5 border rounded"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSaveField(node.id, field);
+              }}
+              title="Uložit"
+            >
+              Uložit
+            </button>
+            <button
+              className="text-[12px] px-1 py-0.5 border rounded"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancelField();
+              }}
+              title="Zrušit"
+            >
+              Zrušit
+            </button>
+          </span>
+        );
+      }
+
+      return (
+        <span
+          className="mr-3 rounded px-1 py-0.5 transition hover:bg-blue-50 hover:text-blue-700"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartEditField(node.id, field, currentValue);
+          }}
+          title={`Klikni pro úpravu: ${label}`}
+          style={{ cursor: "text" }}
+        >
+          {label}: {String(currentValue ?? "").trim() || "—"}{suffix}
+        </span>
+      );
+    };
 
     return (
 
@@ -1980,51 +2378,134 @@ function CompactDiagram({
 
         <div
 
-          className="flex items-center gap-2 px-2 py-1.5 border-b hover:bg-blue-50/40"
+          className={`flex items-center gap-2 border-b px-2 py-1.5 hover:bg-blue-50/40 ${
+            dragOverId === node.id ? "bg-blue-100/70 ring-1 ring-inset ring-blue-300" : ""
+          }`}
 
           style={{ paddingLeft: BASE_INDENT + depth * INDENT_PER_LEVEL }}
+
+          onDragOver={(e) => {
+            if (!isSameSiblingLevel(node, draggedItem)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = "move";
+            if (dragOverId !== node.id) setDragOverId(node.id);
+          }}
+          onDragLeave={(e) => {
+            e.stopPropagation();
+            if (dragOverId === node.id) setDragOverId(null);
+          }}
+          onDrop={(e) => {
+            if (!draggedItem || !isSameSiblingLevel(node, draggedItem)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            onMoveToSibling(draggedItem.id, node.id);
+            setDraggedItem(null);
+            setDragOverId(null);
+          }}
 
         >
 
           <div className="flex-1 min-w-0">
 
-            <div className="truncate font-semibold text-[13px]">
-
-              {node.cislo ? `${node.cislo} • ` : ""}
-
-              {title}
-
-            </div>
+            {editingIdentityId === node.id ? (
+              <div
+                className="flex flex-wrap items-center gap-1"
+                onBlur={(e) => {
+                  if (focusLeftEditor(e)) onSaveIdentity(node.id);
+                }}
+              >
+                <input
+                  className="min-w-[120px] border px-1 py-0.5 text-[12px] rounded"
+                  autoFocus
+                  value={identityDraft.nazev}
+                  onChange={(e) => setIdentityDraft((prev) => ({ ...prev, nazev: e.target.value }))}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onSaveIdentity(node.id);
+                    if (e.key === "Escape") onCancelIdentity();
+                  }}
+                  placeholder="Přístroj"
+                />
+                <input
+                  className="min-w-[120px] border px-1 py-0.5 text-[12px] rounded"
+                  value={identityDraft.popis}
+                  onChange={(e) => setIdentityDraft((prev) => ({ ...prev, popis: e.target.value }))}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onSaveIdentity(node.id);
+                    if (e.key === "Escape") onCancelIdentity();
+                  }}
+                  placeholder="Výrobce"
+                />
+                <input
+                  className="min-w-[120px] border px-1 py-0.5 text-[12px] rounded"
+                  value={identityDraft.typ}
+                  onChange={(e) => setIdentityDraft((prev) => ({ ...prev, typ: e.target.value }))}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onSaveIdentity(node.id);
+                    if (e.key === "Escape") onCancelIdentity();
+                  }}
+                  placeholder="Model"
+                />
+                <button
+                  className="text-[12px] px-1 py-0.5 border rounded"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSaveIdentity(node.id);
+                  }}
+                  title="Uložit"
+                >
+                  Uložit
+                </button>
+                <button
+                  className="text-[12px] px-1 py-0.5 border rounded"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCancelIdentity();
+                  }}
+                  title="Zrušit"
+                >
+                  Zrušit
+                </button>
+              </div>
+            ) : (
+              <span
+                className="block truncate font-semibold text-[13px] rounded px-1 py-0.5 transition hover:bg-blue-50 hover:text-blue-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartEditIdentity(node);
+                }}
+                title="Klikni pro úpravu přístroje, výrobce a modelu"
+                style={{ cursor: "text" }}
+              >
+                {node.cislo ? `${node.cislo} • ` : ""}
+                {title}
+              </span>
+            )}
 
             {/* bublina s detaily (menší písmo, 2 řádky max) */}
 
-            <div className="text-[12px] text-gray-600 line-clamp-2" style={clamp2}>
+            <div
+              className="text-[12px] text-gray-600"
+              style={clamp2}
+            >
 
-              {node.poles && <span className="mr-3">póly: {node.poles}</span>}
 
-              {node.dimenze && <span className="mr-3">dim.: {node.dimenze}</span>}
 
-              {node.riso && <span className="mr-3">Riso: {node.riso} MΩ</span>}
 
-              {node.ochrana && <span className="mr-3">Zs: {node.ochrana} Ω</span>}
 
-              {node.vybavovaciCasMs && (
 
-                <span className="mr-3">tΔ: {node.vybavovaciCasMs} ms</span>
 
-              )}
 
-              {node.vybavovaciProudmA && (
 
-                <span className="mr-3">IΔ: {node.vybavovaciProudmA} mA</span>
 
-              )}
 
-              {node.dotykoveNapetiV && (
 
-                <span className="mr-3">U_t: {node.dotykoveNapetiV} V</span>
 
-              )}
 
 
 
@@ -2043,6 +2524,8 @@ function CompactDiagram({
                     value={noteDraft}
 
                     onChange={(e) => setNoteDraft(e.target.value)}
+
+                    onClick={(e) => e.stopPropagation()}
 
                     onBlur={() => onSaveNote(node.id)}
 
@@ -2064,7 +2547,10 @@ function CompactDiagram({
 
                     onMouseDown={(e) => e.preventDefault()}
 
-                    onClick={() => onSaveNote(node.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSaveNote(node.id);
+                    }}
 
                     title="Uložit"
 
@@ -2080,7 +2566,10 @@ function CompactDiagram({
 
                     onMouseDown={(e) => e.preventDefault()}
 
-                    onClick={onCancelNote}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCancelNote();
+                    }}
 
                     title="Zrušit"
 
@@ -2096,9 +2585,12 @@ function CompactDiagram({
 
                 <span
 
-                  className="italic"
+                  className="italic rounded px-1 py-0.5 transition hover:bg-blue-50 hover:text-blue-700"
 
-                  onDoubleClick={() => onStartEditNote(node.id, node.poznamka || "")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartEditNote(node.id, node.poznamka || "");
+                  }}
 
                   title="Dvojklikem upravit poznámku"
 
@@ -2112,11 +2604,49 @@ function CompactDiagram({
 
               )}
 
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                {renderInlineValueEditor("poles", "Póly", node.poles)}
+                {renderInlineValueEditor("dimenze", "Dim.", node.dimenze)}
+                {renderInlineValueEditor("riso", "Riso", node.riso, " MΩ")}
+                {renderInlineValueEditor("ochrana", "Zs", node.ochrana, " Ω")}
+                {(node.vybavovaciCasMs || editingField?.nodeId === node.id && editingField.field === "vybavovaciCasMs") &&
+                  renderInlineValueEditor("vybavovaciCasMs", "tΔ", node.vybavovaciCasMs, " ms")}
+                {(node.vybavovaciProudmA || editingField?.nodeId === node.id && editingField.field === "vybavovaciProudmA") &&
+                  renderInlineValueEditor("vybavovaciProudmA", "IΔ", node.vybavovaciProudmA, " mA")}
+                {(node.dotykoveNapetiV || editingField?.nodeId === node.id && editingField.field === "dotykoveNapetiV") &&
+                  renderInlineValueEditor("dotykoveNapetiV", "U_t", node.dotykoveNapetiV, " V")}
+              </div>
+
             </div>
 
           </div>
 
           <div className="flex items-center gap-1 whitespace-nowrap">
+
+            <button
+              type="button"
+              className={`text-xs border px-2 py-0.5 rounded select-none ${
+                editingIdentityId === node.id || editingNoteId === node.id || editingField?.nodeId === node.id
+                  ? "cursor-not-allowed opacity-40"
+                  : "cursor-grab active:cursor-grabbing"
+              }`}
+              title="Přetáhni pro přesun v rámci stejné úrovně"
+              draggable={!(editingIdentityId === node.id || editingNoteId === node.id || editingField?.nodeId === node.id)}
+              onDragStart={(e) => {
+                e.stopPropagation();
+                setDraggedItem({ id: node.id, parentId: node.parentId ?? null, rowId: node.rowId ?? 1 });
+                setDragOverId(null);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(node.id));
+              }}
+              onDragEnd={() => {
+                setDraggedItem(null);
+                setDragOverId(null);
+              }}
+              onClick={(e) => e.preventDefault()}
+            >
+              ::
+            </button>
 
             <button className="text-xs border px-2 py-0.5 rounded" title="Upravit" onClick={() => onEdit(node.id)}>
 
@@ -2199,3 +2729,4 @@ function CompactDiagram({
   );
 
 }
+

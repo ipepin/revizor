@@ -2,6 +2,7 @@
 import React from "react";
 import { normalizeComponents, depthPrefix, buildComponentLine } from "../../summary-utils/board";
 import { dash } from "../../summary-utils/text";
+import { Rich } from "./ui";
 
 type Props = {
   boards: any[];
@@ -16,6 +17,8 @@ export default function BoardsBlock({ boards }: Props) {
     <div className="space-y-6">
       {boards.map((board: any, bIdx: number) => {
         const flat = normalizeComponents(board?.komponenty || []);
+        const boardNotes = String(board?.poznamkyHtml || board?.poznamky || "").trim();
+
         return (
           <div key={bIdx} className="mt-6">
             <div className="font-semibold">Rozvaděč: {dash(board?.name) || `#${bIdx + 1}`}</div>
@@ -23,14 +26,19 @@ export default function BoardsBlock({ boards }: Props) {
               Výrobce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | Umístění: {dash(board?.umisteni)} | S/N:{" "}
               {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP: {dash(board?.ip)}
             </div>
+            {boardNotes ? (
+              <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Poznámky</div>
+                <Rich value={boardNotes} />
+              </div>
+            ) : null}
 
-            {/* Box s řádky komponent (strom, odsazení dle úrovně, inline parametry) */}
-            <div className="mt-2 border border-slate-200 rounded divide-y" data-paginate="board-box">
+            <div className="mt-2 divide-y rounded border border-slate-200" data-paginate="board-box">
               {flat.map((c: any, i: number) => {
                 const prefix = depthPrefix(c._level);
                 const name = dash(c?.nazev || c?.name);
                 const desc = dash(c?.popis || c?.description || "");
-                const line = buildComponentLine(c); // už skládá „typ, póly, dim., Riso, Zs, t, IΔ, Pozn.“
+                const line = buildComponentLine(c);
 
                 return (
                   <div
@@ -38,12 +46,12 @@ export default function BoardsBlock({ boards }: Props) {
                     className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
                     style={{ breakInside: "avoid", paddingLeft: 12 + c._level * 18 }}
                   >
-                    <div className="py-2 px-3">
+                    <div className="px-3 py-2">
                       <div className="font-medium">
-                        <span className="font-mono text-slate-500 whitespace-pre mr-1">{prefix}</span>
+                        <span className="mr-1 whitespace-pre font-mono text-slate-500">{prefix}</span>
                         {name}
                       </div>
-                      <div className="text-xs text-slate-600 mt-0.5">
+                      <div className="mt-0.5 text-xs text-slate-600">
                         {desc !== "Chybí informace" && <span className="mr-2">{desc}</span>}
                         {line}
                       </div>

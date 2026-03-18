@@ -1,6 +1,14 @@
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import ImageModuleCtor from "open-docxtemplater-image-module";
 import { saveAs } from "file-saver";
+import { htmlToBulletText } from "../summary-utils/text";
+import { defectFullText, defectNormSuffix } from "../summary-utils/defects";
+import {
+  prepareDefectTemplateImages,
+  type DefectPhotoMeta,
+  type DocxTemplateImageValue,
+} from "./docxtemplaterImages";
 
 type TemplateArgs = {
   safeForm: any;
@@ -25,11 +33,38 @@ type TemplateArgs = {
     calibration_valid_until?: string;
     note?: string;
   }>;
+  defectPhotos?: DefectPhotoMeta[];
   revId?: string | undefined;
   templateUrl?: string;
 };
 
-const DEFAULT_TEMPLATE_URL = "/templates/elektro_rz_template.docx";
+const DEFAULT_TEMPLATE_URL = "/templates/elektro_rz_template_compact_conditional_images_boxed.docx";
+const ImageModule = (ImageModuleCtor as any).default ?? (ImageModuleCtor as any);
+
+function patchLegacyImageModuleCompatibility() {
+  const proto = ImageModule?.prototype as any;
+  if (!proto || proto.__revizeCompatPatched || typeof proto.render !== "function") {
+    return;
+  }
+
+  const originalRender = proto.render;
+  proto.render = function patchedRender(part: any, options: any) {
+    const scopeManager = options?.scopeManager;
+    if (!scopeManager || typeof scopeManager.getValue !== "function") {
+      return originalRender.call(this, part, options);
+    }
+
+    const originalGetValue = scopeManager.getValue.bind(scopeManager);
+    scopeManager.getValue = (tag: string, meta?: any) => originalGetValue(tag, meta ?? { part });
+    try {
+      return originalRender.call(this, part, options);
+    } finally {
+      scopeManager.getValue = originalGetValue;
+    }
+  };
+  proto.__revizeCompatPatched = true;
+}
+const OTHER_MANUFACTURER_NAME = "Ostatní";
 
 const dash = (value: any) => {
   const text = String(value ?? "").trim();
@@ -53,6 +88,25 @@ const formatComponentLevel = (level: any) => {
   return Number.isFinite(n) ? String(Math.max(0, n)) : "0";
 };
 
+const labeled = (label: string, value: any, unit = "") => {
+  const text = dash(value);
+  return text ? `${label}: ${text}${unit ? ` ${unit}` : ""}` : "";
+};
+
+const joinLines = (...lines: Array<string | undefined>) =>
+  lines
+    .map((line) => String(line || "").trim())
+    .filter(Boolean)
+    .join("\n");
+
+function pairItems<T>(items: T[]) {
+  const rows: Array<[T | null, T | null]> = [];
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push([items[i] ?? null, items[i + 1] ?? null]);
+  }
+  return rows;
+}
+
 async function fetchBinary(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url);
   if (!res.ok) {
@@ -61,7 +115,10 @@ async function fetchBinary(url: string): Promise<ArrayBuffer> {
   return await res.arrayBuffer();
 }
 
-function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, revId }: TemplateArgs) {
+function buildTemplateData(
+  { safeForm, technician, normsAll, usedInstruments, defectPhotos = [], revId }: TemplateArgs,
+  defectTemplateImages: Map<number, DocxTemplateImageValue>
+) {
   const mericiPristroje = (usedInstruments || []).map((item) => ({
     nazev: dash(item.name),
     mereni: dash(item.measurement_text),
@@ -98,7 +155,17 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
     ip: dash(board?.ip),
     odpor: dash(board?.odpor),
     umisteni: dash(board?.umisteni),
-    komponenty: (Array.isArray(board?.komponenty) ? board.komponenty : []).map((component: any) => ({
+    poznamky_html: String(board?.poznamkyHtml || board?.poznamky || "").trim(),
+    poznamky_text: dash(htmlToBulletText(board?.poznamkyHtml || board?.poznamky || "")),
+    komponenty: (Array.isArray(board?.komponenty) ? board.komponenty : []).map((component: any) => {
+      const manufacturerText = dash(component?.popis || component?.description);
+      const manufacturerDisplay = manufacturerText === OTHER_MANUFACTURER_NAME ? "" : manufacturerText;
+      return ({
+      popis_typ_text: joinLines(
+        [manufacturerDisplay, dash(component?.typ || component?.type || component?.druh)]
+          .filter(Boolean)
+          .join(" ")
+      ),
       uroven: formatComponentLevel(component?._level ?? component?.level ?? component?.depth),
       nazev: dash(component?.nazev || component?.name),
       popis: dash(component?.popis || component?.description),
@@ -123,8 +190,37 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
           component?.i_fi ??
           component?.ifi
       ),
+      parametry_text: joinLines(
+        labeled("Póly", component?.poles || component?.poly || component?.pocet_polu || component?.pocetPolu),
+        labeled("Dim.", component?.dimenze || component?.dim || component?.prurez)
+      ),
+      mereni_text: joinLines(
+        labeled("Riso", component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation, "MΩ"),
+        labeled("Zs", component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance, "Ω"),
+        [labeled(
+          "t",
+          component?.vybavovaciCasMs ??
+            component?.vybavovaci_cas_ms ??
+            component?.rcd_time ??
+            component?.trip_time ??
+            component?.vybavovaciCas ??
+            component?.cas_vybaveni,
+          "ms"
+        ), labeled(
+          "IΔ",
+          component?.vybavovaciProudmA ??
+            component?.vybavovaci_proud_ma ??
+            component?.rcd_trip_current ??
+            component?.trip_current ??
+            component?.i_fi ??
+            component?.ifi,
+          "mA"
+        )]
+          .filter(Boolean)
+          .join(" | ")
+      ),
       poznamka: dash(component?.poznamka ?? component?.pozn ?? component?.note),
-    })),
+    })}),
   }));
 
   const mistnosti = (safeForm?.rooms || []).map((room: any) => ({
@@ -140,11 +236,59 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
     })),
   }));
 
-  const zavady = (safeForm?.defects || []).map((defect: any) => ({
-    popis: dash(defect?.description),
-    norma: dash(defect?.standard),
-    clanek: dash(defect?.article),
-  }));
+  const zavady = (safeForm?.defects || []).map((defect: any, index: number) => {
+    const assignedPhotos = defectPhotos.filter((photo) => photo?.defect_uid && photo.defect_uid === defect?.uid);
+    const preparedPhotos = assignedPhotos
+      .map((photo) => {
+        const image = defectTemplateImages.get(photo.id);
+        if (!image) return null;
+        return {
+          image,
+          popis: dash(photo?.caption),
+        };
+      })
+      .filter(Boolean) as Array<{ image: DocxTemplateImageValue; popis: string }>;
+
+    return {
+      poradi: String(index + 1),
+      popis_text: dash(defect?.description),
+      popis_suffix: dash(defectNormSuffix(defect)),
+      popis: dash(defectFullText(defect)),
+      popis_plny: dash(defectFullText(defect)),
+      norma: dash(defect?.standard),
+      clanek: dash(defect?.article),
+      fotky_pocet: String(assignedPhotos.length || 0),
+      fotky_popisky: assignedPhotos.map((photo, photoIndex) => ({
+        poradi: String(photoIndex + 1),
+        popis: dash(photo?.caption),
+        soubor: dash(photo?.original_name),
+      })),
+      fotky: preparedPhotos,
+      fotky_radky: pairItems(preparedPhotos).map(([leva, prava]) => ({
+        leva_image: leva?.image ?? null,
+        leva_popis: leva?.popis ?? "",
+        prava_image: prava?.image ?? null,
+        prava_popis: prava?.popis ?? "",
+      })),
+      fotky_text: assignedPhotos
+        .map((photo, photoIndex) => {
+          const caption = dash(photo?.caption);
+          return caption ? `${photoIndex + 1}. ${caption}` : "";
+        })
+        .filter(Boolean)
+        .join("\n"),
+    };
+  });
+  const zavadyTextRaw =
+    String(safeForm?.defectsRichText || "").trim() ||
+    (safeForm?.defects || [])
+      .map((defect: any, index: number) => {
+        return `${index + 1}. ${defectFullText(defect)}`;
+      })
+      .join("\n");
+  const zavadyText = dash(htmlToBulletText(zavadyTextRaw));
+
+  const popisObjektu = dash(htmlToBulletText(safeForm?.inspectionDescription));
 
   return {
     evidencni: dash(safeForm?.evidencni || revId),
@@ -174,6 +318,9 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
     dokumentace: dash(safeForm?.documentation),
     prostredi: dash(safeForm?.environment),
     extra_poznamky: dash(safeForm?.extraNotes),
+    popis_objektu: popisObjektu,
+    popis_revidovaneho_objektu: popisObjektu,
+    inspection_description: popisObjektu,
 
     ochrana_zakladni: joinList(safeForm?.protection_basic),
     ochrana_pri_poruse: joinList(safeForm?.protection_fault),
@@ -187,6 +334,10 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
     rozvadece,
     mistnosti,
     zavady,
+    zavady_text: zavadyText,
+    ident: {
+      popis_objektu: popisObjektu,
+    },
 
     zaver_text: dash(safeForm?.conclusion?.text),
     zaver_bezpecnost: formatSafety(safeForm?.conclusion?.safety),
@@ -196,6 +347,8 @@ function buildTemplateData({ safeForm, technician, normsAll, usedInstruments, re
 
 export async function renderAndDownloadElectroTemplateDocx(args: TemplateArgs) {
   const buf = await fetchBinary(args.templateUrl || DEFAULT_TEMPLATE_URL);
+  const defectTemplateImages = await prepareDefectTemplateImages(args.revId, args.defectPhotos || []);
+  patchLegacyImageModuleCompatibility();
 
   let zip: PizZip;
   try {
@@ -205,14 +358,26 @@ export async function renderAndDownloadElectroTemplateDocx(args: TemplateArgs) {
     throw new Error("Soubor šablony není validní .docx. Otevřete ho ve Wordu a uložte znovu.");
   }
 
+  const imageModule = new ImageModule({
+    centered: false,
+    fileType: "docx",
+    getImage(tagValue: DocxTemplateImageValue | null) {
+      return tagValue?.data ?? null;
+    },
+    getSize(_img: Uint8Array | ArrayBuffer | null, tagValue: DocxTemplateImageValue | null) {
+      return [tagValue?.width || 1, tagValue?.height || 1];
+    },
+  });
+
   const doc = new Docxtemplater(zip, {
+    modules: [imageModule],
     paragraphLoop: true,
     linebreaks: true,
     delimiters: { start: "{{", end: "}}" },
   });
 
   try {
-    doc.render(buildTemplateData(args));
+    doc.render(buildTemplateData(args, defectTemplateImages));
   } catch (error: any) {
     console.error("[electroTemplateExport] Render error:", error);
     const errors =

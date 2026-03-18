@@ -1,9 +1,8 @@
-// src/sections/ProhlidkaSection.tsx
-
-import React, { useContext, ChangeEvent, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RevisionFormContext } from "../context/RevisionFormContext";
 import api from "../api/axios";
+import RichTextEditor from "../components/RichTextEditor";
 
 const inspectionTasks = [
   "Způsob ochrany před úrazem elektrickým proudem (IEC 60364-4-41)",
@@ -27,6 +26,30 @@ type InspectionTemplate = {
   is_default?: boolean;
 };
 
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function textToHtml(value: string) {
+  const lines = String(value || "").split(/\r?\n/);
+  if (!lines.length) return "";
+  return lines
+    .map((line) => {
+      const safe = escapeHtml(line.trim());
+      return safe ? `<p>${safe}</p>` : "<p><br></p>";
+    })
+    .join("");
+}
+
+function normalizeTemplateBody(body?: string) {
+  const value = String(body || "").trim();
+  if (!value) return "";
+  return /<[a-z][\s\S]*>/i.test(value) ? value : textToHtml(value);
+}
+
 export default function ProhlidkaSection() {
   const { form, setForm } = useContext(RevisionFormContext);
   const navigate = useNavigate();
@@ -36,7 +59,6 @@ export default function ProhlidkaSection() {
   const [templateError, setTemplateError] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
-  // Přepínání checkboxů úkonů
   const toggleTask = (task: string) => {
     setForm((f) => {
       const current = f.performedTasks;
@@ -47,10 +69,9 @@ export default function ProhlidkaSection() {
     });
   };
 
-  // Výběr šablony popisu
   const handleTemplateSelect = (templateId: string) => {
     const tpl = templates.find((t) => String(t.id) === templateId);
-    const desc = tpl?.body || "";
+    const desc = normalizeTemplateBody(tpl?.body);
     setForm((f) => ({
       ...f,
       inspectionTemplate: templateId,
@@ -59,10 +80,8 @@ export default function ProhlidkaSection() {
     setSelectedTemplateId(templateId);
   };
 
-  // Ruční změna popisu
-  const onDescriptionChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setForm((f) => ({ ...f, inspectionDescription: val }));
+  const onDescriptionChange = (html: string) => {
+    setForm((f) => ({ ...f, inspectionDescription: html }));
   };
 
   const loadTemplates = async () => {
@@ -72,8 +91,7 @@ export default function ProhlidkaSection() {
       const res = await api.get<InspectionTemplate[]>("/inspection-templates", {
         params: { scope: "EI" },
       });
-      const rows = Array.isArray(res.data) ? res.data : [];
-      setTemplates(rows);
+      setTemplates(Array.isArray(res.data) ? res.data : []);
     } catch {
       setTemplateError("Nepodařilo se načíst vzorové texty.");
     } finally {
@@ -86,30 +104,30 @@ export default function ProhlidkaSection() {
   }, []);
 
   useEffect(() => {
-    if (!templates.length) return;
-    if (selectedTemplateId) return;
-    const current = (form.inspectionTemplate || "").toString();
+    if (!templates.length || selectedTemplateId) return;
+    const current = String(form.inspectionTemplate || "").trim();
     if (!current) return;
+
     const byId = templates.find((t) => String(t.id) === current);
     if (byId) {
       setSelectedTemplateId(String(byId.id));
       return;
     }
+
     const byLabel = templates.find((t) => t.label === current);
     if (byLabel) {
       setSelectedTemplateId(String(byLabel.id));
       setForm((f) => ({ ...f, inspectionTemplate: String(byLabel.id) }));
     }
-  }, [templates, selectedTemplateId, form.inspectionTemplate]);
+  }, [templates, selectedTemplateId, form.inspectionTemplate, setForm]);
 
   return (
     <div className="space-y-4 text-sm text-gray-800">
-      {/* Provedené úkony */}
       <div data-guide-id="pr-tasks">
-        <h2 className="text-lg font-semibold text-blue-800 mb-2">Provedené úkony</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <h2 className="mb-2 text-lg font-semibold text-blue-800">Provedené úkony</h2>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           {inspectionTasks.map((task) => (
-            <label key={task} className="flex gap-2 items-start">
+            <label key={task} className="flex items-start gap-2">
               <input
                 type="checkbox"
                 checked={form.performedTasks.includes(task)}
@@ -122,16 +140,15 @@ export default function ProhlidkaSection() {
         </div>
       </div>
 
-      {/* Popis revidovaného objektu */}
       <div data-guide-id="pr-description">
-        <h2 className="text-lg font-semibold text-blue-800 mb-2">Popis revidovaného objektu</h2>
+        <h2 className="mb-2 text-lg font-semibold text-blue-800">Popis revidovaného objektu</h2>
 
         <div className="mb-2">
-          <label className="font-medium block mb-1">Vyber vzorový text:</label>
+          <label className="mb-1 block font-medium">Vyber vzorový text:</label>
           <select
             value={selectedTemplateId || form.inspectionTemplate || ""}
             onChange={(e) => handleTemplateSelect(e.target.value)}
-            className="border p-2 rounded w-full text-sm"
+            className="w-full rounded border p-2 text-sm"
           >
             <option value="">-- Vyberte možnost --</option>
             {templates.map((t) => (
@@ -140,23 +157,22 @@ export default function ProhlidkaSection() {
               </option>
             ))}
           </select>
-          {loadingTemplates && <div className="text-xs text-gray-500 mt-1">Načítám šablony…</div>}
-          {templateError && <div className="text-xs text-red-600 mt-1">{templateError}</div>}
+          {loadingTemplates && <div className="mt-1 text-xs text-gray-500">Načítám šablony…</div>}
+          {templateError && <div className="mt-1 text-xs text-red-600">{templateError}</div>}
           <button
             type="button"
             className="mt-2 inline-flex items-center gap-2 rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-700"
-            onClick={() => navigate("/snippets")}
+            onClick={() => navigate("/inspection-templates")}
           >
-            Otevřít editor rychlých textů
+            Otevřít editor vzorových textů
           </button>
         </div>
 
-        <textarea
-          rows={10}
-          className="w-full border rounded p-2 text-sm"
-          value={form.inspectionDescription}
+        <RichTextEditor
+          value={form.inspectionDescription || ""}
           onChange={onDescriptionChange}
-          placeholder="Popis revidovaného objektu..."
+          placeholder="Popis revidovaného objektu…"
+          minHeightClassName="min-h-[260px]"
         />
       </div>
     </div>

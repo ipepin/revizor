@@ -493,11 +493,11 @@ export default function EditRevision() {
       {
         section: "mereni",
         targetId: "me-mistnosti",
-        title: "Měření v místnostech",
+        title: "Měření v prostorech",
         placement: "top",
         offsetY: -180,
-        text: "Tady přidáváš místnosti a k nim okruhy. Každá místnost je „obal“, do kterého patří jednotlivé okruhy a jejich měření. Nejprve založ místnost, pak do ní přidej okruhy a vyplň hodnoty. Pokud máš více stejných místností, můžeš je kopírovat a jen upravit názvy a hodnoty.",
-        action: "Krok 1: Přidej první místnost. Krok 2: Přidej do ní okruh a vyplň měření. Krok 3: Zkus místnost zkopírovat a upravit.",
+        text: "Tady přidáváš prostory a k nim okruhy. Každý prostor je „obal“, do kterého patří jednotlivé okruhy a jejich měření. Nejprve založ prostor, pak do něj přidej okruhy a vyplň hodnoty. Pokud máš více stejných prostorů, můžeš je kopírovat a jen upravit názvy a hodnoty.",
+        action: "Krok 1: Přidej první prostor. Krok 2: Přidej do něj okruh a vyplň měření. Krok 3: Zkus prostor zkopírovat a upravit.",
       },
       {
         section: "zavady",

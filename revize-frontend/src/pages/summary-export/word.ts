@@ -1,4 +1,4 @@
-// src/pages/summary-export/word.ts
+﻿// src/pages/summary-export/word.ts
 import { saveAs } from "file-saver";
 
 import {
@@ -34,7 +34,8 @@ import {
 } from "../summary-utils/docx";
 
 import { normalizeComponents, depthPrefix, pick, num, buildComponentTitle } from "../summary-utils/board";
-import { dash, stripHtml } from "../summary-utils/text";
+import { dash, htmlToBulletText } from "../summary-utils/text";
+import { defectFullText, defectNormSuffix } from "../summary-utils/defects";
 import { dataUrlToBytes, getSketchSize } from "./lpsWordBuilder";
 
 type GenArgs = {
@@ -46,7 +47,7 @@ type GenArgs = {
   schemaImages?: Record<string, string>;
 };
 
-/* ---------- Lokální helpery ---------- */
+/* ---------- LokĂˇlnĂ­ helpery ---------- */
 
 const PAGE_WIDTH_MM = 210;
 const PAGE_HEIGHT_MM = 297;
@@ -76,12 +77,12 @@ const labelRun = (t: string) =>
   new TextRun({ text: `${t}: `, bold: true, size: SMALL, color: COL_MUTE, font: FONT });
 
 const valueRun = (t?: string | null) =>
-  new TextRun({ text: String(t ?? "—"), size: BODY, color: COL_TEXT, font: FONT });
+  new TextRun({ text: String(t ?? "â€”"), size: BODY, color: COL_TEXT, font: FONT });
 
 const kvLine = (label: string, value?: string | null) =>
   new Paragraph({ children: [labelRun(label), valueRun(value)], spacing: { before: 0, after: 40 } });
 
-/** Bezrámečkový 2-sloupcový grid z dvojic [label, value] — bez jakýchkoliv čar */
+/** BezrĂˇmeÄŤkovĂ˝ 2-sloupcovĂ˝ grid z dvojic [label, value] â€” bez jakĂ˝chkoliv ÄŤar */
 function keyValueTwoCols(pairs: Array<[string, string | null | undefined]>): Table {
   const cellsPerRow = 2;
   const rows: TableRow[] = [];
@@ -99,16 +100,16 @@ function keyValueTwoCols(pairs: Array<[string, string | null | undefined]>): Tab
               ? [
                   new Paragraph({
                     children: [new TextRun({ text: pair[0], size: SMALL, color: COL_MUTE, bold: true, font: FONT })],
-                    spacing: { after: 10 }, // menší vertikální mezera
+                    spacing: { after: 10 }, // menĹˇĂ­ vertikĂˇlnĂ­ mezera
                   }),
                   new Paragraph({
-                    children: [new TextRun({ text: String(pair[1] ?? "—"), size: BODY, font: FONT })],
+                    children: [new TextRun({ text: String(pair[1] ?? "â€”"), size: BODY, font: FONT })],
                     spacing: { before: 0, after: 30 },
                   }),
                 ]
               : [new Paragraph({ children: [new TextRun({ text: "" })] })],
             width: { size: 50, type: WidthType.PERCENTAGE },
-            margins: { top: 20, bottom: 10, left: 40, right: 40 }, // kompaktnější odsazení
+            margins: { top: 20, bottom: 10, left: 40, right: 40 }, // kompaktnÄ›jĹˇĂ­ odsazenĂ­
             borders: {
               top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
               bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -135,7 +136,7 @@ function keyValueTwoCols(pairs: Array<[string, string | null | undefined]>): Tab
   });
 }
 
-/** Výrazný box s výsledkem revize (zarovnaný na střed, větší písmo, rámeček) */
+/** VĂ˝raznĂ˝ box s vĂ˝sledkem revize (zarovnanĂ˝ na stĹ™ed, vÄ›tĹˇĂ­ pĂ­smo, rĂˇmeÄŤek) */
 function resultBox(text: string): Table {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -172,15 +173,15 @@ function resultBox(text: string): Table {
   });
 }
 
-/** 2-sloupcový blok Revizní technik (bez rámečků) */
+/** 2-sloupcovĂ˝ blok ReviznĂ­ technik (bez rĂˇmeÄŤkĹŻ) */
 function makeTechnicianTwoCols(tech: any): Table {
   const items: Array<[string, string | null | undefined]> = [
-    ["Jméno", tech?.jmeno],
+    ["JmĂ©no", tech?.jmeno],
     ["Firma", tech?.firma],
-    ["Ev. č. osvědčení", tech?.cislo_osvedceni],
-    ["Ev. č. oprávnění", tech?.cislo_opravneni],
-    ["IČO", tech?.ico],
-    ["DIČ", tech?.dic],
+    ["Ev. ÄŤ. osvÄ›dÄŤenĂ­", tech?.cislo_osvedceni],
+    ["Ev. ÄŤ. oprĂˇvnÄ›nĂ­", tech?.cislo_opravneni],
+    ["IÄŚO", tech?.ico],
+    ["DIÄŚ", tech?.dic],
     ["Adresa", tech?.adresa],
     ["Telefon", tech?.phone],
     ["E-mail", tech?.email],
@@ -188,11 +189,11 @@ function makeTechnicianTwoCols(tech: any): Table {
   return keyValueTwoCols(items);
 }
 
-/** 2-sloupcový blok Revidovaný objekt (bez rámečků/podbarvení) */
+/** 2-sloupcovĂ˝ blok RevidovanĂ˝ objekt (bez rĂˇmeÄŤkĹŻ/podbarvenĂ­) */
 function makeObjectTwoCols(safeForm: any): Table {
   const items: Array<[string, string | null | undefined]> = [
     ["Adresa stavby", dash(safeForm.adresa)],
-    ["Předmět revize", dash(safeForm.objekt)],
+    ["PĹ™edmÄ›t revize", dash(safeForm.objekt)],
     ["Objednatel revize", dash(safeForm.objednatel)],
   ];
   return keyValueTwoCols(items);
@@ -206,6 +207,14 @@ export async function generateSummaryDocx({
   revId,
   schemaImages,
 }: GenArgs) {
+  const inspectionLines = (() => {
+    const text = htmlToBulletText(safeForm.inspectionDescription || "");
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trimEnd())
+      .filter((line, idx, arr) => line || (idx > 0 && arr[idx - 1]));
+    return lines.length ? lines : ["â€”"];
+  })();
   // ---------- Head / titul ----------
   const headTitle: Paragraph[] = [
     P("Revizn\u00ed zpr\u00e1va o elektrick\u00e9 instalaci", { center: true, bold: true, size: 32, after: 120 }),
@@ -216,47 +225,47 @@ export async function generateSummaryDocx({
     }),
   ];
 
-  // ---------- Revizní technik (2 sloupce, bez rámečků) ----------
+  // ---------- ReviznĂ­ technik (2 sloupce, bez rĂˇmeÄŤkĹŻ) ----------
   const techBlock = makeTechnicianTwoCols(technician);
 
-  // ---------- Revidovaný objekt (2 sloupce, bez rámečků/podbarvení) ----------
+  // ---------- RevidovanĂ˝ objekt (2 sloupce, bez rĂˇmeÄŤkĹŻ/podbarvenĂ­) ----------
   const objektBlock = makeObjectTwoCols(safeForm);
 
-  // ---------- Přístroje ----------
+  // ---------- PĹ™Ă­stroje ----------
   const instrumentsRows = (usedInstruments?.length
-    ? usedInstruments.map((i) => [i.name, i.serial, i.calibration, i.measurement_text || "—"])
-    : [["—", "—", "—", "—"]]) as (string | number)[][];
+    ? usedInstruments.map((i) => [i.name, i.serial, i.calibration, i.measurement_text || "â€”"])
+    : [["â€”", "â€”", "â€”", "â€”"]]) as (string | number)[][];
   const instruments = tableBordered(
-    ["Přístroj", "Výrobní číslo", "Kalibrační list", "Měření"],
+    ["PĹ™Ă­stroj", "VĂ˝robnĂ­ ÄŤĂ­slo", "KalibraÄŤnĂ­ list", "MÄ›Ĺ™enĂ­"],
     instrumentsRows,
     [40, 20, 20, 20]
   );
 
-  // ---------- Výsledek (rámeček + větší text, vystředěný) ----------
+  // ---------- VĂ˝sledek (rĂˇmeÄŤek + vÄ›tĹˇĂ­ text, vystĹ™edÄ›nĂ˝) ----------
   const safetyLabel = (() => {
     const s = safeForm.conclusion?.safety;
-    if (!s) return "Chybí informace";
-    if (s === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-    if (s === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+    if (!s) return "ChybĂ­ informace";
+    if (s === "able") return "ElektrickĂˇ instalace je z hlediska bezpeÄŤnosti schopna provozu";
+    if (s === "not_able") return "ElektrickĂˇ instalace nenĂ­ z hlediska bezpeÄŤnosti schopna provozu";
     return String(s);
   })();
   const result = resultBox(safetyLabel);
 
   const term = [
-    P("Doporučený termín příští revize dle ČSN 332000-6 ed.2 čl. 6.5.2:", { color: COL_MUTE, center: true }),
+    P("DoporuÄŤenĂ˝ termĂ­n pĹ™Ă­ĹˇtĂ­ revize dle ÄŚSN 332000-6 ed.2 ÄŤl. 6.5.2:", { color: COL_MUTE, center: true }),
     P(dash(safeForm.conclusion?.validUntil), { bold: true, center: true }),
   ];
 
-  // ---------- 1. Identifikace (pevný zlom) ----------
+  // ---------- 1. Identifikace (pevnĂ˝ zlom) ----------
   const ident: (Paragraph | Table)[] = [
     new Paragraph({ pageBreakBefore: true }),
     H("1. Identifikace", 26),
-    H("Montážní firma", 22),
+    H("MontĂˇĹľnĂ­ firma", 22),
     keyValueTwoCols([
       ["Firma", dash(safeForm.montFirma)],
-      ["Oprávnění firmy", dash(safeForm.montFirmaAuthorization)],
+      ["OprĂˇvnÄ›nĂ­ firmy", dash(safeForm.montFirmaAuthorization)],
     ]),
-    H("Ochranná opatření", 22),
+    H("OchrannĂˇ opatĹ™enĂ­", 22),
     new Table({
       width: { size: 100, type: WidthType.PERCENTAGE },
       borders: {
@@ -272,9 +281,9 @@ export async function generateSummaryDocx({
           children: [
             new TableCell({
               children: [
-                kvLine("Základní ochrana", (safeForm.protection_basic || []).join(", ") || "—"),
-                kvLine("Ochrana při poruše", (safeForm.protection_fault || []).join(", ") || "—"),
-                kvLine("Doplňková ochrana", (safeForm.protection_additional || []).join(", ") || "—"),
+                kvLine("ZĂˇkladnĂ­ ochrana", (safeForm.protection_basic || []).join(", ") || "â€”"),
+                kvLine("Ochrana pĹ™i poruĹˇe", (safeForm.protection_fault || []).join(", ") || "â€”"),
+                kvLine("DoplĹkovĂˇ ochrana", (safeForm.protection_additional || []).join(", ") || "â€”"),
               ],
               width: { size: 100, type: WidthType.PERCENTAGE },
               margins: { top: 20, bottom: 10, left: 40, right: 40 },
@@ -289,27 +298,27 @@ export async function generateSummaryDocx({
         }),
       ],
     }),
-    P("Popis a rozsah revidovaného objektu", { bold: true }),
-    P(stripHtml(safeForm.inspectionDescription || "—")),
-    P(`Jmenovité napětí: ${dash(safeForm.voltage)}`),
-    P(`Druh sítě: ${dash(safeForm.sit)}`),
-    P(`Předložená dokumentace: ${dash(safeForm.documentation)}`),
-    P("Vnější vlivy", { bold: true }),
+    P("Popis a rozsah revidovanĂ©ho objektu", { bold: true }),
+    ...inspectionLines.map((line) => P(line || " ")),
+    P(`JmenovitĂ© napÄ›tĂ­: ${dash(safeForm.voltage)}`),
+    P(`Druh sĂ­tÄ›: ${dash(safeForm.sit)}`),
+    P(`PĹ™edloĹľenĂˇ dokumentace: ${dash(safeForm.documentation)}`),
+    P("VnÄ›jĹˇĂ­ vlivy", { bold: true }),
     P(dash(safeForm.environment)),
-    P("Přílohy", { bold: true }),
+    P("PĹ™Ă­lohy", { bold: true }),
     P(dash(safeForm.extraNotes)),
   ];
 
-  // ---------- 2. Prohlídka ----------
+  // ---------- 2. ProhlĂ­dka ----------
   const prohlidka: Paragraph[] = [
-    P("2. Prohlídka", { bold: true, size: 26, center: true }),
-    P("Soupis provedených úkonů dle ČSN 33 2000-6 čl. 6.4.2.3", { color: COL_MUTE, center: true }),
+    P("2. ProhlĂ­dka", { bold: true, size: 26, center: true }),
+    P("Soupis provedenĂ˝ch ĂşkonĹŻ dle ÄŚSN 33 2000-6 ÄŤl. 6.4.2.3", { color: COL_MUTE, center: true }),
     ...(safeForm.performedTasks?.length
-      ? safeForm.performedTasks.map((t: string) => P(`• ${t}`, { after: 30, center: true }))
-      : [P("—", { center: true })]),
+      ? safeForm.performedTasks.map((t: string) => P(`â€˘ ${t}`, { after: 30, center: true }))
+      : [P("â€”", { center: true })]),
   ];
 
-  // ---------- 3. Zkoušení ----------
+  // ---------- 3. ZkouĹˇenĂ­ ----------
   const testsLocal =
     (Object.entries(safeForm.tests || {}) as [string, any][])
       .map(([name, val]) => {
@@ -322,25 +331,37 @@ export async function generateSummaryDocx({
       });
 
   const tests = [
-    P("3. Zkoušení", { bold: true, size: 26, center: true }),
+    P("3. ZkouĹˇenĂ­", { bold: true, size: 26, center: true }),
     tableBorderedNarrow(
-      ["Název zkoušky", "Poznámka / výsledek"],
-      testsLocal.length ? testsLocal.map((r) => [r.name, r.note]) : [["—", ""]],
+      ["NĂˇzev zkouĹˇky", "PoznĂˇmka / vĂ˝sledek"],
+      testsLocal.length ? testsLocal.map((r) => [r.name, r.note]) : [["â€”", ""]],
       [40, 60]
     ),
   ];
 
-// ---------- 4-A Měření rozvaděčů ----------
+// ---------- 4-A MÄ›Ĺ™enĂ­ rozvadÄ›ÄŤĹŻ ----------
   const boardsBlocks: (Paragraph | Table)[] = [];
   if (!(safeForm.boards || []).length) {
-    boardsBlocks.push(H("4-A Měření rozvaděčů", 26));
+    boardsBlocks.push(H("4-A MÄ›Ĺ™enĂ­ rozvadÄ›ÄŤĹŻ", 26));
   } else {
-    boardsBlocks.push(H("4-A Měření rozvaděčů", 26));
+    boardsBlocks.push(H("4-A MÄ›Ĺ™enĂ­ rozvadÄ›ÄŤĹŻ", 26));
     for (const [idx, b] of (safeForm.boards || []).entries()) {
       boardsBlocks.push(P("", { after: 300 }));
-      boardsBlocks.push(P(`Rozvaděč: ${dash(b?.name) || `#${idx + 1}`}`, { bold: true, size: XS, after: 20 }));
-      const details = `Výrobce: ${dash(b?.vyrobce)} | Typ: ${dash(b?.typ)} | Umístění: ${dash(b?.umisteni)} | S/N: ${dash(b?.vyrobniCislo)} | Napětí: ${dash(b?.napeti)} | Odpor: ${dash(b?.odpor)} | IP: ${dash(b?.ip)}`;
+      boardsBlocks.push(P(`RozvadÄ›ÄŤ: ${dash(b?.name) || `#${idx + 1}`}`, { bold: true, size: XS, after: 20 }));
+      const details = `VĂ˝robce: ${dash(b?.vyrobce)} | Typ: ${dash(b?.typ)} | UmĂ­stÄ›nĂ­: ${dash(b?.umisteni)} | S/N: ${dash(b?.vyrobniCislo)} | NapÄ›tĂ­: ${dash(b?.napeti)} | Odpor: ${dash(b?.odpor)} | IP: ${dash(b?.ip)}`;
       boardsBlocks.push(P(details, { color: COL_MUTE, size: XS, after: 60 }));
+      const boardNotes = htmlToBulletText(b?.poznamkyHtml || b?.poznamky || "");
+      if (boardNotes.trim()) {
+        boardsBlocks.push(P("Poznámky:", { bold: true, size: XS, after: 20 }));
+        boardNotes
+          .split(/\r?\n/)
+          .map((line) => line.trimEnd())
+          .filter((line, index, arr) => line.length > 0 || (index > 0 && arr[index - 1].length > 0))
+          .forEach((line) => {
+            boardsBlocks.push(P(line || " ", { size: XS, color: COL_TEXT, after: line ? 20 : 10 }));
+          });
+        boardsBlocks.push(P("", { after: 40 }));
+      }
 
       const flat = normalizeComponents(b?.komponenty || []);
       const rows = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
@@ -405,7 +426,7 @@ export async function generateSummaryDocx({
       boardsBlocks.push(P("", { after: 60 }));
       boardsBlocks.push(P("", { after: 60 }));
 
-      const schemaTitle = `Schéma rozvaděče: ${dash(b?.name) || `#${idx + 1}`}`;
+      const schemaTitle = `SchĂ©ma rozvadÄ›ÄŤe: ${dash(b?.name) || `#${idx + 1}`}`;
       boardsBlocks.push(P(schemaTitle, { bold: true, size: XS, after: 40 }));
 
       const schemaDataUrl = schemaImages?.[String(b?.id)];
@@ -434,14 +455,14 @@ export async function generateSummaryDocx({
     }
   }
 
-  // ---------- 4. Měření – místnosti ----------
+  // ---------- 4. Měření – prostory ----------
   const roomsBlocks: (Paragraph | Table)[] = [];
   if ((safeForm.rooms || []).length) {
-    roomsBlocks.push(H("4-B Měření v prostorech", 26));
+    roomsBlocks.push(H("4-B MÄ›Ĺ™enĂ­ v prostorech", 26));
     (safeForm.rooms || []).forEach((r: any, idx: number) => {
       roomsBlocks.push(P("", { after: 300 }));
-      roomsBlocks.push(P(`Místnost: ${dash(r?.name) || `#${idx + 1}`}`, { bold: true, after: 10 }));
-      roomsBlocks.push(P(`Poznámka: ${dash(r?.details)}`, { color: COL_MUTE, after: 20 }));
+      roomsBlocks.push(P(`Prostor: ${dash(r?.name) || `#${idx + 1}`}`, { bold: true, after: 10 }));
+      roomsBlocks.push(P(`PoznĂˇmka: ${dash(r?.details)}`, { color: COL_MUTE, after: 20 }));
       const rows = (r?.devices || []).length
         ? r.devices.map((d: any) => [
             dash(d?.typ),
@@ -451,34 +472,51 @@ export async function generateSummaryDocx({
             dash(d?.ochrana),
             dash(d?.podrobnosti || d?.note),
           ])
-        : [["—", "—", "—", "—", "—", "—"]];
+        : [["â€”", "â€”", "â€”", "â€”", "â€”", "â€”"]];
       roomsBlocks.push(
-        tableBordered(["Typ", "Počet", "Dimenze", "Riso [MΩ]", "Ochrana [Ω]", "Poznámka"], rows, [18, 10, 18, 14, 14, 26])
+        tableBordered(["Typ", "PoÄŤet", "Dimenze", "Riso [MÎ©]", "Ochrana [Î©]", "PoznĂˇmka"], rows, [18, 10, 18, 14, 14, 26])
       );
     });
   } else {
-    roomsBlocks.push(H("4-B Měření v prostorech", 26), P("???"));
+    roomsBlocks.push(H("4-B MÄ›Ĺ™enĂ­ v prostorech", 26), P("???"));
   }
 
   // ---------- 5. Závady ----------
-  const defectsRows =
-    (safeForm.defects || []).length
-      ? safeForm.defects.map((d: any) => [dash(d?.description), dash(d?.standard), dash(d?.article)])
-      : [["—", "—", "—"]];
-
+  const defectsTextRaw = String(safeForm?.defectsRichText || "").trim();
   const defectsBlock = [
     new Paragraph({ pageBreakBefore: true }),
     P("", { after: 300 }),
     H("5. Závady", 26),
-    tableBordered(["Popis závady", "ČSN", "Článek"], defectsRows as (string | number)[][], [60, 20, 20]),
+    ...(defectsTextRaw
+      ? htmlToBulletText(defectsTextRaw)
+          .split(/\r?\n/)
+          .map((line) => line.trimEnd())
+          .filter((line, idx, arr) => line || (idx > 0 && arr[idx - 1]))
+          .map((line) => P(line || " "))
+      : (safeForm.defects || []).length
+      ? (safeForm.defects || []).map((d: any, i: number) => {
+          const description = dash(d?.description);
+          const suffix = defectNormSuffix(d);
+          return new Paragraph({
+            children: [
+              new TextRun({ text: `${i + 1}. `, size: BODY, font: FONT, color: COL_TEXT }),
+              new TextRun({ text: description, size: BODY, font: FONT, color: COL_TEXT }),
+              ...(suffix
+                ? [new TextRun({ text: ` ${suffix}`, size: BODY, font: FONT, color: COL_TEXT, bold: true })]
+                : []),
+            ],
+            spacing: { after: 60 },
+          });
+        })
+      : [P("—")]),
   ];
 
-  // ---------- 6. Závěr ----------
+  // ---------- 6. ZĂˇvÄ›r ----------
   const safetySummaryLabel = (() => {
     const s = safeForm.conclusion?.safety;
     if (s === "able") return "Revize vyhovuje";
     if (s === "not_able") return "Revize nevyhovuje";
-    return "Chybí informace";
+    return "ChybĂ­ informace";
   })();
 
   const safetyBox = new Table({
@@ -509,10 +547,10 @@ export async function generateSummaryDocx({
 
   const zav = [
     P("", { after: 300 }),
-    P("6. Závěr", { bold: true, size: 26 }),
+    P("6. ZĂˇvÄ›r", { bold: true, size: 26 }),
     P(dash(safeForm.conclusion?.text)),
     safetyBox,
-    P(`Další revize: ${dash(safeForm.conclusion?.validUntil)}`),
+    P(`DalĹˇĂ­ revize: ${dash(safeForm.conclusion?.validUntil)}`),
   ];
 
   // ---------- Dokument ----------
@@ -540,23 +578,23 @@ export async function generateSummaryDocx({
         footers: { default: makeFooter() },
         children: [
           ...headTitle,
-          H("Revizní technik", 22),
-          techBlock,                 // 2 sloupce, bez rámečků
-          H("Revidovaný objekt", 22),
-          objektBlock,               // 2 sloupce, bez rámečků/podbarvení
-          H("Výsledek revize", 22),
-          result,                    // rámeček + větší text + centrováno
+          H("ReviznĂ­ technik", 22),
+          techBlock,                 // 2 sloupce, bez rĂˇmeÄŤkĹŻ
+          H("RevidovanĂ˝ objekt", 22),
+          objektBlock,               // 2 sloupce, bez rĂˇmeÄŤkĹŻ/podbarvenĂ­
+          H("VĂ˝sledek revize", 22),
+          result,                    // rĂˇmeÄŤek + vÄ›tĹˇĂ­ text + centrovĂˇno
           ...term,
-          H("Použité měřicí přístroje", 22),
+          H("PouĹľitĂ© mÄ›Ĺ™icĂ­ pĹ™Ă­stroje", 22),
           instruments,
-          H("Rozdělovník", 22),
-          P("Provozovatel – 1×"),
-          P("Revizní technik – 1×"),
+          H("RozdÄ›lovnĂ­k", 22),
+          P("Provozovatel â€“ 1Ă—"),
+          P("ReviznĂ­ technik â€“ 1Ă—"),
           P("...................................................."),
           P("...................................................."),
           P("V ........................................ dne ........................................"),
           P("Podpis provozovatele: ______________________________"),
-          P("Podpis revizního technika: _________________________"),
+          P("Podpis reviznĂ­ho technika: _________________________"),
           ...ident,
           ...prohlidka,
           ...tests,

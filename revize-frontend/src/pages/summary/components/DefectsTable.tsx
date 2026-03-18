@@ -1,6 +1,7 @@
 import React from "react";
 import { H1, Th, Td } from "./ui";
 import { dash } from "../../summary-utils/text";
+import { defectNormSuffix } from "../../summary-utils/defects";
 
 export function DefectsTable({
   defects,
@@ -14,16 +15,15 @@ export function DefectsTable({
           <thead>
             <tr className="text-left">
               <Th>Popis závady</Th>
-              <Th>ČSN</Th>
-              <Th>Článek</Th>
             </tr>
           </thead>
           <tbody>
             {defects.map((d: any, i: number) => (
               <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                <Td>{dash(d?.description)}</Td>
-                <Td>{dash(d?.standard)}</Td>
-                <Td>{dash(d?.article)}</Td>
+                <Td>
+                  <span>{dash(d?.description)}</span>{" "}
+                  {defectNormSuffix(d) ? <strong>{defectNormSuffix(d)}</strong> : null}
+                </Td>
               </tr>
             ))}
           </tbody>

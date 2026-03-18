@@ -143,6 +143,23 @@ class Revision(Base):
 
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     project    = relationship("Project", back_populates="revisions")
+    photos     = relationship("RevisionPhoto", back_populates="revision", cascade="all, delete-orphan")
+
+
+class RevisionPhoto(Base):
+    __tablename__ = "revision_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    revision_id = Column(Integer, ForeignKey("revisions.id", ondelete="CASCADE"), nullable=False, index=True)
+    defect_uid = Column(String, nullable=True, index=True)
+    caption = Column(Text, nullable=False, default="")
+    original_name = Column(String, nullable=True)
+    mime_type = Column(String, nullable=False, default="application/octet-stream")
+    file_size = Column(BigInteger, nullable=False, default=0)
+    file_path = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    revision = relationship("Revision", back_populates="photos")
 
 
 # 🔧 Defect catalog + workflow

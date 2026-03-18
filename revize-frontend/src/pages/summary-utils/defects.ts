@@ -1,0 +1,15 @@
+export function defectNormSuffix(defect: any): string {
+  const standard = String(defect?.standard || "").trim();
+  const article = String(defect?.article || "").trim();
+
+  if (standard && article) return `Porušení normy ${standard}, článek ${article}.`;
+  if (standard) return `Porušení normy ${standard}.`;
+  if (article) return `Porušení normy, článek ${article}.`;
+  return "";
+}
+
+export function defectFullText(defect: any): string {
+  const description = String(defect?.description || "").trim();
+  const suffix = defectNormSuffix(defect);
+  return [description, suffix].filter(Boolean).join(" ").trim();
+}

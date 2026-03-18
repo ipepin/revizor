@@ -10,7 +10,7 @@ export function RoomsBlock({ rooms }: { rooms: any[] }) {
           {rooms.map((room: any, rIdx: number) => (
             <div key={rIdx} className="mt-6">
               <div className="font-semibold">
-                Místnost: {dash(room?.name) || `#${rIdx + 1}`}
+                Prostor: {dash(room?.name) || `#${rIdx + 1}`}
               </div>
               <div className="text-sm text-slate-600">
                 Poznámka: {dash(room?.details)}

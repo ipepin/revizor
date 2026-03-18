@@ -2,6 +2,7 @@
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
+import { defectFullText } from "../summary-utils/defects";
 
 export type GenArgs = {
   safeForm: any;
@@ -121,16 +122,16 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
       const parts: string[] = [];
       if (desc && desc !== "-") parts.push(desc);
       if (typ) parts.push(`typ: ${typ}`);
-      if (poles) parts.push(`pĂłly: ${poles}`);
+      if (poles) parts.push(`póly: ${poles}`);
       if (dim) parts.push(`dim.: ${dim}`);
-      if (riso || riso === 0) parts.push(`Riso: ${riso} MÎ©`);
-      if (zs || zs === 0) parts.push(`Zs: ${zs} Î©`);
+      if (riso || riso === 0) parts.push(`Riso: ${riso} MΩ`);
+      if (zs || zs === 0) parts.push(`Zs: ${zs} Ω`);
       if (tMs || tMs === 0) parts.push(`t: ${tMs} ms`);
-      if (iDelta || iDelta === 0) parts.push(`IÎ”: ${iDelta} mA`);
+      if (iDelta || iDelta === 0) parts.push(`IΔ: ${iDelta} mA`);
       if (pozn) parts.push(`Název obvodu: ${pozn}`);
 
       const LINE_LEFT = `${prefix}${name}`;
-      const LINE_RIGHT = parts.join("   Â·   ") || " ";
+      const LINE_RIGHT = parts.join("   ·   ") || " ";
       return { LINE_LEFT, LINE_RIGHT };
     });
 
@@ -151,7 +152,7 @@ function buildData({ safeForm, technician, normsAll, usedInstruments, revId }: G
   }));
 
   const ZAVADY = (safeForm?.defects || []).map((d: any) => ({
-    POPIS: dash(d?.description),
+    POPIS: dash(defectFullText(d)),
     CSN: dash(d?.standard),
     CLANEK: dash(d?.article),
   }));
