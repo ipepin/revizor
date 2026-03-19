@@ -26,11 +26,13 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoCaption, setPhotoCaption] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   // User context (profil technika + firma)
   const { profile, company, loading } = useUser();
@@ -100,12 +102,22 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
     setUploadingPhoto(false);
   }, [showPhotoModal]);
 
-  const openPhotoPicker = () => {
+  const openPhotoSourcePicker = () => {
     if (!revId) {
       setToast({ type: "error", message: "Fotky lze pridavat jen v revizi." });
       return;
     }
-    photoInputRef.current?.click();
+    setShowPhotoSourceModal(true);
+  };
+
+  const openCameraPicker = () => {
+    setShowPhotoSourceModal(false);
+    cameraInputRef.current?.click();
+  };
+
+  const openGalleryPicker = () => {
+    setShowPhotoSourceModal(false);
+    galleryInputRef.current?.click();
   };
 
   const onPhotoSelected = (event: ChangeEvent<HTMLInputElement>) => {
@@ -228,17 +240,24 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
               </nav>
 
               <input
-                ref={photoInputRef}
+                ref={cameraInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="hidden"
                 onChange={onPhotoSelected}
               />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPhotoSelected}
+              />
 
               <button
                 className="mb-3 w-full rounded bg-amber-500 px-4 py-2 text-left text-white transition hover:bg-amber-600"
-                onClick={openPhotoPicker}
+                onClick={openPhotoSourcePicker}
                 title="Rychle vyfotit nebo vybrat fotografii a pozdeji ji priradit k zavade"
               >
                 📷 Vyfotit
@@ -537,6 +556,52 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 disabled={!photoFile || uploadingPhoto}
               >
                 {uploadingPhoto ? "Nahrávám…" : "Uložit fotografii"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPhotoSourceModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowPhotoSourceModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3">
+              <div className="text-base font-semibold text-slate-800">Přidat fotografii</div>
+              <div className="text-sm text-slate-500">
+                Vyber, jestli chceš fotku rovnou pořídit, nebo nahrát z telefonu.
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="w-full rounded bg-amber-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-amber-600"
+                onClick={openCameraPicker}
+              >
+                📷 Vyfotit
+              </button>
+              <button
+                type="button"
+                className="w-full rounded bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-200"
+                onClick={openGalleryPicker}
+              >
+                🖼️ Vybrat z telefonu
+              </button>
+            </div>
+
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                className="rounded bg-slate-200 px-3 py-2 text-sm text-slate-800 hover:bg-slate-300"
+                onClick={() => setShowPhotoSourceModal(false)}
+              >
+                Zrušit
               </button>
             </div>
           </div>

@@ -493,6 +493,12 @@ export default function DefectsRecommendationsSection() {
       </button>
 
       <div className="mt-2.5 space-y-2">
+        {photo.caption?.trim() ? (
+          <div className="rounded bg-slate-50 px-2 py-1.5 text-xs leading-5 text-slate-700">
+            {photo.caption.trim()}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-[minmax(0,118px)_auto] items-start gap-2">
           <select
             className="max-w-[118px] rounded border px-2 py-1 text-xs"
