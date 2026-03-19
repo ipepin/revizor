@@ -667,7 +667,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
             <div className="space-y-2">
               <label
                 className="block w-full cursor-pointer rounded bg-amber-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-amber-600"
-                onClick={() => setShowPhotoSourceModal(false)}
               >
                 📷 Vyfotit
                 <input
@@ -680,7 +679,6 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
               </label>
               <label
                 className="block w-full cursor-pointer rounded bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-200"
-                onClick={() => setShowPhotoSourceModal(false)}
               >
                 🖼️ Vybrat z telefonu
                 <input

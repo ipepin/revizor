@@ -43,11 +43,16 @@ UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "uploads" / "revision_photos
 MAX_PHOTO_SIZE = 15 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/pjpeg": ".jpg",
+    "image/jfif": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
     "image/gif": ".gif",
     "image/heic": ".heic",
     "image/heif": ".heif",
+    "image/heic-sequence": ".heic",
+    "image/heif-sequence": ".heif",
 }
 
 
@@ -94,6 +99,22 @@ def _safe_photo_extension(upload: UploadFile) -> str:
     suffix = Path(upload.filename or "").suffix.lower()
     if suffix in ALLOWED_IMAGE_TYPES.values():
         return suffix
+
+    if content_type.startswith("image/"):
+        if suffix:
+            return suffix
+        return ".jpg"
+
+    if content_type in {"", "application/octet-stream"} and suffix in {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".heic",
+        ".heif",
+    }:
+        return ".jpg" if suffix == ".jpeg" else suffix
 
     raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only image uploads are supported")
 
