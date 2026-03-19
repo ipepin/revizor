@@ -959,7 +959,7 @@ export default function LpsEditPage() {
     <>
       <RevisionFormProvider revId={parseInt((revId as string) || "0", 10)} training={isTraining}>
         <div className="flex min-h-screen bg-gradient-to-br from-gray-100 to-blue-50">
-          <Sidebar mode="summary" active={tab} onSelect={(k) => setTab(k as any)} />
+          <Sidebar mode="lps-edit" active={tab} onSelect={(k) => setTab(k as any)} />
           <main className="compact-main flex-1 overflow-auto p-4 md:p-6">
             <div className="compact-card space-y-4">
               {tab === "lps_info" ? (

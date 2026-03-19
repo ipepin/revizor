@@ -9,7 +9,7 @@ import { API_DISPLAY_URL, apiUrl } from "../api/base";
 import api from "../api/axios";
 
 type Props = {
-  mode: "dashboard" | "edit" | "catalog" | "summary";
+  mode: "dashboard" | "edit" | "lps-edit" | "catalog" | "summary";
   active?: string;
   onSelect?: (sectionKey: string) => void;
   onNewProject?: () => void;
@@ -79,6 +79,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
     { key: "zavady", label: "Závady a doporučení" },
     { key: "zaver", label: "Závěr" },
   ];
+  const lpsEditSections = [
+    { key: "lps_info", label: "Identifikace objektu a prohlídka" },
+    { key: "lps_measure", label: "Měření, závady a závěr" },
+  ];
+  const isEditMode = mode === "edit" || mode === "lps-edit";
+  const sidebarSections = mode === "lps-edit" ? lpsEditSections : editSections;
 
   const go = (path: string) => {
     setShowSettings(false);
@@ -279,7 +285,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
           </div>
 
           {/* Režim EDIT – přepínače sekcí + akce */}
-          {mode === "edit" && (
+          {isEditMode && (
             <>
               <button
                 className="mb-4 bg-gray-200 hover:bg-gray-300 text-left px-4 py-2 rounded transition"
@@ -289,7 +295,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
               </button>
 
               <nav className="flex flex-col gap-2 mb-4">
-                {editSections.map((section) => (
+                {sidebarSections.map((section) => (
                   <button
                     key={section.key}
                     onClick={() => onSelect?.(section.key)}
