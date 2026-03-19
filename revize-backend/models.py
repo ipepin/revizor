@@ -181,6 +181,7 @@ class Defect(Base):
     description = Column(String, nullable=False)
     standard    = Column(String, nullable=True)
     article     = Column(String, nullable=True)
+    citation    = Column(Text, nullable=True)
 
     visibility        = Column(Enum(DefectVisibility), nullable=False, default=DefectVisibility.user)
     moderation_status = Column(Enum(ModerationStatus),  nullable=False, default=ModerationStatus.none)

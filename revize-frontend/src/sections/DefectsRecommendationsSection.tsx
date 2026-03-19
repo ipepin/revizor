@@ -3,6 +3,7 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import api from "../api/axios"; // ← náš axios klient s JWT
 import { RevisionFormContext, type DefectDraft as RevisionDefectDraft } from "../context/RevisionFormContext";
 import { defectNormSuffix } from "../pages/summary-utils/defects";
+import { useUser } from "../context/UserContext";
 
 type Defect = {
   uid: string;
@@ -28,6 +29,7 @@ type CatalogDefect = Omit<Defect, "uid"> & {
   moderation_status?: "none" | "pending" | "rejected";
   reject_reason?: string | null;
   usage_count?: number;
+  owner_id?: number | null;
 };
 
 // ————————————————————————————————————————————————————————————————
@@ -50,6 +52,7 @@ function normalizeDefect(raw: any): CatalogDefect {
   let standard =
     raw?.standard ?? raw?.norm ?? raw?.norma ?? raw?.standard_code ?? raw?.standard_name ?? "";
   let article = raw?.article ?? raw?.clause ?? raw?.clanek ?? raw?.article_ref ?? "";
+  const citation = raw?.citation ?? raw?.quote ?? raw?.article_quote ?? raw?.article_text ?? "";
 
   const ref = raw?.reference ?? raw?.standard_article ?? raw?.norm_ref ?? "";
   if ((!standard && !article) && ref) {
@@ -83,10 +86,12 @@ function normalizeDefect(raw: any): CatalogDefect {
     description: String(description || ""),
     standard: String(standard || ""),
     article: String(article || ""),
+    citation: String(citation || ""),
     visibility,
     moderation_status,
     reject_reason: raw?.reject_reason ?? null,
     usage_count,
+    owner_id: typeof raw?.owner_id === "number" ? raw.owner_id : raw?.owner_id ?? null,
   };
 }
 
@@ -159,6 +164,7 @@ function DefectPhotoThumb({ revId, photo }: { revId: number; photo: DefectPhoto 
 // ————————————————————————————————————————————————————————————————
 export default function DefectsRecommendationsSection() {
   const { form, setForm, revId, defectPhotosVersion, notifyDefectPhotosChanged } = useContext(RevisionFormContext);
+  const { profile } = useUser();
 
   const [catalog, setCatalog] = useState<CatalogDefect[]>([]);
   const [photos, setPhotos] = useState<DefectPhoto[]>([]);
@@ -167,10 +173,16 @@ export default function DefectsRecommendationsSection() {
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTargetUid, setPickerTargetUid] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [editingCatalogId, setEditingCatalogId] = useState<number | null>(null);
 
   // nový, vylepšený dialog
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState<Omit<Defect, "uid">>({ description: "", standard: "", article: "" });
+  const [addForm, setAddForm] = useState<Omit<Defect, "uid">>({
+    description: "",
+    standard: "",
+    article: "",
+    citation: "",
+  });
   const [submitToGlobal, setSubmitToGlobal] = useState(false);
   const addFormValid = (addForm.description || "").trim().length >= 3;
 
@@ -247,6 +259,11 @@ export default function DefectsRecommendationsSection() {
     if (showPicker) return;
     setPickerTargetUid(null);
   }, [showPicker]);
+
+  useEffect(() => {
+    if (showAddModal) return;
+    setEditingCatalogId(null);
+  }, [showAddModal]);
 
   // Při otevření editoru také načti čerstvě
   useEffect(() => {
@@ -328,10 +345,11 @@ export default function DefectsRecommendationsSection() {
         description: d.description,
         standard: d.standard,
         article: d.article,
+        citation: d.citation,
       });
       await loadCatalog();
-    } catch {
-      alert("Chyba při ukládání změn");
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || e?.message || "Chyba při ukládání změn");
     }
   }
 
@@ -353,7 +371,12 @@ export default function DefectsRecommendationsSection() {
 
   // ——— Nový vylepšený dialog: vytvoření položky ———
   const previewLine = useMemo(() => {
-    const parts = [addForm.description?.trim(), addForm.standard?.trim(), addForm.article?.trim()].filter(Boolean);
+    const parts = [
+      addForm.description?.trim(),
+      addForm.standard?.trim() ? `Norma: ${addForm.standard.trim()}` : "",
+      addForm.article?.trim() ? `Článek: ${addForm.article.trim()}` : "",
+      addForm.citation?.trim() ? `Citace: ${addForm.citation.trim()}` : "",
+    ].filter(Boolean);
     return parts.join(" - ");
   }, [addForm]);
 
@@ -388,28 +411,66 @@ export default function DefectsRecommendationsSection() {
 
   async function createCatalogItem() {
     try {
-      const res = await api.post("/defects", {
-        description: (addForm.description || "").trim(),
-        standard: (addForm.standard || "").trim(),
-        article: (addForm.article || "").trim(),
-      });
+      if (editingCatalogId) {
+        await api.put(`/defects/${editingCatalogId}`, {
+          description: (addForm.description || "").trim(),
+          standard: (addForm.standard || "").trim(),
+          article: (addForm.article || "").trim(),
+          citation: (addForm.citation || "").trim(),
+        });
+      } else {
+        const res = await api.post("/defects", {
+          description: (addForm.description || "").trim(),
+          standard: (addForm.standard || "").trim(),
+          article: (addForm.article || "").trim(),
+          citation: (addForm.citation || "").trim(),
+        });
 
-      const created = res?.data as CatalogDefect | undefined;
-      if (created?.id && submitToGlobal) {
-        try {
-          await api.post(`/defects/${created.id}/submit`, { note: "" });
-        } catch {
-          console.warn("Submit k posouzení selhal.");
+        const created = res?.data as CatalogDefect | undefined;
+        if (created?.id && submitToGlobal) {
+          try {
+            await api.post(`/defects/${created.id}/submit`, { note: "" });
+          } catch {
+            console.warn("Submit k posouzení selhal.");
+          }
         }
       }
 
-      setAddForm({ description: "", standard: "", article: "" });
+      setAddForm({ description: "", standard: "", article: "", citation: "" });
       setSubmitToGlobal(false);
       setShowAddModal(false);
       await loadCatalog();
-    } catch {
-      alert("Chyba při vytváření položky");
+    } catch (e: any) {
+      alert(
+        e?.response?.data?.detail ||
+          e?.message ||
+          (editingCatalogId ? "Chyba při ukládání položky" : "Chyba při vytváření položky")
+      );
     }
+  }
+
+  function openCreateCatalogModal() {
+    setEditingCatalogId(null);
+    setAddForm({ description: "", standard: "", article: "", citation: "" });
+    setSubmitToGlobal(false);
+    setShowAddModal(true);
+  }
+
+  function openEditCatalogModal(item: CatalogDefect) {
+    setEditingCatalogId(item.id ?? null);
+    setAddForm({
+      description: item.description || "",
+      standard: item.standard || "",
+      article: item.article || "",
+      citation: item.citation || "",
+    });
+    setSubmitToGlobal(false);
+    setShowAddModal(true);
+  }
+
+  function canEditCatalogItem(item: CatalogDefect) {
+    if (profile?.isAdmin) return true;
+    return item.visibility === "user";
   }
 
   // ——— Filtrování + Řazení v PICKERU ———
@@ -417,7 +478,7 @@ export default function DefectsRecommendationsSection() {
     const q = pickerQuery.trim().toLowerCase();
     let arr = q
       ? catalog.filter((d) => {
-          const hay = `${d.description} ${d.standard} ${d.article}`.toLowerCase();
+          const hay = `${d.description} ${d.standard} ${d.article} ${d.citation || ""}`.toLowerCase();
           return hay.includes(q);
         })
       : [...catalog];
@@ -826,7 +887,7 @@ export default function DefectsRecommendationsSection() {
       {/* ——— PICKER: Výběr ze seznamu závad ——— */}
       {showPicker && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="compact-card w-full max-w-5xl space-y-4">
+          <div className="compact-card max-h-[90vh] w-[min(96vw,1700px)] space-y-4 overflow-auto">
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-base font-semibold">
                 {pickerTargetUid ? "Vyberte náhradu ze závadovníku" : "Vyberte závadu"}
@@ -851,7 +912,7 @@ export default function DefectsRecommendationsSection() {
             <div className="flex flex-wrap items-center gap-2">
               <input
                 className="flex-1 min-w-[240px] rounded border px-3 py-1.5 text-sm"
-                placeholder="Hledat v popisu / normě / článku…"
+                placeholder="Hledat v popisu / normě / článku / citaci…"
                 value={pickerQuery}
                 onChange={(e) => setPickerQuery(e.target.value)}
               />
@@ -876,27 +937,38 @@ export default function DefectsRecommendationsSection() {
               </div>
               <button
                 className="ml-auto rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
-                onClick={() => setShowAddModal(true)}
+                onClick={openCreateCatalogModal}
               >
                 ➕ Nová položka
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-auto rounded border">
-              <table className="compact-table w-full">
+            <div className="text-sm text-slate-500">
+              Klik na řádek závady otevře detailní okno. Tlačítko <span className="font-medium text-green-700">✔️</span> ji vloží rovnou do revize.
+            </div>
+
+            <div className="max-h-[72vh] overflow-auto rounded border">
+              <table className="compact-table w-full text-[15px] leading-6">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="px-2 py-1 text-left">Závada</th>
-                    <th className="px-2 py-1 text-left">Norma</th>
-                    <th className="px-2 py-1 text-left">Článek</th>
-                    <th className="px-2 py-1 text-right">Použití</th>
-                    <th className="px-2 py-1 text-center">Akce</th>
+                    <th className="px-3 py-2 text-left">Závada</th>
+                    <th className="px-3 py-2 text-left">Norma</th>
+                    <th className="px-3 py-2 text-left">Článek</th>
+                    <th className="px-3 py-2 text-left">Citace normy</th>
+                    <th className="px-3 py-2 text-right">Použití</th>
+                    <th className="px-3 py-2 text-center">Akce</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCatalog.map((d) => (
-                    <tr key={d.id ?? `${d.description}-${d.standard}-${d.article}`} className="border-t">
-                      <td className="px-2 py-1">
+                    <tr
+                      key={d.id ?? `${d.description}-${d.standard}-${d.article}`}
+                      className={`border-t ${canEditCatalogItem(d) ? "cursor-pointer transition hover:bg-slate-50" : ""}`}
+                      onClick={() => {
+                        if (canEditCatalogItem(d)) openEditCatalogModal(d);
+                      }}
+                    >
+                      <td className="px-3 py-2 align-top">
                         {d.description}{" "}
                         {d.visibility === "global" ? (
                           <span className="ml-1 text-[10px] bg-blue-100 text-blue-800 px-1 rounded align-middle">🌐</span>
@@ -905,17 +977,45 @@ export default function DefectsRecommendationsSection() {
                           <span className="ml-1 text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded align-middle">⏳</span>
                         ) : null}
                       </td>
-                      <td className="px-2 py-1">{d.standard || "—"}</td>
-                      <td className="px-2 py-1">{d.article || "—"}</td>
-                      <td className="px-2 py-1 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
-                      <td className="px-2 py-1 text-center">
-                        <button className="px-2 text-green-600" onClick={() => addDefectToList(d)}>✔️</button>
+                      <td className="px-3 py-2 align-top">{d.standard || "—"}</td>
+                      <td className="px-3 py-2 align-top">{d.article || "—"}</td>
+                      <td className="min-w-[420px] max-w-[560px] px-3 py-2 align-top text-base leading-7 text-slate-700">
+                        {d.citation?.trim() ? (
+                          <div className="line-clamp-5 whitespace-pre-line">{d.citation.trim()}</div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right align-top font-mono tabular-nums">{d.usage_count ?? 0}</td>
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-center">
+                        <button
+                          className="px-2 text-green-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void addDefectToList(d);
+                          }}
+                          title="Vybrat"
+                        >
+                          ✔️
+                        </button>
+                        {canEditCatalogItem(d) ? (
+                          <button
+                            className="px-2 text-blue-600"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditCatalogModal(d);
+                            }}
+                            title="Upravit položku"
+                          >
+                            ✏️
+                          </button>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
                   {filteredCatalog.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-3 py-2 text-gray-600">
+                      <td colSpan={6} className="px-3 py-3 text-gray-600">
                         Nic nenalezeno. Přidej novou položku →
                       </td>
                     </tr>
@@ -942,7 +1042,7 @@ export default function DefectsRecommendationsSection() {
       {/* ——— EDITOR KATALOGU ——— */}
       {showEditor && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="compact-card w-full max-w-6xl max-h-[85vh] overflow-auto space-y-4">
+          <div className="compact-card max-h-[92vh] w-[min(97vw,1850px)] overflow-auto space-y-4">
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-base font-semibold">Editor katalogu závad</h3>
               <button className="text-sm text-gray-600 transition hover:text-gray-900" onClick={() => setShowEditor(false)}>
@@ -976,30 +1076,31 @@ export default function DefectsRecommendationsSection() {
 
                 <button
                   className="ml-2 rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
-                  onClick={() => setShowAddModal(true)}
+                  onClick={openCreateCatalogModal}
                 >
                   ➕ Nová položka
                 </button>
               </div>
             </div>
 
-            <div className="max-h-[60vh] overflow-auto rounded border">
-              <table className="compact-table w-full">
+            <div className="max-h-[76vh] overflow-auto rounded border">
+              <table className="compact-table w-full text-[15px] leading-6">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
-                    <th className="px-2 py-1 text-left">Závada</th>
-                    <th className="px-2 py-1 text-left">Norma</th>
-                    <th className="px-2 py-1 text-left">Článek</th>
-                    <th className="px-2 py-1 text-right">Použití</th>
-                    <th className="px-2 py-1 text-center whitespace-nowrap">Akce</th>
+                    <th className="px-3 py-2 text-left">Závada</th>
+                    <th className="px-3 py-2 text-left">Norma</th>
+                    <th className="px-3 py-2 text-left">Článek</th>
+                    <th className="px-3 py-2 text-left">Citace normy</th>
+                    <th className="px-3 py-2 text-right">Použití</th>
+                    <th className="px-3 py-2 text-center whitespace-nowrap">Akce</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedEditorCatalog.map((d, idx) => (
                     <tr key={d.id ?? `edit-${idx}`} className="border-t">
-                      <td className="px-2 py-1">
+                      <td className="px-3 py-2 align-top">
                         <input
-                          className="w-full rounded border px-3 py-1 text-sm"
+                          className="w-full rounded border px-3 py-2 text-[15px]"
                           value={d.description}
                           onChange={(e) => onChangeCatalog(idx, "description", e.target.value)}
                         />
@@ -1009,22 +1110,29 @@ export default function DefectsRecommendationsSection() {
                           {d.moderation_status === "rejected" ? `• zamítnuto (${d.reject_reason || "bez důvodu"})` : ""}
                         </div>
                       </td>
-                      <td className="px-2 py-1">
+                      <td className="px-3 py-2 align-top">
                         <input
-                          className="w-full rounded border px-3 py-1 text-sm"
+                          className="w-full rounded border px-3 py-2 text-[15px]"
                           value={d.standard}
                           onChange={(e) => onChangeCatalog(idx, "standard", e.target.value)}
                         />
                       </td>
-                      <td className="px-2 py-1">
+                      <td className="px-3 py-2 align-top">
                         <input
-                          className="w-full rounded border px-3 py-1 text-sm"
+                          className="w-full rounded border px-3 py-2 text-[15px]"
                           value={d.article}
                           onChange={(e) => onChangeCatalog(idx, "article", e.target.value)}
                         />
                       </td>
-                      <td className="px-2 py-1 text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
-                      <td className="px-2 py-1 text-center whitespace-nowrap">
+                      <td className="px-3 py-2 align-top">
+                        <textarea
+                          className="min-h-[132px] w-full rounded border px-3 py-2 text-base leading-7"
+                          value={d.citation || ""}
+                          onChange={(e) => onChangeCatalog(idx, "citation", e.target.value)}
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top text-right font-mono tabular-nums">{d.usage_count ?? 0}</td>
+                      <td className="px-3 py-2 align-top text-center whitespace-nowrap">
                         <button className="px-2 text-green-600" onClick={() => saveCatalogItem(idx)} title="Uložit úpravy">💾</button>
                         {d.visibility === "user" && d.moderation_status !== "pending" && d.id && (
                           <button
@@ -1048,7 +1156,7 @@ export default function DefectsRecommendationsSection() {
                   ))}
                   {sortedEditorCatalog.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-3 py-2 text-center text-gray-600">Katalog je prázdný.</td>
+                      <td colSpan={6} className="px-3 py-3 text-center text-gray-600">Katalog je prázdný.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1067,12 +1175,12 @@ export default function DefectsRecommendationsSection() {
       {/* ——— MODAL: NOVÁ POLOŽKA ——— */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 z-50 grid place-items-center" onKeyDown={onKeyDownAddModal}>
-          <div className="compact-card w-full max-w-4xl space-y-4" onClick={(e) => e.stopPropagation()}>
+          <div className="compact-card max-h-[94vh] w-[min(98vw,1750px)] overflow-auto space-y-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold">Nová závada</h3>
+                <h3 className="text-lg font-semibold">{editingCatalogId ? "Upravit položku závadovníku" : "Nová závada"}</h3>
                 <div className="text-sm text-gray-500">
-                  Vyplň popis, případně normu a článek. Uložit: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>
+                  Vyplň popis, normu, článek a případně citaci normy. Uložit: <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd>
                 </div>
               </div>
               <button className="text-gray-600 transition hover:text-gray-900" onClick={() => setShowAddModal(false)}>
@@ -1080,12 +1188,12 @@ export default function DefectsRecommendationsSection() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(520px,0.8fr)]">
+              <div>
                 <label className="font-semibold text-sm">Popis závady</label>
                 <textarea
-                  rows={6}
-                  className="w-full rounded border px-3 py-1.5"
+                  rows={8}
+                  className="w-full rounded border px-3 py-2 text-[15px]"
                   placeholder="Např. Ochranné pospojování - HOP…"
                   value={addForm.description}
                   onChange={(e) => setAddForm((s) => ({ ...s, description: e.target.value }))}
@@ -1099,7 +1207,7 @@ export default function DefectsRecommendationsSection() {
                 <div>
                   <label className="font-semibold text-sm">Norma</label>
                   <input
-                    className="w-full rounded border px-3 py-1.5"
+                    className="w-full rounded border px-3 py-2 text-[15px]"
                     placeholder="ČSN …"
                     value={addForm.standard}
                     onChange={(e) => setAddForm((s) => ({ ...s, standard: e.target.value }))}
@@ -1121,7 +1229,7 @@ export default function DefectsRecommendationsSection() {
                 <div>
                   <label className="font-semibold text-sm">Článek</label>
                   <input
-                    className="w-full rounded border px-3 py-1.5"
+                    className="w-full rounded border px-3 py-2 text-[15px]"
                     placeholder="např. 542.4"
                     value={addForm.article}
                     onChange={(e) => setAddForm((s) => ({ ...s, article: e.target.value }))}
@@ -1129,16 +1237,29 @@ export default function DefectsRecommendationsSection() {
                 </div>
 
                 <div className="pt-2">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={submitToGlobal}
-                      onChange={(e) => setSubmitToGlobal(e.target.checked)}
-                    />
-                    Navrhnout ke schválení do společného závadovníku
-                  </label>
+                  {!editingCatalogId ? (
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={submitToGlobal}
+                        onChange={(e) => setSubmitToGlobal(e.target.checked)}
+                      />
+                      Navrhnout ke schválení do společného závadovníku
+                    </label>
+                  ) : null}
                 </div>
               </div>
+            </div>
+
+            <div>
+              <label className="font-semibold text-sm">Citace normy</label>
+              <textarea
+                className="w-full rounded border px-3 py-2 text-base leading-7"
+                rows={8}
+                placeholder="Např. Vodič svodu se na přístupném místě spojuje s vývodem uzemnění..."
+                value={addForm.citation}
+                onChange={(e) => setAddForm((s) => ({ ...s, citation: e.target.value }))}
+              />
             </div>
 
             <div>
@@ -1160,7 +1281,7 @@ export default function DefectsRecommendationsSection() {
                 disabled={!addFormValid}
                 title={!addFormValid ? "Vyplň alespoň popis" : "Uložit (Ctrl/⌘ + Enter)"}
               >
-                Uložit
+                {editingCatalogId ? "Uložit změny" : "Uložit"}
               </button>
             </div>
           </div>

@@ -40,7 +40,7 @@ def ensure_owner_or_admin(user: UserModel, defect: DefectModel):
 # --------- List ---------
 @router.get("", response_model=list[DefectRead])
 def list_defects(
-    q: str | None = Query(None, description="Fulltext v popisu/normě/článku"),
+    q: str | None = Query(None, description="Fulltext v popisu, normě, článku nebo citaci"),
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
@@ -63,6 +63,7 @@ def list_defects(
                 DefectModel.description.ilike(q_like),
                 DefectModel.standard.ilike(q_like),
                 DefectModel.article.ilike(q_like),
+                DefectModel.citation.ilike(q_like),
             )
         )
 
@@ -83,6 +84,7 @@ def create_defect(
         description=payload.description.strip(),
         standard=(payload.standard or "").strip() or None,
         article=(payload.article or "").strip() or None,
+        citation=(payload.citation or "").strip() or None,
         visibility=DefectVisibility.user,
         moderation_status=ModerationStatus.none,
         owner_id=user.id,
@@ -116,6 +118,8 @@ def update_defect(
         d.standard = payload.standard.strip() or None
     if payload.article is not None:
         d.article = payload.article.strip() or None
+    if payload.citation is not None:
+        d.citation = payload.citation.strip() or None
 
     d.updated_at = datetime.utcnow()
     db.add(d)

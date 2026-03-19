@@ -343,6 +343,7 @@ class DefectBase(BaseModel):
     description: str
     standard: Optional[str] = None
     article: Optional[str] = None
+    citation: Optional[str] = None
 
 
 class DefectCreate(DefectBase):
@@ -354,6 +355,7 @@ class DefectUpdate(BaseModel):
     description: Optional[str] = None
     standard: Optional[str] = None
     article: Optional[str] = None
+    citation: Optional[str] = None
 
 
 class DefectRead(DefectBase):

@@ -8,6 +8,10 @@ export function defectNormSuffix(defect: any): string {
   return "";
 }
 
+export function defectCitation(defect: any): string {
+  return String(defect?.citation || "").trim();
+}
+
 export function defectFullText(defect: any): string {
   const description = String(defect?.description || "").trim();
   const suffix = defectNormSuffix(defect);

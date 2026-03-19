@@ -7,6 +7,7 @@ type Defect = {
   description: string;
   standard?: string | null;
   article?: string | null;
+  citation?: string | null;
   visibility: string;
   moderation_status: string;
   owner_id?: number | null;
@@ -73,7 +74,7 @@ export default function DefectProposalsPage() {
             className="border rounded px-2 py-1"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Hledat popis/norma/článek"
+            placeholder="Hledat popis/norma/článek/citaci"
           />
           <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={load}>
             Hledat
@@ -96,6 +97,7 @@ export default function DefectProposalsPage() {
                     {d.standard || ""} {d.article ? `• čl. ${d.article}` : ""} • {d.visibility} • {d.moderation_status}
                     {d.reject_reason ? ` • důvod: ${d.reject_reason}` : ""}
                   </div>
+                  {d.citation ? <div className="mt-1 text-xs text-gray-600">{d.citation}</div> : null}
                 </div>
                 {d.moderation_status === "pending" && (
                   <div className="flex gap-2">

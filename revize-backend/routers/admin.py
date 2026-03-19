@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from sqlalchemy.orm import Session, joinedload, defer
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
@@ -66,11 +66,22 @@ def list_all_defects(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
     status_filter: Optional[str] = Query(None, alias="status"),
+    q: Optional[str] = Query(None),
 ):
     _ensure_admin(user)
     query = db.query(Defect)
     if status_filter:
         query = query.filter(Defect.moderation_status == status_filter)
+    if q:
+        q_like = f"%{q.strip().lower()}%"
+        query = query.filter(
+            or_(
+                Defect.description.ilike(q_like),
+                Defect.standard.ilike(q_like),
+                Defect.article.ilike(q_like),
+                Defect.citation.ilike(q_like),
+            )
+        )
     return query.order_by(Defect.id.desc()).all()
 
 

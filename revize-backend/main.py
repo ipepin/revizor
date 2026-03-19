@@ -74,6 +74,10 @@ app.include_router(admin_router)
 @app.on_event("startup")
 def _ensure_runtime_tables():
     Base.metadata.create_all(bind=engine, tables=[RevisionPhoto.__table__])
+    with engine.begin() as conn:
+        defect_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('defects')").fetchall()}
+        if defect_cols and "citation" not in defect_cols:
+            conn.exec_driver_sql("ALTER TABLE defects ADD COLUMN citation TEXT")
 
 from fastapi import HTTPException, status
 from typing import Optional

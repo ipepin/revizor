@@ -7,6 +7,7 @@ type Defect = {
   description: string;
   standard?: string | null;
   article?: string | null;
+  citation?: string | null;
   visibility: string; // "global" | "user"
   moderation_status: string; // none|pending|rejected
 };
@@ -43,6 +44,7 @@ export default function DefectsEditorPage() {
         description: (d.description || "").trim(),
         standard: (d.standard || "").trim() || null,
         article: (d.article || "").trim() || null,
+        citation: (d.citation || "").trim() || null,
       });
       await load();
     } finally {
@@ -71,7 +73,7 @@ export default function DefectsEditorPage() {
             className="border rounded px-2 py-1"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Hledat popis/norma/článek"
+            placeholder="Hledat popis/norma/článek/citaci"
           />
           <button className="px-3 py-1 bg-blue-600 text-white rounded" onClick={load}>
             Hledat
@@ -85,11 +87,13 @@ export default function DefectsEditorPage() {
         {loading ? (
           <div className="text-gray-500">Načítám…</div>
         ) : (
-          <div className="bg-white rounded shadow divide-y">
+          <div className="overflow-x-auto rounded bg-white shadow">
+            <div className="min-w-[1280px] divide-y">
             {filtered.map((d, idx) => (
               <EditorRow key={d.id} defect={d} onSave={save} onDelete={remove} busy={busyId === d.id} />
             ))}
             {filtered.length === 0 && <div className="p-4 text-gray-500">Žádné položky</div>}
+            </div>
           </div>
         )}
       </main>
@@ -107,15 +111,15 @@ function EditorRow({ defect, onSave, onDelete, busy }: {
   useEffect(() => setD(defect), [defect]);
 
   return (
-    <div className="p-3 grid grid-cols-12 gap-2 items-center">
-      <div className="col-span-5">
+    <div className="grid grid-cols-[minmax(420px,2.6fr)_minmax(140px,1fr)_minmax(140px,1fr)_minmax(420px,2.4fr)_90px_180px] gap-3 p-3 items-start">
+      <div>
         <input
           className="w-full border rounded px-2 py-1"
           value={d.description}
           onChange={(e) => setD({ ...d, description: e.target.value })}
         />
       </div>
-      <div className="col-span-2">
+      <div>
         <input
           className="w-full border rounded px-2 py-1"
           value={d.standard || ""}
@@ -123,7 +127,7 @@ function EditorRow({ defect, onSave, onDelete, busy }: {
           placeholder="Norma"
         />
       </div>
-      <div className="col-span-2">
+      <div>
         <input
           className="w-full border rounded px-2 py-1"
           value={d.article || ""}
@@ -131,8 +135,17 @@ function EditorRow({ defect, onSave, onDelete, busy }: {
           placeholder="Článek"
         />
       </div>
-      <div className="col-span-1 text-xs text-gray-600">{d.visibility}</div>
-      <div className="col-span-2 flex gap-2 justify-end">
+      <div>
+        <textarea
+          className="w-full border rounded px-2 py-1"
+          rows={4}
+          value={d.citation || ""}
+          onChange={(e) => setD({ ...d, citation: e.target.value })}
+          placeholder="Citace normy"
+        />
+      </div>
+      <div className="pt-2 text-xs text-gray-600">{d.visibility}</div>
+      <div className="flex gap-2 justify-end pt-1">
         <button
           className="px-3 py-1 bg-green-600 text-white rounded disabled:opacity-60"
           onClick={() => onSave(d)}
@@ -151,4 +164,3 @@ function EditorRow({ defect, onSave, onDelete, busy }: {
     </div>
   );
 }
-
