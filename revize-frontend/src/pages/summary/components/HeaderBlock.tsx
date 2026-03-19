@@ -28,7 +28,7 @@ export function HeaderBlock({
         <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
           {"Eviden\u010dn\u00ed \u010d\u00edslo"}
         </div>
-        <div className="text-2xl font-bold text-slate-900">
+        <div className="text-xl font-bold text-slate-900">
           {dash(evidencni || revId)}
         </div>
         {!!shownUuid && (
@@ -38,10 +38,10 @@ export function HeaderBlock({
         )}
       </div>
       <div className="mt-2 w-full text-center">
-        <h1 className="text-2xl font-bold tracking-wide">
+        <h1 className="text-xl font-bold tracking-wide">
           {"Revizn\u00ed zpr\u00e1va o elektrick\u00e9 instalaci"}
         </h1>
-        <div className="mt-1 text-base font-semibold">{dash(typRevize)}</div>
+        <div className="mt-1 text-sm font-semibold">{dash(typRevize)}</div>
         <div className="mt-1 text-xs text-slate-500">
           {normsAll.length ? (
             <>V souladu s {normsAll.join(", ")}</>

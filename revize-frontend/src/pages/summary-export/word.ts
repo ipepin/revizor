@@ -33,7 +33,7 @@ import {
   makeFooter,
 } from "../summary-utils/docx";
 
-import { normalizeComponents, depthPrefix, pick, num, buildComponentTitle } from "../summary-utils/board";
+import { normalizeComponents, buildBoardComponentSummary } from "../summary-utils/board";
 import { dash, htmlToBulletText } from "../summary-utils/text";
 import { defectFullText, defectNormSuffix } from "../summary-utils/defects";
 import { buildRoomDeviceSummary, hasRoomNote, roomNoteText } from "../summary-utils/rooms";
@@ -236,11 +236,7 @@ export async function generateSummaryDocx({
   const instrumentsRows = (usedInstruments?.length
     ? usedInstruments.map((i) => [i.name, i.serial, i.calibration, i.measurement_text || "â€”"])
     : [["â€”", "â€”", "â€”", "â€”"]]) as (string | number)[][];
-  const instruments = tableBordered(
-    ["PĹ™Ă­stroj", "VĂ˝robnĂ­ ÄŤĂ­slo", "KalibraÄŤnĂ­ list", "MÄ›Ĺ™enĂ­"],
-    instrumentsRows,
-    [40, 20, 20, 20]
-  );
+  const instruments = tableBordered(["Přístroj", "Výrobní číslo", "Kalibrační list", "Měření"], instrumentsRows, [40, 20, 20, 20]);
 
   // ---------- VĂ˝sledek (rĂˇmeÄŤek + vÄ›tĹˇĂ­ text, vystĹ™edÄ›nĂ˝) ----------
   const safetyLabel = (() => {
@@ -366,64 +362,12 @@ export async function generateSummaryDocx({
 
       const flat = normalizeComponents(b?.komponenty || []);
       const rows = (flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any) => {
-        const prefix = depthPrefix(c._level);
-        const name = dash(buildComponentTitle(c)) || "?";
-        const desc = dash(c?.popis || c?.description || "");
-
-        const typ = pick(c, ["typ", "type", "druh"]);
-        const poles = pick(c, ["poles", "poly", "pocet_polu", "pocetPolu"]);
-        const dim = pick(c, ["dimenze", "dim", "prurez"]);
-        const riso = pick(c, ["riso", "Riso", "izolace", "insulation"]);
-        const zs = pick(c, ["ochrana", "zs", "Zs", "loop_impedance"]);
-        const tMs = pick(c, ["vybavovaciCasMs", "vybavovaci_cas_ms", "rcd_time", "trip_time", "vybavovaciCas", "cas_vybaveni"]);
-        const iDelta = pick(c, ["vybavovaciProudmA", "vybavovaci_proud_ma", "rcd_trip_current", "trip_current", "i_fi", "ifi"]);
-        const pozn = pick(c, ["poznamka", "pozn", "note"]);
-
-        const parts: string[] = [];
-        if (desc && desc !== "—") parts.push(desc);
-        if (typ) parts.push(`typ: ${typ}`);
-        if (poles) parts.push(`póly: ${poles}`);
-        if (dim) parts.push(`dim.: ${dim}`);
-        if (riso) parts.push(`Riso: ${num(riso)} MΩ`);
-        if (zs) parts.push(`Zs: ${num(zs)} Ω`);
-        if (tMs) parts.push(`t: ${num(tMs)} ms`);
-        if (iDelta) parts.push(`IΔ: ${num(iDelta)} mA`);
-        if (pozn) parts.push(`Název obvodu: ${pozn}`);
-
-        const title = new Paragraph({
-          children: [tr(`${prefix}${name}`, { bold: true, size: XS })],
-          spacing: { after: 20 },
-        });
-        const subtitle = new Paragraph({
-          children: [tr(parts.filter(Boolean).join("   •   "), { size: XS, color: COL_MUTE })],
-        });
-        return [title, subtitle];
+        const item = buildBoardComponentSummary(c);
+        const prvek = `${"  ".repeat(Math.max(0, Number(c?._level || 0)))}${[item.prvek, item.prvekSubtext].filter(Boolean).join("\n")}`;
+        return [prvek, item.parametry, item.mereni, item.poznamka];
       });
 
-      boardsBlocks.push(
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          borders: {
-            top: { style: BorderStyle.SINGLE, size: 1, color: "e2e8f0" },
-            bottom: { style: BorderStyle.SINGLE, size: 1, color: "e2e8f0" },
-            left: { style: BorderStyle.SINGLE, size: 1, color: "e2e8f0" },
-            right: { style: BorderStyle.SINGLE, size: 1, color: "e2e8f0" },
-            insideH: { style: BorderStyle.SINGLE, size: 1, color: "e5e7eb" },
-            insideV: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          },
-          rows: rows.map(
-            (pair) =>
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: pair,
-                    margins: { top: 40, bottom: 40, left: 70, right: 70 },
-                  }),
-                ],
-              })
-          ),
-        })
-      );
+      boardsBlocks.push(tableBordered(["Prvek", "Parametry", "Měření", "Pozn."], rows, [38, 22, 24, 16]));
       boardsBlocks.push(P("", { after: 60 }));
       boardsBlocks.push(P("", { after: 60 }));
 

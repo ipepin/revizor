@@ -12,10 +12,19 @@ function normalizeStatus(s?: string): string {
   const raw = (s || "").trim();
   if (!raw) return "";
   const lower = raw.toLowerCase();
+  const normalized = lower
+    .replaceAll("Ăˇ", "á")
+    .replaceAll("ÄŤ", "č")
+    .replaceAll("Ä›", "ě")
+    .replaceAll("Ĺ™", "ř")
+    .replaceAll("Ĺˇ", "š")
+    .replaceAll("Ă©", "é")
+    .replaceAll("Ă­", "í")
+    .replaceAll("Ă˝", "ý");
   const done = ["dokončeno", "dokončené", "dokončená", "dokoncená"];
   const inProgress = ["rozpracovaná", "rozpracovana", "rozpracovaný", "rozpracovane"];
-  if (done.includes(lower)) return "Dokončeno";
-  if (inProgress.includes(lower)) return "Rozpracovaná";
+  if (done.includes(normalized)) return "Dokončeno";
+  if (inProgress.includes(normalized)) return "Rozpracovaná";
   return raw;
 }
 
@@ -367,7 +376,8 @@ export default function Dashboard() {
 
   // otevření revize
   const openRevision = (projectId: number, rev: any) => {
-    if (normalizeStatus(rev.status) === "Dokončená") {
+    const isDone = normalizeStatus(rev.status).toLowerCase().startsWith("dokon");
+    if (isDone) {
       setUnlockFor({ projectId, revId: rev.id });
       setUnlockPwd("");
       setUnlockErr(null);
@@ -568,42 +578,61 @@ export default function Dashboard() {
                                   <td className={`p-2 ${isDone ? (expired ? "text-red-700" : "text-green-700") : "text-blue-600"}`}>
 {normStatus}
                                   </td>
-                                  <td className="p-2 space-x-2">
-                                    <button
-                                      className="text-blue-600 hover:underline"
-                                      onClick={() => openRevision(proj.id, rev)}
-                                      title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
-                                    >
-                                      Otevřít
-                                    </button>
-                                    <button
-                                      className="text-red-600 hover:underline"
-                                      onClick={() => setDeleteDialog({ open: true, kind: 'revision', id: rev.id, projectId: proj.id, password: '', busy: false, err: null }) }
-                                    >
-                                      Smazat
-                                    </button>
-                                    <button
-                                      className="text-amber-700 hover:underline"
-                                      onClick={() => {
-                                        const target = (projects || []).find((p: any) => p.id !== proj.id)?.id ?? null;
-                                        setCopyDialog({
-                                          open: true,
-                                          sourceRevId: rev.id,
-                                          sourceProjectId: proj.id,
-                                          targetProjectId: target,
-                                          busy: false,
-                                          err: null,
-                                        });
-                                      }}
-                                    >
-                                      Kopírovat
-                                    </button>
-                                    <button
-                                      onClick={() => navigate(`/summary/${rev.id}`)}
-                                      className="text-green-600 hover:underline"
-                                    >
-                                      Souhrn
-                                    </button>
+                                  <td className="p-2">
+                                    <div className="flex items-center gap-3">
+                                      <button
+                                        className="text-blue-600 hover:underline"
+                                        onClick={() => openRevision(proj.id, rev)}
+                                        title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
+                                      >
+                                        Otevřít
+                                      </button>
+                                      <button
+                                        onClick={() => navigate(`/summary/${rev.id}`)}
+                                        className="text-green-600 hover:underline"
+                                      >
+                                        Export
+                                      </button>
+                                      <details className="relative">
+                                        <summary className="list-none cursor-pointer rounded border border-slate-300 px-2 py-1 text-slate-600 hover:bg-slate-50">
+                                          ⋯
+                                        </summary>
+                                        <div className="absolute right-0 z-10 mt-1 min-w-[150px] rounded border border-slate-200 bg-white py-1 shadow-lg">
+                                          <button
+                                            className="block w-full px-3 py-2 text-left text-sm text-amber-700 hover:bg-amber-50"
+                                            onClick={() => {
+                                              const target = (projects || []).find((p: any) => p.id !== proj.id)?.id ?? null;
+                                              setCopyDialog({
+                                                open: true,
+                                                sourceRevId: rev.id,
+                                                sourceProjectId: proj.id,
+                                                targetProjectId: target,
+                                                busy: false,
+                                                err: null,
+                                              });
+                                            }}
+                                          >
+                                            Kopírovat
+                                          </button>
+                                          <button
+                                            className="block w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                                            onClick={() =>
+                                              setDeleteDialog({
+                                                open: true,
+                                                kind: 'revision',
+                                                id: rev.id,
+                                                projectId: proj.id,
+                                                password: '',
+                                                busy: false,
+                                                err: null,
+                                              })
+                                            }
+                                          >
+                                            Smazat
+                                          </button>
+                                        </div>
+                                      </details>
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -902,14 +931,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Guide: Summary + Word export */}
+      {/* Guide: Export WORD */}
       {showSummaryGuide && (
         <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center" onClick={() => setShowSummaryGuide(false)}>
           <div className="bg-white p-6 rounded shadow w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800">Další krok: souhrn a Word</h3>
-                <p className="text-sm text-slate-600">Teď tě navedu na souhrn a export do Wordu.</p>
+                <h3 className="text-lg font-semibold text-slate-800">Další krok: export WORD</h3>
+                <p className="text-sm text-slate-600">Teď tě navedu na export revize do Wordu.</p>
               </div>
               <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={() => setShowSummaryGuide(false)} title="Zavřít">
                 ✕
@@ -917,8 +946,8 @@ export default function Dashboard() {
             </div>
             <ol className="list-decimal ml-5 space-y-1 text-sm text-slate-700">
               <li>Na dashboardu rozbal projekt s dokončenou revizí.</li>
-              <li>U revize klikni na tlačítko Souhrn.</li>
-              <li>V souhrnu klikni na „Export do Wordu“.</li>
+              <li>U revize klikni na tlačítko Export.</li>
+              <li>Na další stránce klikni na „Export WORD“.</li>
             </ol>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => setShowSummaryGuide(false)}>
@@ -929,7 +958,7 @@ export default function Dashboard() {
                   className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
                   onClick={() => navigate(`/summary/${summaryRevId}?guide=word`)}
                 >
-                  Otevřít souhrn
+                  Otevřít export
                 </button>
               )}
             </div>

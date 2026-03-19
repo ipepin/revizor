@@ -14,15 +14,12 @@ import html2canvas from "html2canvas";
 import {
   HeaderBlock,
   TechnicianCard,
-  H1, Th, Td, KV, Rich,
+  H1, Th, Td, KV, Rich, BoardsBlock,
   RoomsBlock,
 } from "./summary/components";
 
 import { dash, listOrDash } from "./summary-utils/text";
 import { defectNormSuffix } from "./summary-utils/defects";
-
-// utilitky pro rozvaděče (nutné pro vykreslení komponent)
-import { normalizeComponents, depthPrefix, buildComponentLine } from "./summary-utils/board";
 
 /* =============================== */
 /* ======== Summary Page ========= */
@@ -432,22 +429,22 @@ export default function SummaryPage() {
           <div className="bg-white p-6 rounded shadow w-full max-w-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800">Export do Wordu</h3>
-                <p className="text-sm text-slate-600">Klikni na export a stáhni revizi do Wordu.</p>
+                <h3 className="text-lg font-semibold text-slate-800">Export WORD</h3>
+                <p className="text-sm text-slate-600">Klikni na export a stáhni revizi do Wordu podle připravené šablony.</p>
               </div>
               <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={() => setShowWordGuide(false)} title="Zavřít">
                 ✕
               </button>
             </div>
             <div className="text-sm text-slate-700">
-              V levém panelu klikni na „Export do Wordu“. Pokud chceš, můžeš použít tlačítko níže.
+              V levém panelu klikni na „Export WORD“. Pokud chceš, můžeš použít tlačítko níže.
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50" onClick={() => setShowWordGuide(false)}>
                 Zavřít
               </button>
-              <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={handleGenerateDocx}>
-                Export do Wordu
+              <button className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700" onClick={handleGenerateTemplateDocx}>
+                Export WORD
               </button>
             </div>
           </div>
@@ -494,8 +491,7 @@ export default function SummaryPage() {
             <Sidebar
               mode="summary"
               actions={[
-                { label: "Export do Wordu", onClick: handleGenerateDocx, variant: "primary" },
-                { label: "Export do šablony", onClick: handleGenerateTemplateDocx, variant: "outline" },
+                { label: "Export WORD", onClick: handleGenerateTemplateDocx, variant: "primary" },
                 { label: "Export JSON", onClick: handleDownloadJson, variant: "outline" },
               ]}
             />
@@ -566,7 +562,7 @@ export default function SummaryPage() {
 
               {/* Revidovaný objekt (stručně) */}
               <section className="mt-3" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Revidovaný objekt</h2>
+                <h2 className="mb-2 text-base font-semibold">Revidovaný objekt</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <KV label="Adresa stavby" value={safeForm.adresa} />
                   <KV label="Předmět revize" value={safeForm.objekt} />
@@ -575,7 +571,7 @@ export default function SummaryPage() {
               </section>
 {/* Přístroje */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Použité měřicí přístroje</h2>
+                <h2 className="mb-2 text-base font-semibold">Použité měřicí přístroje</h2>
                 <table className="w-full text-sm border">
                   <thead>
                     <tr className="text-left">
@@ -614,7 +610,7 @@ export default function SummaryPage() {
 
               {/* Měřicí přístroje (rozšířený výpis) */}
               <section className="mt-4" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Měřicí přístroje (použité)</h2>
+                <h2 className="mb-2 text-base font-semibold">Měřicí přístroje (použité)</h2>
                 <div className="w-[80%] mx-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -656,7 +652,7 @@ export default function SummaryPage() {
 
               {/* Přístroje */}
               <section className="mt-3" style={{ breakInside: "avoid" }}>
-                <h2 className="font-semibold text-lg mb-2">Celkový posudek</h2>
+                <h2 className="mb-2 text-base font-semibold">Celkový posudek</h2>
                 <div className="border-2 border-slate-700 rounded-md p-3 mt-1 mb-4" style={{ breakInside: "avoid" }}>
                   <div className="whitespace-pre-line text-base font-semibold text-center">
                     {safetyLabel}
@@ -781,61 +777,7 @@ export default function SummaryPage() {
               </section>
 
               <H1>4. Měření – rozvaděče</H1>
-              {safeForm.boards?.length ? (
-                <div className="space-y-6">
-                  {safeForm.boards.map((board: any, bIdx: number) => {
-                    const flat = normalizeComponents(board?.komponenty || []);
-                    const boardNotes = String(board?.poznamkyHtml || board?.poznamky || "").trim();
-                    return (
-                      <div key={bIdx} className="mt-6">
-                        <div className="font-semibold">Rozvaděč: {dash(board?.name) || `#${bIdx + 1}`}</div>
-                        <div className="text-sm text-slate-600">
-                          Výrobce: {dash(board?.vyrobce)} | Typ: {dash(board?.typ)} | Umístění: {dash(board?.umisteni)} | S/N:{" "}
-                          {dash(board?.vyrobniCislo)} | Napětí: {dash(board?.napeti)} | Odpor: {dash(board?.odpor)} | IP:{" "}
-                          {dash(board?.ip)}
-                        </div>
-                        {boardNotes ? (
-                          <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Poznámky</div>
-                            <Rich value={boardNotes} />
-                          </div>
-                        ) : null}
-
-                        {/* Ĺádky komponent */}
-                        <div className="mt-2 border border-slate-200 rounded divide-y" data-paginate="board-box">
-                          {(flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any, i: number) => {
-                            const prefix = depthPrefix(c._level);
-                            const name = dash(c?.nazev || c?.name);
-                            const desc = dash(c?.popis || c?.description || "");
-                            const line = buildComponentLine(c); // typ, póly, dim., Riso, Zs, t, IÎ”, pozn.
-
-                            return (
-                              <div
-                                key={i}
-                                className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
-                                style={{ breakInside: "avoid", paddingLeft: 12 + (c._level || 0) * 18 }}
-                              >
-                                <div className="py-2 px-3">
-                                  <div className="font-medium">
-                                    <span className="font-mono text-slate-500 whitespace-pre mr-1">{prefix}</span>
-                                    {name}
-                                  </div>
-                                  <div className="text-xs text-slate-600 mt-0.5">
-                                    {desc !== "Chybí informace" && <span className="mr-2">{desc}</span>}
-                                    {line}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="italic text-slate-400">—</div>
-              )}
+              <BoardsBlock boards={safeForm.boards || []} />
             </section>
 
             {/* ===== A4 #4 – Prostory + Závady + Závěr ===== */}

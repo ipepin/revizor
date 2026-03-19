@@ -293,7 +293,7 @@ def create_revision(
     rev_uuid = generate_revision_uuid()
 
     # status â€“ fallback, pokud DB vyĹľaduje NOT NULL
-    status_val = getattr(payload, "status", None) or "RozpracovanĂˇ"
+    status_val = getattr(payload, "status", None) or "Rozpracovaná"
 
     # data_json â€“ pĹ™ijmi dict/JSON string, fallback na {}
     data_json_val = _ensure_dict(getattr(payload, "data_json", None))
@@ -668,7 +668,7 @@ def mark_completed(
     if rev.project.owner_id != user.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only owner can complete")
 
-    rev.status = "DokonÄŤenĂˇ"
+    rev.status = "Dokončená"
     db.commit()
     db.refresh(rev)
     return _to_schema(rev)
@@ -713,7 +713,7 @@ def unlock_revision(
     # odemkni â€“ pokud mĂˇĹˇ sloupec 'locked', nastav ho na False
     if hasattr(rev, "locked"):
         rev.locked = False
-    rev.status = "RozpracovanĂˇ"
+    rev.status = "Rozpracovaná"
 
     db.commit()
     db.refresh(rev)

@@ -1,8 +1,8 @@
 // src/pages/summary/components/BoardsBlock.tsx
 import React from "react";
-import { normalizeComponents, depthPrefix, buildComponentLine } from "../../summary-utils/board";
+import { normalizeComponents, buildBoardComponentSummary } from "../../summary-utils/board";
 import { dash } from "../../summary-utils/text";
-import { Rich } from "./ui";
+import { Rich, Th, Td } from "./ui";
 
 type Props = {
   boards: any[];
@@ -33,33 +33,33 @@ export default function BoardsBlock({ boards }: Props) {
               </div>
             ) : null}
 
-            <div className="mt-2 divide-y rounded border border-slate-200" data-paginate="board-box">
-              {flat.map((c: any, i: number) => {
-                const prefix = depthPrefix(c._level);
-                const name = dash(c?.nazev || c?.name);
-                const desc = dash(c?.popis || c?.description || "");
-                const line = buildComponentLine(c);
-
-                return (
-                  <div
-                    key={i}
-                    className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
-                    style={{ breakInside: "avoid", paddingLeft: 12 + c._level * 18 }}
-                  >
-                    <div className="px-3 py-2">
-                      <div className="font-medium">
-                        <span className="mr-1 whitespace-pre font-mono text-slate-500">{prefix}</span>
-                        {name}
-                      </div>
-                      <div className="mt-0.5 text-xs text-slate-600">
-                        {desc !== "Chybí informace" && <span className="mr-2">{desc}</span>}
-                        {line}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <table className="mt-2 w-full border text-sm" style={{ breakInside: "avoid" }} data-paginate="board-box">
+              <thead>
+                <tr className="text-left">
+                  <Th>Prvek</Th>
+                  <Th>Parametry</Th>
+                  <Th>Měření</Th>
+                  <Th>Pozn.</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {(flat.length ? flat : [{ _level: 0, nazev: "—" }]).map((c: any, i: number) => {
+                  const item = buildBoardComponentSummary(c);
+                  return (
+                    <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                      <Td>
+                        <div className="whitespace-pre-line leading-6" style={{ paddingLeft: (c._level || 0) * 16 }}>
+                          {[item.prvek, item.prvekSubtext].filter(Boolean).join("\n")}
+                        </div>
+                      </Td>
+                      <Td><div className="whitespace-pre-line leading-6">{item.parametry}</div></Td>
+                      <Td><div className="whitespace-pre-line leading-6">{item.mereni}</div></Td>
+                      <Td><div className="whitespace-pre-line leading-6">{item.poznamka}</div></Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         );
       })}

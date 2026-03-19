@@ -125,7 +125,6 @@ function buildTemplateData(
     mereni: dash(item.measurement_text),
     kalibrace: dash(item.calibration),
     serial: dash(item.serial),
-    platnost_kalibrace: dash(item.calibration_valid_until),
     poznamka: dash(item.note),
   }));
 

@@ -78,6 +78,14 @@ export const num = (x: any) => {
   return Number.isFinite(n) ? String(n) : String(x);
 };
 
+const clean = (value: any) => String(value ?? "").trim();
+
+const joinLines = (...lines: Array<string | undefined>) =>
+  lines
+    .map((line) => String(line || "").trim())
+    .filter(Boolean)
+    .join("\n");
+
 /** Sestaví zobrazený název komponenty: Název + Výborce + Typ */
 export function buildComponentTitle(c: any): string {
   const name = pick(c, ["nazev", "name"]);
@@ -85,6 +93,36 @@ export function buildComponentTitle(c: any): string {
   const manufacturerDisplay = String(manufacturer || "").trim() === "Ostatní" ? "" : manufacturer;
   const typ = pick(c, ["typ", "type", "model"]);
   return [name, manufacturerDisplay, typ].filter((v) => String(v || "").trim()).join(" ");
+}
+
+export function buildBoardComponentSummary(c: any, empty = "—") {
+  const manufacturer = clean(pick(c, ["vyrobce", "manufacturer", "maker", "popis", "description"]));
+  const manufacturerDisplay = manufacturer === "Ostatní" ? "" : manufacturer;
+  const prvek = clean(pick(c, ["nazev", "name"]));
+  const prvekSubtext = [manufacturerDisplay, clean(pick(c, ["typ", "type", "model", "druh"]))]
+    .filter(Boolean)
+    .join(" ");
+  const parametry = joinLines(
+    seg("Póly", pick(c, ["poles", "poly", "pocet_polu", "pocetPolu"])),
+    seg("Dim.", pick(c, ["dimenze", "dim", "prurez"]))
+  );
+  const mereni = joinLines(
+    seg("Riso", pick(c, ["riso", "Riso", "izolace", "insulation"]), "MΩ", num),
+    seg("Zs", pick(c, ["zs", "Zs", "ochrana", "smycka", "loop_impedance"]), "Ω", num),
+    [seg("t", pick(c, ["t","time","trip_time","rcd_time","vybavovaci_cas","vybavovaciCas","cas_vybaveni","cas"]), "ms", num),
+      seg("IΔ", pick(c, ["ifi","i_fi","iDelta","i_delta","i_delta_n","idn","IΔn","IΔ","rcd_trip_current","vybavovaci_proud","vybavovaciProud","trip_current"]), "mA", num)]
+      .filter(Boolean)
+      .join(" | ")
+  );
+  const poznamka = clean(pick(c, ["poznamka", "pozn", "note", "poznámka"]));
+
+  return {
+    prvek: prvek || empty,
+    prvekSubtext: prvekSubtext || "",
+    parametry: parametry || empty,
+    mereni: mereni || empty,
+    poznamka: poznamka || empty,
+  };
 }
 
 

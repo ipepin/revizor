@@ -18,7 +18,7 @@ export function TechnicianCard({
 }) {
   return (
     <section style={{ breakInside: "avoid" }}>
-      <h2 className="font-semibold text-lg mb-2">Revizní technik</h2>
+      <h2 className="mb-2 text-base font-semibold">Revizní technik</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
         <KV label="Jméno" value={tech.jmeno} />
         <KV label="Firma" value={tech.firma} />
