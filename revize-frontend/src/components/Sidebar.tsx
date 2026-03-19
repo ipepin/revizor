@@ -1,5 +1,5 @@
 ﻿﻿// src/components/Sidebar.tsx
-import React, { ChangeEvent, useEffect, useRef, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import { useRevisionForm } from "../context/RevisionFormContext";
@@ -16,6 +16,21 @@ type Props = {
   actions?: { label: string; onClick: () => void; variant?: "primary" | "secondary" | "outline" }[];
 };
 
+function makeUid(prefix: string) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+type DraftPhotoChoice = {
+  id: number;
+  caption?: string | null;
+  original_name?: string | null;
+  defect_uid?: string | null;
+  created_at?: string | null;
+};
+
 export default function Sidebar({ mode, active, onSelect, onNewProject, actions }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,17 +43,19 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showDefectDraftModal, setShowDefectDraftModal] = useState(false);
   const [photoCaption, setPhotoCaption] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [defectDraftText, setDefectDraftText] = useState("");
+  const [draftPhotoChoices, setDraftPhotoChoices] = useState<DraftPhotoChoice[]>([]);
+  const [draftLinkedPhotoIds, setDraftLinkedPhotoIds] = useState<number[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
   // User context (profil technika + firma)
   const { profile, company, loading } = useUser();
 
   // dostupné jen pokud jsme uvnitř RevisionEdit provideru
-  const { finish, revId, notifyDefectPhotosChanged } = (() => {
+  const { finish, revId, notifyDefectPhotosChanged, form, setForm } = (() => {
     try {
       return useRevisionForm();
     } catch {
@@ -47,9 +64,12 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
         finish: () => Promise.resolve(),
         revId: 0,
         notifyDefectPhotosChanged: () => undefined,
+        form: { defectDrafts: [] },
+        setForm: () => undefined,
       } as any;
     }
   })();
+  const pendingDefectDrafts = Array.isArray(form?.defectDrafts) ? form.defectDrafts.length : 0;
 
   const editSections = [
     { key: "identifikace", label: "Identifikace" },
@@ -97,10 +117,30 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
 
   useEffect(() => {
     if (showPhotoModal) return;
-    setPhotoFile(null);
+    setPhotoFiles([]);
     setPhotoCaption("");
     setUploadingPhoto(false);
   }, [showPhotoModal]);
+
+  useEffect(() => {
+    if (showDefectDraftModal) return;
+    setDefectDraftText("");
+    setDraftLinkedPhotoIds([]);
+    setDraftPhotoChoices([]);
+  }, [showDefectDraftModal]);
+
+  const loadDraftPhotoChoices = async () => {
+    if (!revId) return;
+    try {
+      const res = await api.get(`/revisions/${revId}/photos`);
+      const allPhotos = Array.isArray(res.data) ? res.data : [];
+      const unassigned = allPhotos.filter((photo: DraftPhotoChoice) => !photo.defect_uid);
+      setDraftPhotoChoices(unassigned.slice(0, 8));
+    } catch (e) {
+      console.warn("Nepodarilo se nacist nepirazene fotky pro draft zavady:", e);
+      setDraftPhotoChoices([]);
+    }
+  };
 
   const openPhotoSourcePicker = () => {
     if (!revId) {
@@ -110,44 +150,69 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
     setShowPhotoSourceModal(true);
   };
 
-  const openCameraPicker = () => {
-    setShowPhotoSourceModal(false);
-    cameraInputRef.current?.click();
-  };
-
-  const openGalleryPicker = () => {
-    setShowPhotoSourceModal(false);
-    galleryInputRef.current?.click();
+  const openDefectDraftModal = () => {
+    if (!revId) {
+      setToast({ type: "error", message: "Poznamku lze pridat jen v revizi." });
+      return;
+    }
+    void loadDraftPhotoChoices();
+    setShowDefectDraftModal(true);
   };
 
   const onPhotoSelected = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    if (!file) return;
-    setPhotoFile(file);
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setShowPhotoSourceModal(false);
+    setPhotoFiles(files);
     setPhotoCaption("");
     setShowPhotoModal(true);
     event.target.value = "";
   };
 
   const uploadDefectPhoto = async () => {
-    if (!photoFile || !revId) return;
+    if (!photoFiles.length || !revId) return;
     setUploadingPhoto(true);
     try {
-      const body = new FormData();
-      body.append("file", photoFile);
-      body.append("caption", photoCaption.trim());
-      await api.post(`/revisions/${revId}/photos`, body, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      for (const file of photoFiles) {
+        const body = new FormData();
+        body.append("file", file);
+        body.append("caption", photoCaption.trim());
+        await api.post(`/revisions/${revId}/photos`, body, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
       notifyDefectPhotosChanged();
+      await loadDraftPhotoChoices();
       setShowPhotoModal(false);
-      setToast({ type: "success", message: "Fotografie ulozena." });
+      setToast({
+        type: "success",
+        message: photoFiles.length > 1 ? `Ulozeno ${photoFiles.length} fotografii.` : "Fotografie ulozena.",
+      });
     } catch (e) {
       console.warn("Photo upload failed:", e);
       setToast({ type: "error", message: "Nahrani fotografie selhalo." });
     } finally {
       setUploadingPhoto(false);
     }
+  };
+
+  const saveDefectDraft = () => {
+    const text = defectDraftText.trim();
+    if (!text) return;
+    setForm((current: any) => ({
+      ...current,
+      defectDrafts: [
+        ...(Array.isArray(current?.defectDrafts) ? current.defectDrafts : []),
+        {
+          uid: makeUid("defect-draft"),
+          text,
+          createdAt: new Date().toISOString(),
+          linkedPhotoIds: [...draftLinkedPhotoIds],
+        },
+      ],
+    }));
+    setShowDefectDraftModal(false);
+    setToast({ type: "success", message: "Poznamka k zavade ulozena." });
   };
 
   const sendTestEmail = async () => {
@@ -239,28 +304,25 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 ))}
               </nav>
 
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={onPhotoSelected}
-              />
-              <input
-                ref={galleryInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPhotoSelected}
-              />
-
               <button
                 className="mb-3 w-full rounded bg-amber-500 px-4 py-2 text-left text-white transition hover:bg-amber-600"
                 onClick={openPhotoSourcePicker}
                 title="Rychle vyfotit nebo vybrat fotografii a pozdeji ji priradit k zavade"
               >
                 📷 Vyfotit
+              </button>
+
+              <button
+                className="mb-3 w-full rounded bg-slate-700 px-4 py-2 text-left text-white transition hover:bg-slate-800"
+                onClick={openDefectDraftModal}
+                title="Rychle si poznacit zavadu a dodelat ji pozdeji v sekci Závady"
+              >
+                📝 Poznačit závadu
+                {pendingDefectDrafts > 0 ? (
+                  <span className="ml-2 rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium">
+                    {pendingDefectDrafts}
+                  </span>
+                ) : null}
               </button>
 
               {/* Dokončit revizi (s potvrzením) */}
@@ -485,6 +547,11 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
             <p className="text-sm text-gray-600 mb-4">
               Po potvrzení bude revize uzamčena k úpravám. Následně tě přesměruji na přehled projektů.
             </p>
+            {pendingDefectDrafts > 0 ? (
+              <div className="mb-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Máte {pendingDefectDrafts} poznám{pendingDefectDrafts === 1 ? "ku" : pendingDefectDrafts < 5 ? "ky" : "ek"} k dopracování v sekci Závady.
+              </div>
+            ) : null}
             <div className="flex justify-end gap-2">
               <button
                 className="px-4 py-2 bg-gray-200 rounded"
@@ -499,7 +566,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 disabled={finishing}
                 title="Dokončit revizi"
               >
-                {finishing ? "Dokončuji…" : "Dokončit"}
+                {finishing ? "Dokončuji…" : pendingDefectDrafts > 0 ? "Dokončit i tak" : "Dokončit"}
               </button>
             </div>
           </div>
@@ -525,13 +592,26 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
               </button>
             </div>
 
-            {photoFile && (
+            {photoFiles.length > 0 && (
               <div className="mb-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                {photoFile.name}
+                {photoFiles.length === 1 ? (
+                  photoFiles[0].name
+                ) : (
+                  <div className="space-y-1">
+                    <div className="font-medium">{photoFiles.length} souborů vybráno</div>
+                    <div className="max-h-24 overflow-auto text-xs text-slate-600">
+                      {photoFiles.map((file) => (
+                        <div key={`${file.name}-${file.lastModified}`}>{file.name}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            <label className="mb-1 block text-sm font-medium text-slate-700">Krátký popis</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">
+              {photoFiles.length > 1 ? "Společný krátký popis" : "Krátký popis"}
+            </label>
             <textarea
               className="mb-4 w-full rounded border px-3 py-2 text-sm"
               rows={4}
@@ -553,9 +633,9 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 type="button"
                 className="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300"
                 onClick={uploadDefectPhoto}
-                disabled={!photoFile || uploadingPhoto}
+                disabled={!photoFiles.length || uploadingPhoto}
               >
-                {uploadingPhoto ? "Nahrávám…" : "Uložit fotografii"}
+                {uploadingPhoto ? "Nahrávám…" : photoFiles.length > 1 ? "Uložit fotografie" : "Uložit fotografii"}
               </button>
             </div>
           </div>
@@ -579,20 +659,32 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
             </div>
 
             <div className="space-y-2">
-              <button
-                type="button"
-                className="w-full rounded bg-amber-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-amber-600"
-                onClick={openCameraPicker}
+              <label
+                className="block w-full cursor-pointer rounded bg-amber-500 px-3 py-2 text-left text-sm font-medium text-white hover:bg-amber-600"
+                onClick={() => setShowPhotoSourceModal(false)}
               >
                 📷 Vyfotit
-              </button>
-              <button
-                type="button"
-                className="w-full rounded bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-200"
-                onClick={openGalleryPicker}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={onPhotoSelected}
+                />
+              </label>
+              <label
+                className="block w-full cursor-pointer rounded bg-slate-100 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-200"
+                onClick={() => setShowPhotoSourceModal(false)}
               >
                 🖼️ Vybrat z telefonu
-              </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={onPhotoSelected}
+                />
+              </label>
             </div>
 
             <div className="mt-3 flex justify-end">
@@ -602,6 +694,99 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                 onClick={() => setShowPhotoSourceModal(false)}
               >
                 Zrušit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDefectDraftModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowDefectDraftModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-lg bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-base font-semibold text-slate-800">Rychlá poznámka závady</div>
+                <div className="text-sm text-slate-500">
+                  Zapiš si závadu předběžně. V sekci Závady se ti pak připomene k dopracování.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="text-sm text-slate-500 hover:text-slate-800"
+                onClick={() => setShowDefectDraftModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <label className="mb-1 block text-sm font-medium text-slate-700">Poznámka</label>
+            <textarea
+              className="mb-4 w-full rounded border px-3 py-2 text-sm"
+              rows={4}
+              placeholder="Např. chybí kryt svorkovnice v rozvaděči v garáži"
+              value={defectDraftText}
+              onChange={(e) => setDefectDraftText(e.target.value)}
+            />
+
+            {draftPhotoChoices.length > 0 ? (
+              <div className="mb-4">
+                <div className="mb-1 block text-sm font-medium text-slate-700">Navázat na nepřiřazené fotky</div>
+                <div className="max-h-40 space-y-2 overflow-auto rounded border border-slate-200 bg-slate-50 p-2">
+                  {draftPhotoChoices.map((photo) => {
+                    const checked = draftLinkedPhotoIds.includes(photo.id);
+                    return (
+                      <label
+                        key={photo.id}
+                        className="flex cursor-pointer items-start gap-2 rounded bg-white px-2 py-1.5 text-sm text-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={(e) =>
+                            setDraftLinkedPhotoIds((current) =>
+                              e.target.checked
+                                ? [...current, photo.id]
+                                : current.filter((id) => id !== photo.id)
+                            )
+                          }
+                        />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">
+                            {photo.caption?.trim() || photo.original_name || `Fotka #${photo.id}`}
+                          </div>
+                          {photo.caption?.trim() && photo.original_name ? (
+                            <div className="truncate text-xs text-slate-500">{photo.original_name}</div>
+                          ) : null}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded bg-slate-200 px-3 py-2 text-sm text-slate-800 hover:bg-slate-300"
+                onClick={() => setShowDefectDraftModal(false)}
+              >
+                Zrušit
+              </button>
+              <button
+                type="button"
+                className="rounded bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                onClick={saveDefectDraft}
+                disabled={!defectDraftText.trim()}
+              >
+                Uložit poznámku
               </button>
             </div>
           </div>

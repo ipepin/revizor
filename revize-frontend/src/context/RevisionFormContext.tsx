@@ -69,6 +69,13 @@ export interface Defect {
   article: string;
 }
 
+export interface DefectDraft {
+  uid: string;
+  text: string;
+  createdAt: string;
+  linkedPhotoIds: number[];
+}
+
 // â€”â€“â€“ Data pro jednu zkouĹˇku
 export type TestData = {
   checked: boolean;
@@ -149,6 +156,7 @@ export interface RevisionForm {
 
   // ZĂˇvady
   defects: Defect[];
+  defectDrafts: DefectDraft[];
   defectsRichText: string;
 
   // ProhlĂ­dka
@@ -271,6 +279,18 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
           description: String(d?.description || ""),
           standard: String(d?.standard || ""),
           article: String(d?.article || ""),
+        }))
+      : [],
+    defectDrafts: Array.isArray((p as any).defectDrafts)
+      ? (p as any).defectDrafts.map((item: any) => ({
+          uid: String(item?.uid || makeUid("defect-draft")),
+          text: String(item?.text || item?.description || ""),
+          createdAt: String(item?.createdAt || item?.created_at || new Date().toISOString()),
+          linkedPhotoIds: Array.isArray(item?.linkedPhotoIds)
+            ? item.linkedPhotoIds
+                .map((value: any) => Number(value))
+                .filter((value: number) => Number.isFinite(value))
+            : [],
         }))
       : [],
     defectsRichText: p.defectsRichText ?? "",

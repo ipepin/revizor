@@ -11,21 +11,34 @@ import { apiUrl } from "../api/base";
 function normalizeStatus(s?: string): string {
   const raw = (s || "").trim();
   if (!raw) return "";
-  const lower = raw.toLowerCase();
-  const normalized = lower
+  const repaired = raw
     .replaceAll("Ăˇ", "á")
+    .replaceAll("ăˇ", "á")
     .replaceAll("ÄŤ", "č")
+    .replaceAll("äť", "č")
+    .replaceAll("äŤ", "č")
     .replaceAll("Ä›", "ě")
+    .replaceAll("ä›", "ě")
     .replaceAll("Ĺ™", "ř")
+    .replaceAll("ĺ™", "ř")
     .replaceAll("Ĺˇ", "š")
+    .replaceAll("ĺˇ", "š")
     .replaceAll("Ă©", "é")
+    .replaceAll("ă©", "é")
     .replaceAll("Ă­", "í")
-    .replaceAll("Ă˝", "ý");
+    .replaceAll("ă­", "í")
+    .replaceAll("Ă˝", "ý")
+    .replaceAll("ă˝", "ý")
+    .replaceAll("Ăł", "ó")
+    .replaceAll("ăł", "ó")
+    .replaceAll("Ăş", "ú")
+    .replaceAll("ăş", "ú");
+  const normalized = repaired.toLowerCase().normalize("NFC");
   const done = ["dokončeno", "dokončené", "dokončená", "dokoncená"];
   const inProgress = ["rozpracovaná", "rozpracovana", "rozpracovaný", "rozpracovane"];
-  if (done.includes(normalized)) return "Dokončeno";
+  if (done.includes(normalized)) return "Dokončená";
   if (inProgress.includes(normalized)) return "Rozpracovaná";
-  return raw;
+  return repaired;
 }
 
 function displayProjectNumber(value: any): string {
@@ -583,7 +596,7 @@ export default function Dashboard() {
                                       <button
                                         className="text-blue-600 hover:underline"
                                         onClick={() => openRevision(proj.id, rev)}
-                                        title={isDone ? "Dokončeno – otevřít po zadání hesla" : "Otevřít"}
+                                        title={isDone ? "Dokončená revize – otevřít po zadání hesla" : "Otevřít"}
                                       >
                                         Otevřít
                                       </button>
@@ -865,7 +878,7 @@ export default function Dashboard() {
                 <div className="font-medium text-slate-800">{"Co um\u00ed nejl\u00e9pe:"}</div>
                 <ul className="list-disc ml-5 space-y-1">
                   <li>{"Tvorbu sch\u00e9mat rozvad\u011b\u010d\u016f v\u010detn\u011b hierarchie prvk\u016f a n\u00e1vaznost\u00ed."}</li>
-                  <li>{"M\u011b\u0159en\u00ed v rozvad\u011b\u010d\u00edch i m\u00edstnostech v p\u0159ehledn\u00fdch tabulk\u00e1ch."}</li>
+                  <li>{"M\u011b\u0159en\u00ed v rozvad\u011b\u010d\u00edch i prostorech v p\u0159ehledn\u00fdch tabulk\u00e1ch."}</li>
                   <li>{"N\u00e1kresy LPS a situac\u00ed objektu p\u0159\u00edmo v editoru."}</li>
                   <li>{"Tvorbu protokolu o ur\u010den\u00ed vn\u011bj\u0161\u00edch vliv\u016f (VV)."}</li>
                   <li>{"Rychl\u00e9 v\u011bty, katalogy a normy pro rychl\u00e9 vypl\u0148ov\u00e1n\u00ed."}</li>
@@ -937,7 +950,7 @@ export default function Dashboard() {
           <div className="bg-white p-6 rounded shadow w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-lg font-semibold text-slate-800">Další krok: export WORD</h3>
+                <h3 className="text-lg font-semibold text-slate-800">Další krok: Export WORD</h3>
                 <p className="text-sm text-slate-600">Teď tě navedu na export revize do Wordu.</p>
               </div>
               <button className="px-2 py-1 text-slate-500 hover:text-slate-800" onClick={() => setShowSummaryGuide(false)} title="Zavřít">

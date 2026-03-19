@@ -1,7 +1,7 @@
 // src/sections/DefectsRecommendationsSection.tsx
 import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import api from "../api/axios"; // ← náš axios klient s JWT
-import { RevisionFormContext } from "../context/RevisionFormContext";
+import { RevisionFormContext, type DefectDraft as RevisionDefectDraft } from "../context/RevisionFormContext";
 import { defectNormSuffix } from "../pages/summary-utils/defects";
 
 type Defect = {
@@ -97,6 +97,27 @@ function makeUid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function formatDraftDate(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("cs-CZ", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function mergeDefectDescription(existing: string, selected: string) {
+  const current = String(existing || "").trim();
+  const incoming = String(selected || "").trim();
+  if (!current) return incoming;
+  if (!incoming) return current;
+  if (current === incoming || current.includes(incoming)) return current;
+  return `${current}\n${incoming}`;
+}
+
 function DefectPhotoThumb({ revId, photo }: { revId: number; photo: DefectPhoto }) {
   const [src, setSrc] = useState("");
 
@@ -144,6 +165,7 @@ export default function DefectsRecommendationsSection() {
   const [previewPhoto, setPreviewPhoto] = useState<DefectPhoto | null>(null);
   const [previewSrc, setPreviewSrc] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [pickerTargetUid, setPickerTargetUid] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
 
   // nový, vylepšený dialog
@@ -221,6 +243,11 @@ export default function DefectsRecommendationsSection() {
     if (showPicker) loadCatalog();
   }, [showPicker, loadCatalog]);
 
+  useEffect(() => {
+    if (showPicker) return;
+    setPickerTargetUid(null);
+  }, [showPicker]);
+
   // Při otevření editoru také načti čerstvě
   useEffect(() => {
     if (showEditor) loadCatalog();
@@ -228,13 +255,29 @@ export default function DefectsRecommendationsSection() {
 
   // Přidání ze seznamu do formuláře + do textarea
   async function addDefectToList(d: CatalogDefect) {
-    const item: Defect = {
-      uid: makeUid("defect"),
-      description: d.description || "",
-      standard: d.standard || "",
-      article: d.article || "",
-    };
-    setForm((f) => ({ ...f, defects: [...(f.defects || []), item] }));
+    if (pickerTargetUid) {
+      setForm((f) => ({
+        ...f,
+        defects: (f.defects || []).map((defect) =>
+          defect.uid === pickerTargetUid
+            ? {
+                ...defect,
+                description: mergeDefectDescription(defect.description, d.description || ""),
+                standard: d.standard || "",
+                article: d.article || "",
+              }
+            : defect
+        ),
+      }));
+    } else {
+      const item: Defect = {
+        uid: makeUid("defect"),
+        description: d.description || "",
+        standard: d.standard || "",
+        article: d.article || "",
+      };
+      setForm((f) => ({ ...f, defects: [...(f.defects || []), item] }));
+    }
 
     // optimistické zvýšení použití v lokálním katalogu
     if (d.id) {
@@ -249,6 +292,12 @@ export default function DefectsRecommendationsSection() {
       }
     }
     setShowPicker(false);
+    setPickerTargetUid(null);
+  }
+
+  function openPickerForDefect(uid: string) {
+    setPickerTargetUid(uid);
+    setShowPicker(true);
   }
 
   function updateDefect(uid: string, patch: Partial<Omit<Defect, "uid" | "id">>) {
@@ -413,6 +462,7 @@ export default function DefectsRecommendationsSection() {
   }, [catalog, sortByEditor, sortDirEditor]);
 
   const defectUidSet = useMemo(() => new Set((form.defects || []).map((d) => d.uid)), [form.defects]);
+  const defectDrafts = Array.isArray(form.defectDrafts) ? form.defectDrafts : [];
   const unassignedPhotos = useMemo(
     () => photos.filter((photo) => !photo.defect_uid || !defectUidSet.has(photo.defect_uid)),
     [photos, defectUidSet]
@@ -481,6 +531,44 @@ export default function DefectsRecommendationsSection() {
     }
   };
 
+  async function convertDraftToDefect(draft: RevisionDefectDraft) {
+    const newDefect: Defect = {
+      uid: makeUid("defect"),
+      description: draft.text?.trim() || "Nová závada",
+      standard: "",
+      article: "",
+    };
+    setForm((f) => ({
+      ...f,
+      defects: [...(f.defects || []), newDefect],
+      defectDrafts: (f.defectDrafts || []).filter((item) => item.uid !== draft.uid),
+    }));
+
+    const linkedIds = Array.isArray(draft.linkedPhotoIds) ? draft.linkedPhotoIds : [];
+    if (!linkedIds.length) return;
+
+    try {
+      await Promise.all(
+        linkedIds.map((photoId) =>
+          api.patch(`/revisions/${revId}/photos/${photoId}`, {
+            defect_uid: newDefect.uid,
+          })
+        )
+      );
+      notifyDefectPhotosChanged();
+    } catch (e) {
+      console.warn("Přiřazení fotek z draftu k závadě selhalo:", e);
+    }
+  }
+
+  function deleteDefectDraft(uid: string) {
+    if (!window.confirm("Opravdu smazat poznámku k závadě?")) return;
+    setForm((f) => ({
+      ...f,
+      defectDrafts: (f.defectDrafts || []).filter((item) => item.uid !== uid),
+    }));
+  }
+
   const renderPhotoCard = (photo: DefectPhoto, defectUid?: string) => (
     <div key={photo.id} className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
       <button
@@ -542,6 +630,62 @@ export default function DefectsRecommendationsSection() {
     <section className="space-y-4 text-sm text-gray-800">
       <h2 className="text-lg font-semibold">Závady a doporučení</h2>
 
+      {defectDrafts.length > 0 ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-amber-950">K dopracování</h3>
+              <p className="text-sm text-amber-800">
+                Rychlé poznámky z terénu. Až je doplníš, převeď je na plnou závadu.
+              </p>
+            </div>
+            <div className="rounded-full bg-white px-3 py-1 text-xs font-medium text-amber-800 shadow-sm">
+              {defectDrafts.length} pozn.
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            {defectDrafts.map((draft, index) => (
+              <div key={draft.uid} className="rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">Poznámka {index + 1}</div>
+                    {formatDraftDate(draft.createdAt) ? (
+                      <div className="text-xs text-slate-500">{formatDraftDate(draft.createdAt)}</div>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+                      onClick={() => void convertDraftToDefect(draft)}
+                    >
+                      Převést na závadu
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+                      onClick={() => deleteDefectDraft(draft.uid)}
+                    >
+                      Smazat
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded border border-amber-100 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-slate-700">
+                  {draft.text || "Bez textu."}
+                </div>
+                {(draft.linkedPhotoIds || []).length > 0 ? (
+                  <div className="mt-2 text-xs font-medium text-amber-900">
+                    Navázané fotky: {(draft.linkedPhotoIds || []).length}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div data-guide-id="def-text" className="space-y-3">
         {(form.defects || []).length > 0 ? (
           (form.defects || []).map((defect, index) => (
@@ -555,6 +699,13 @@ export default function DefectsRecommendationsSection() {
                   <div className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
                     {(photosByDefect.get(defect.uid) || []).length} foto
                   </div>
+                  <button
+                    type="button"
+                    className="rounded bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                    onClick={() => openPickerForDefect(defect.uid)}
+                  >
+                    Závadovník
+                  </button>
                   <button
                     type="button"
                     className="rounded bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
@@ -677,14 +828,25 @@ export default function DefectsRecommendationsSection() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="compact-card w-full max-w-5xl space-y-4">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-base font-semibold">Vyberte závadu</h3>
+              <h3 className="text-base font-semibold">
+                {pickerTargetUid ? "Vyberte náhradu ze závadovníku" : "Vyberte závadu"}
+              </h3>
               <button
                 className="text-sm text-gray-600 transition hover:text-gray-900"
-                onClick={() => setShowPicker(false)}
+                onClick={() => {
+                  setShowPicker(false);
+                  setPickerTargetUid(null);
+                }}
               >
                 ✖ Zavřít
               </button>
             </div>
+
+            {pickerTargetUid ? (
+              <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                Vybranou položku doplníte k existujícímu textu závady. Norma a článek se převezmou ze závadovníku.
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -765,7 +927,10 @@ export default function DefectsRecommendationsSection() {
             <div className="flex justify-end gap-2 text-sm">
               <button
                 className="rounded bg-gray-200 px-3 py-1.5"
-                onClick={() => setShowPicker(false)}
+                onClick={() => {
+                  setShowPicker(false);
+                  setPickerTargetUid(null);
+                }}
               >
                 Zavřít
               </button>
