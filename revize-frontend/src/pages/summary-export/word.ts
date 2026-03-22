@@ -242,15 +242,19 @@ export async function generateSummaryDocx({
   const safetyLabel = (() => {
     const s = safeForm.conclusion?.safety;
     if (!s) return "ChybĂ­ informace";
-    if (s === "able") return "ElektrickĂˇ instalace je z hlediska bezpeÄŤnosti schopna provozu";
-    if (s === "not_able") return "ElektrickĂˇ instalace nenĂ­ z hlediska bezpeÄŤnosti schopna provozu";
+    if (s === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
+    if (s === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
     return String(s);
   })();
   const result = resultBox(safetyLabel);
+  const nextRevisionLabel =
+    safeForm.conclusion?.safety === "not_able"
+      ? "Po odstranění závad"
+      : dash(safeForm.conclusion?.validUntil);
 
   const term = [
     P("DoporuÄŤenĂ˝ termĂ­n pĹ™Ă­ĹˇtĂ­ revize dle ÄŚSN 332000-6 ed.2 ÄŤl. 6.5.2:", { color: COL_MUTE, center: true }),
-    P(dash(safeForm.conclusion?.validUntil), { bold: true, center: true }),
+    P(nextRevisionLabel, { bold: true, center: true }),
   ];
 
   // ---------- 1. Identifikace (pevnĂ˝ zlom) ----------
@@ -493,7 +497,7 @@ export async function generateSummaryDocx({
     P("6. ZĂˇvÄ›r", { bold: true, size: 26 }),
     P(dash(safeForm.conclusion?.text)),
     safetyBox,
-    P(`DalĹˇĂ­ revize: ${dash(safeForm.conclusion?.validUntil)}`),
+    P(`Další revize: ${nextRevisionLabel}`),
   ];
 
   // ---------- Dokument ----------

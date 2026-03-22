@@ -79,8 +79,8 @@ const joinList = (items: any[] | undefined) =>
     .join(", ");
 
 const formatSafety = (value: string) => {
-  if (value === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-  if (value === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+  if (value === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
+  if (value === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
   return dash(value);
 };
 
@@ -348,7 +348,18 @@ function buildTemplateData(
 
     zaver_text: dash(safeForm?.conclusion?.text),
     zaver_bezpecnost: formatSafety(safeForm?.conclusion?.safety),
-    pristi_revize: dash(safeForm?.conclusion?.validUntil),
+    zaver_bezpecnost_normalni_rows:
+      safeForm?.conclusion?.safety === "able"
+        ? [{ text: formatSafety(safeForm?.conclusion?.safety) }]
+        : [],
+    zaver_bezpecnost_cervena_rows:
+      safeForm?.conclusion?.safety === "not_able"
+        ? [{ text: formatSafety(safeForm?.conclusion?.safety) }]
+        : [],
+    pristi_revize:
+      safeForm?.conclusion?.safety === "not_able"
+        ? "Po odstranění závad"
+        : dash(safeForm?.conclusion?.validUntil),
   };
 }
 

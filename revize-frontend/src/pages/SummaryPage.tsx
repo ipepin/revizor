@@ -281,10 +281,14 @@ export default function SummaryPage() {
   const safetyLabel = useMemo(() => {
     const s = safeForm.conclusion?.safety;
     if (!s) return "Chybí informace";
-    if (s === "able") return "Elektrická instalace je z hlediska bezpečnosti schopna provozu";
-    if (s === "not_able") return "Elektrická instalace není z hlediska bezpečnosti schopna provozu";
+    if (s === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
+    if (s === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
     return String(s);
   }, [safeForm.conclusion?.safety]);
+  const nextRevisionLabel = useMemo(() => {
+    if (safeForm.conclusion?.safety === "not_able") return "Po odstranění závad";
+    return dash(safeForm.conclusion?.validUntil);
+  }, [safeForm.conclusion?.safety, safeForm.conclusion?.validUntil]);
 
   // Přístroje (checked)
   const usedInstruments = useMemo(() => {
@@ -646,7 +650,7 @@ export default function SummaryPage() {
               <section className="mt-4" style={{ breakInside: "avoid" }}>
                 <div className="text-sm text-center">
                   <p>Doporučený termín příští revize dle ČSN&nbsp;332000-6 ed.2 čl.&nbsp;6.5.2:</p>
-                  <p><strong>{dash(safeForm.conclusion?.validUntil)}</strong></p>
+                  <p><strong>{nextRevisionLabel}</strong></p>
                 </div>
               </section>
 
@@ -830,7 +834,7 @@ export default function SummaryPage() {
                     </div>
                   </div>
                   <div>
-                    Další revize: <strong>{dash(safeForm.conclusion?.validUntil)}</strong>
+                    Další revize: <strong>{nextRevisionLabel}</strong>
                   </div>
                 </div>
               </section>

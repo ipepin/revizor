@@ -18,6 +18,8 @@ const DEFAULT_LABEL_ORDER = [
   "Odpovědnost provozovatele",
 ];
 
+const NON_COMPLIANT_VALID_UNTIL = "Po odstranění závad";
+
 export default function ConclusionSection() {
   const { form, setForm } = useContext(RevisionFormContext);
   const conclusion: any = form.conclusion || {};
@@ -43,6 +45,27 @@ export default function ConclusionSection() {
   const earthThreshold: number = lpsStandardCode === "CSN_EN_62305" ? 10 : lpsStandardCode === "CSN_34_1390" ? 15 : 15;
 
   // Proměnné pro snippety (ukládáme do conclusion.vars)
+  const setSafetyState = (nextSafety: "able" | "not_able") => {
+    setForm((f: any) => {
+      const currentValidUntil = String(f?.conclusion?.validUntil || "");
+      const nextValidUntil =
+        !isLps && nextSafety === "not_able"
+          ? NON_COMPLIANT_VALID_UNTIL
+          : currentValidUntil === NON_COMPLIANT_VALID_UNTIL
+          ? ""
+          : currentValidUntil;
+
+      return {
+        ...f,
+        conclusion: {
+          ...(f.conclusion || {}),
+          safety: nextSafety,
+          validUntil: nextValidUntil,
+        },
+      };
+    });
+  };
+
   const vars = (conclusion.vars || {}) as {
     insulationMinMOhm?: string;
     fireProtectionText?: string;
@@ -264,7 +287,7 @@ export default function ConclusionSection() {
             name="safety"
             className="mr-2"
             checked={conclusion.safety === "able"}
-            onChange={() => setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), safety: "able" } }))}
+            onChange={() => setSafetyState("able")}
           />
           {isLps
             ? <>Instalované hromosvodné zařízení vyhovuje požadavkům normy {standardName} a jeho součásti jsou ve funkčním stavu.</>
@@ -276,7 +299,7 @@ export default function ConclusionSection() {
             name="safety"
             className="mr-2"
             checked={conclusion.safety === "not_able"}
-            onChange={() => setForm((f: any) => ({ ...f, conclusion: { ...(f.conclusion || {}), safety: "not_able" } }))}
+            onChange={() => setSafetyState("not_able")}
           />
           <span className="text-red-600">
             {isLps
@@ -288,17 +311,26 @@ export default function ConclusionSection() {
 
       <div data-guide-id="zv-validity" className="space-y-2">
         <label className="block text-sm font-medium">Platnost revize (doporučený termín další revize)</label>
-        <input
-          type="date"
-          className="w-full rounded border px-3 py-1.5 text-sm"
-          value={conclusion.validUntil || ""}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setForm((f: any) => ({
-              ...f,
-              conclusion: { ...(f.conclusion || {}), validUntil: e.target.value },
-            }))
-          }
-        />
+        {!isLps && conclusion.safety === "not_able" ? (
+          <input
+            type="text"
+            className="w-full rounded border bg-slate-100 px-3 py-1.5 text-sm"
+            value={NON_COMPLIANT_VALID_UNTIL}
+            readOnly
+          />
+        ) : (
+          <input
+            type="date"
+            className="w-full rounded border px-3 py-1.5 text-sm"
+            value={conclusion.validUntil || ""}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setForm((f: any) => ({
+                ...f,
+                conclusion: { ...(f.conclusion || {}), validUntil: e.target.value },
+              }))
+            }
+          />
+        )}
       </div>
     </section>
     {managerOpen && (
