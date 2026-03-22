@@ -2,10 +2,7 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
-  Footer,
-  Header,
   ImageRun,
-  PageNumber,
   Packer,
   Paragraph,
   Table,
@@ -15,14 +12,25 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import {
+  BODY,
+  COL_BORDER,
+  COL_HEAD,
+  COL_MUTE,
+  COL_TEXT,
+  FONT,
+  SMALL,
+  makeFooter,
+  makeHeader,
+} from "../summary-utils/docx";
 
 const EMU_PER_PIXEL = 9525;
 const MAX_IMAGE_WIDTH_PX = 750;
 const MAX_IMAGE_HEIGHT_PX = 520;
-const COLOR_TEXT = "0F172A";
-const COLOR_MUTED = "475569";
-const COLOR_BORDER = "E2E8F0";
-const COLOR_HEADER = "F8FAFC";
+const COLOR_TEXT = COL_TEXT.toUpperCase();
+const COLOR_MUTED = COL_MUTE.toUpperCase();
+const COLOR_BORDER = COL_BORDER.toUpperCase();
+const COLOR_HEADER = COL_HEAD.toUpperCase();
 const COLOR_STRIPE = "F1F5F9";
 const CELL_PADDING = { top: 120, bottom: 120, left: 120, right: 120 };
 const SMALL_PADDING = { top: 80, bottom: 80, left: 90, right: 90 };
@@ -118,6 +126,14 @@ export async function buildLpsWordBlob(
     spacer(120),
     sectionHeading("Celkový posudek"),
     cardParagraph(safetyAssessment(safe), true),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [
+        new TextRun({ text: "Doporučený termín příští revize: ", bold: true, color: COLOR_MUTED, font: FONT }),
+        new TextRun({ text: nextRevision, font: FONT }),
+      ],
+      spacing: { before: 40, after: 120 },
+    }),
     spacer(80),
     sectionHeading("Rozdělovník a podpisy"),
     cardParagraph(`Rozdělovník: ${dash(lps.distributionList || "Provozovatel 2x, Revizní technik 1x")}`, true),
@@ -246,7 +262,7 @@ export async function buildLpsWordBlob(
     styles: {
       default: {
         document: {
-          run: { font: "Calibri", size: 22, color: COLOR_TEXT },
+          run: { font: FONT, size: BODY, color: COLOR_TEXT },
           paragraph: { spacing: { after: 120 } },
         },
       },
@@ -255,34 +271,34 @@ export async function buildLpsWordBlob(
           id: "Title",
           basedOn: "Normal",
           quickFormat: true,
-          run: { size: 40, bold: true, color: COLOR_TEXT },
+          run: { size: 40, bold: true, color: COLOR_TEXT, font: FONT },
           paragraph: { spacing: { after: 120 } },
         },
         {
           id: "Subtitle",
           basedOn: "Normal",
           quickFormat: true,
-          run: { size: 20, color: COLOR_MUTED },
+          run: { size: SMALL, color: COLOR_MUTED, font: FONT },
           paragraph: { spacing: { after: 80 } },
         },
         {
           id: "SectionHeading",
           basedOn: "Normal",
           quickFormat: true,
-          run: { size: 28, bold: true, color: COLOR_TEXT },
+          run: { size: 28, bold: true, color: COLOR_TEXT, font: FONT },
           paragraph: { spacing: { before: 220, after: 120 } },
         },
         {
           id: "Muted",
           basedOn: "Normal",
           quickFormat: true,
-          run: { color: COLOR_MUTED },
+          run: { color: COLOR_MUTED, font: FONT },
         },
         {
           id: "TableHeader",
           basedOn: "Normal",
           quickFormat: true,
-          run: { size: 20, bold: true, color: COLOR_MUTED },
+          run: { size: SMALL, bold: true, color: COLOR_MUTED, font: FONT },
           paragraph: { spacing: { after: 0 } },
         },
       ],
@@ -306,21 +322,7 @@ export async function buildLpsWordBlob(
             ],
           }),
         },
-        footers: {
-          default: new Footer({
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({ text: "Strana " }),
-                  PageNumber.CURRENT,
-                  new TextRun({ text: " / " }),
-                  PageNumber.TOTAL_PAGES,
-                ],
-              }),
-            ],
-          }),
-        },
+        footers: { default: makeFooter() },
         children,
       },
     ],
@@ -338,6 +340,7 @@ function sectionHeading(text: string) {
 }
 
 function headerBlock(safe: any, lps: any) {
+  const standard = formatStandardName(lps.standard);
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: noTableBorders(),
@@ -575,6 +578,7 @@ function calculateDefectPhotoTransformation(size?: { width: number; height: numb
     width: Math.max(80, Math.round(size.width * scale)),
     height: Math.max(60, Math.round(size.height * scale)),
   };
+  const nextRevision = dash(safe.conclusion?.validUntil || lps.nextRevision);
 }
 
 function buildDefectPhotoGrid(photos: LpsPreparedDefectPhoto[]) {
