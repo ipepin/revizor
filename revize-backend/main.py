@@ -1,5 +1,6 @@
 ﻿from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
+from fastapi import Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from routers.auth import router as auth_router, get_current_user
 from routers.catalog   import router as catalog_router
@@ -31,10 +32,28 @@ ALLOWED_ORIGINS = [
     "https://lb-eltech.online",
     "https://www.lb-eltech.online",
 ]
+
+
+def _is_allowed_origin(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in ALLOWED_ORIGINS:
+        return True
+
+    import re
+
+    return bool(
+        re.fullmatch(
+            r"(https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
+            origin,
+        )
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origin_regex=r"(https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=[
@@ -48,6 +67,28 @@ app.add_middleware(
         "Access-Control-Request-Headers",
     ],
 )
+
+
+@app.middleware("http")
+async def _cors_fallback(request: Request, call_next):
+    origin = request.headers.get("origin", "")
+
+    if request.method == "OPTIONS" and _is_allowed_origin(origin):
+        response = Response(status_code=204)
+    else:
+        response = await call_next(request)
+
+    if _is_allowed_origin(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = (
+            "Authorization,Content-Type,Accept,Origin,X-Requested-With,"
+            "Accept-Language,Access-Control-Request-Method,Access-Control-Request-Headers"
+        )
+
+    return response
 
 # veĹ™ejnĂ© endpointy (auth)
 app.include_router(auth_router)
