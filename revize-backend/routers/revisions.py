@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from datetime import date
 import json as _json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -91,6 +91,51 @@ def _revision_upload_dir(rev_id: int) -> Path:
     return UPLOAD_ROOT / str(rev_id)
 
 
+def _photo_storage_value(rev_id: int, filename: str) -> str:
+    return f"{rev_id}/{filename}"
+
+
+def _resolve_photo_path(file_path: str | None, rev_id: int | None = None) -> Path | None:
+    if not file_path:
+        return None
+
+    raw = str(file_path).strip()
+    if not raw:
+        return None
+
+    candidates: list[Path] = []
+    raw_path = Path(raw)
+
+    if raw_path.is_absolute():
+        candidates.append(raw_path)
+    else:
+        candidates.append(UPLOAD_ROOT / raw_path)
+
+    win_name = PureWindowsPath(raw).name
+    posix_name = raw_path.name
+    basename = win_name or posix_name
+
+    if rev_id is not None and basename:
+        candidates.append(_revision_upload_dir(rev_id) / basename)
+    if basename:
+        candidates.append(UPLOAD_ROOT / basename)
+
+    seen: set[str] = set()
+    ordered: list[Path] = []
+    for candidate in candidates:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append(candidate)
+
+    for candidate in ordered:
+        if candidate.is_file():
+            return candidate
+
+    return ordered[0] if ordered else None
+
+
 def _safe_photo_extension(upload: UploadFile) -> str:
     content_type = (upload.content_type or "").lower().strip()
     if content_type in ALLOWED_IMAGE_TYPES:
@@ -119,10 +164,10 @@ def _safe_photo_extension(upload: UploadFile) -> str:
     raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only image uploads are supported")
 
 
-def _delete_file_if_exists(path_str: str | None) -> None:
-    if not path_str:
+def _delete_file_if_exists(path_str: str | None, rev_id: int | None = None) -> None:
+    path = _resolve_photo_path(path_str, rev_id=rev_id)
+    if not path:
         return
-    path = Path(path_str)
     try:
         if path.is_file():
             path.unlink()
@@ -437,7 +482,7 @@ async def upload_revision_photo(
         original_name=file.filename or filename,
         mime_type=(file.content_type or "application/octet-stream").lower(),
         file_size=len(payload),
-        file_path=str(target_path),
+        file_path=_photo_storage_value(rev_id, filename),
     )
     db.add(photo)
     db.commit()
@@ -454,8 +499,8 @@ def get_revision_photo_file(
 ):
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
-    path = Path(photo.file_path)
-    if not path.is_file():
+    path = _resolve_photo_path(photo.file_path, rev_id=rev_id)
+    if not path or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
     return FileResponse(path, media_type=photo.mime_type, filename=photo.original_name or path.name)
 
@@ -469,8 +514,8 @@ def get_revision_photo_thumb(
 ):
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
-    path = Path(photo.file_path)
-    if not path.is_file():
+    path = _resolve_photo_path(photo.file_path, rev_id=rev_id)
+    if not path or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
     thumb_path = _generate_thumbnail(path)
     media_type = "image/jpeg" if thumb_path.suffix.lower() == ".jpg" else photo.mime_type
@@ -509,11 +554,12 @@ def delete_revision_photo(
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
     file_path = photo.file_path
-    thumb_path = str(_thumb_path_for(Path(file_path))) if file_path else None
+    resolved_path = _resolve_photo_path(file_path, rev_id=rev_id)
+    thumb_path = str(_thumb_path_for(resolved_path)) if resolved_path else None
     db.delete(photo)
     db.commit()
-    _delete_file_if_exists(file_path)
-    _delete_file_if_exists(thumb_path)
+    _delete_file_if_exists(file_path, rev_id=rev_id)
+    _delete_file_if_exists(thumb_path, rev_id=rev_id)
 
 
 # ---------- Update ----------
