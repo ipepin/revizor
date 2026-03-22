@@ -265,6 +265,8 @@ export default function LpsSummaryPage({ safeForm, technician, isPrintView, revI
             <InfoRow label="Majitel / provozovatel" value={valueOrDash(lps?.owner)} />
             <InfoRow label="Projekt zpracoval" value={valueOrDash(lps?.projectBy)} />
             <InfoRow label="Číslo projektu" value={valueOrDash(lps?.projectNo)} />
+            <InfoRow label="Dokumentace" value={valueOrDash(lps?.documentation)} />
+            <InfoRow label="Předchozí revize" value={valueOrDash(lps?.previousRevision)} />
           </div>
           <SectionTitle>Identifikace revizního technika</SectionTitle>
           <div className="grid md:grid-cols-2 gap-4 text-sm">

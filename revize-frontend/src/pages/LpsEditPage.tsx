@@ -574,6 +574,12 @@ function LpsFormContent() {
           <Field label="Projekt č.">
             <input className="w-full p-2 border rounded" value={(form as any)?.lps?.projectNo || ""} onChange={onLps("projectNo")} />
           </Field>
+          <Field label="Dokumentace">
+            <input className="w-full p-2 border rounded" value={(form as any)?.lps?.documentation || ""} onChange={onLps("documentation")} />
+          </Field>
+          <Field label="Předchozí revize">
+            <input className="w-full p-2 border rounded" value={(form as any)?.lps?.previousRevision || ""} onChange={onLps("previousRevision")} />
+          </Field>
           <Field label="Montáž LPS provedla (firma)">
             <input className="w-full p-2 border rounded" value={(form as any)?.lps?.assemblyBy || ""} onChange={onLps("assemblyBy")} />
           </Field>

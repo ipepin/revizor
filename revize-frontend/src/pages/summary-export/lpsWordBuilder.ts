@@ -83,6 +83,8 @@ export async function buildLpsWordBlob(
         ["Majitel / provozovatel", dash(lps.owner)],
         ["Projekt zpracoval", dash(lps.projectBy)],
         ["Číslo projektu", dash(lps.projectNo)],
+        ["Dokumentace", dash(lps.documentation)],
+        ["Předchozí revize", dash(lps.previousRevision)],
       ],
       SMALL_PADDING
     ),

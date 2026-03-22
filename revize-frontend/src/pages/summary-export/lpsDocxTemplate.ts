@@ -157,6 +157,8 @@ function buildDataMap(safe: any, lps: any) {
     OPERATOR_NAME: dash(lps.owner),
     PROJECT_BY: dash(lps.projectBy),
     PROJECT_NO: dash(lps.projectNo),
+    DOCUMENTATION: dash(lps.documentation),
+    PREVIOUS_REVISION: dash(lps.previousRevision),
     TECH_NAME: dash(safe.technicianName),
     TECH_COMPANY: dash(safe.technicianCompanyName),
     TECH_ICO: dash(safe.technicianCompanyIco),
