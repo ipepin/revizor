@@ -131,9 +131,17 @@ function DefectPhotoThumb({ revId, photo }: { revId: number; photo: DefectPhoto 
     let objectUrl = "";
     (async () => {
       try {
-        const res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
-          responseType: "blob",
-        });
+        let res;
+        try {
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+            responseType: "blob",
+          });
+        } catch (thumbError: any) {
+          if (thumbError?.response?.status !== 404) throw thumbError;
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/file`, {
+            responseType: "blob",
+          });
+        }
         objectUrl = URL.createObjectURL(res.data);
         if (active) setSrc(objectUrl);
       } catch (e) {

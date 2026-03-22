@@ -27,8 +27,24 @@ const COLOR_STRIPE = "F1F5F9";
 const CELL_PADDING = { top: 120, bottom: 120, left: 120, right: 120 };
 const SMALL_PADDING = { top: 80, bottom: 80, left: 90, right: 90 };
 const EARTH_PADDING = { top: 60, bottom: 60, left: 80, right: 80 };
+const DEFECT_PHOTO_MAX_WIDTH_PX = 250;
+const DEFECT_PHOTO_MAX_HEIGHT_PX = 180;
 
-export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sketchSize?: { width: number; height: number }) {
+type LpsPreparedDefectPhoto = {
+  id: number;
+  defect_uid?: string | null;
+  caption: string;
+  original_name?: string | null;
+  bytes: Uint8Array;
+  size?: { width: number; height: number };
+};
+
+export async function buildLpsWordBlob(
+  form: any,
+  sketchBytes?: Uint8Array,
+  sketchSize?: { width: number; height: number },
+  defectPhotos: LpsPreparedDefectPhoto[] = []
+) {
   const safe = form || {};
   const lps = safe.lps || {};
 
@@ -38,6 +54,13 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
   const spd: any[] = Array.isArray(lps.spdTests) ? lps.spdTests : [];
   const visual: any[] = Array.isArray(lps.visualChecks) ? lps.visualChecks : [];
   const defects: any[] = Array.isArray(safe.defects) ? safe.defects : [];
+  const defectPhotosByUid = new Map<string, LpsPreparedDefectPhoto[]>();
+  for (const photo of defectPhotos) {
+    if (!photo?.defect_uid) continue;
+    const bucket = defectPhotosByUid.get(photo.defect_uid) || [];
+    bucket.push(photo);
+    defectPhotosByUid.set(photo.defect_uid, bucket);
+  }
 
   const scopeChecks: string[] = Array.isArray(lps.scopeChecks) ? lps.scopeChecks : [];
   const scopeLabels: Record<string, string> = {
@@ -174,14 +197,44 @@ export async function buildLpsWordBlob(form: any, sketchBytes?: Uint8Array, sket
 
   children.push(spacer(120));
   children.push(sectionHeading("Zjistene zavady"));
-  const defectRows = defects.map((row) => [
-    dash(row?.description),
-    dash(row?.standard && row?.article ? `${row.standard} / ${row.article}` : row?.standard || row?.article),
-    dash(row?.recommendation || row?.remedy),
-  ]);
-  children.push(
-    styledTable(["Popis", "Norma / cl.", "Doporucene opatreni"], defectRows, "Zadne zavady.", false, SMALL_PADDING)
-  );
+  if (!defects.length) {
+    children.push(cardParagraph("Zadne zavady."));
+  } else {
+    defects.forEach((row, index) => {
+      const suffix = dash(row?.standard && row?.article ? `${row.standard}, článek ${row.article}` : row?.standard || row?.article);
+      const recommendation = dash(row?.recommendation || row?.remedy);
+      const defectUid = row?.uid ? String(row.uid) : "";
+      const assignedPhotos = defectUid ? defectPhotosByUid.get(defectUid) || [] : [];
+
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `${index + 1}. `, bold: true }),
+            new TextRun({ text: dash(row?.description) }),
+            ...(suffix !== "-" ? [new TextRun({ text: ` ${suffix}`, bold: true })] : []),
+          ],
+          spacing: { after: 70 },
+        })
+      );
+
+      if (recommendation !== "-") {
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Doporučené opatření: ", bold: true, color: COLOR_MUTED }),
+              new TextRun({ text: recommendation }),
+            ],
+            spacing: { after: assignedPhotos.length ? 80 : 120 },
+          })
+        );
+      }
+
+      if (assignedPhotos.length) {
+        children.push(buildDefectPhotoGrid(assignedPhotos));
+        children.push(spacer(120));
+      }
+    });
+  }
 
   children.push(spacer(120));
   children.push(sectionHeading("Závěr"));
@@ -502,6 +555,72 @@ function calculateTransformation(size?: { width: number; height: number }) {
   const width = Math.min(size.width, MAX_IMAGE_WIDTH_PX);
   const height = Math.min(size.height, MAX_IMAGE_HEIGHT_PX);
   return { width, height };
+}
+
+function calculateDefectPhotoTransformation(size?: { width: number; height: number }) {
+  if (!size) {
+    return {
+      width: DEFECT_PHOTO_MAX_WIDTH_PX,
+      height: Math.min(Math.round(DEFECT_PHOTO_MAX_WIDTH_PX * 0.7), DEFECT_PHOTO_MAX_HEIGHT_PX),
+    };
+  }
+  const scale = Math.min(
+    DEFECT_PHOTO_MAX_WIDTH_PX / size.width,
+    DEFECT_PHOTO_MAX_HEIGHT_PX / size.height,
+    1
+  );
+  return {
+    width: Math.max(80, Math.round(size.width * scale)),
+    height: Math.max(60, Math.round(size.height * scale)),
+  };
+}
+
+function buildDefectPhotoGrid(photos: LpsPreparedDefectPhoto[]) {
+  const rows: TableRow[] = [];
+  for (let i = 0; i < photos.length; i += 2) {
+    const pair = photos.slice(i, i + 2);
+    rows.push(
+      new TableRow({
+        children: Array.from({ length: 2 }).map((_, columnIndex) => {
+          const photo = pair[columnIndex];
+          return new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            margins: { top: 90, bottom: 90, left: 90, right: 90 },
+            borders: noCellBorders(),
+            children: photo
+              ? [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new ImageRun({
+                        data: photo.bytes,
+                        transformation: calculateDefectPhotoTransformation(photo.size),
+                      }),
+                    ],
+                    spacing: { after: photo.caption?.trim() ? 40 : 0 },
+                  }),
+                  ...(photo.caption?.trim()
+                    ? [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [new TextRun({ text: photo.caption.trim(), size: 18, color: COLOR_MUTED })],
+                          spacing: { after: 20 },
+                        }),
+                      ]
+                    : []),
+                ]
+              : [new Paragraph({ text: "" })],
+          });
+        }),
+      })
+    );
+  }
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: noTableBorders(),
+    rows,
+  });
 }
 
 function safetyAssessment(safe: any) {

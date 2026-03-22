@@ -1,5 +1,9 @@
 ﻿import React, { useMemo } from "react";
 
+import { useEffect, useState } from "react";
+import api from "../api/axios";
+import { defectNormSuffix } from "./summary-utils/defects";
+
 type TechnicianInfo = {
   jmeno: string;
   firma: string;
@@ -16,6 +20,16 @@ type Props = {
   safeForm: any;
   technician: TechnicianInfo;
   isPrintView: boolean;
+  revId?: string;
+  defectPhotos?: DefectPhoto[];
+};
+
+type DefectPhoto = {
+  id: number;
+  revision_id: number;
+  defect_uid?: string | null;
+  caption: string;
+  original_name?: string | null;
 };
 
 const pageBaseStyle: React.CSSProperties = {
@@ -109,7 +123,45 @@ const valueOrDash = (value: any) => {
   return str.length > 0 ? str : "—";
 };
 
-export default function LpsSummaryPage({ safeForm, technician, isPrintView }: Props) {
+function LpsDefectThumb({ revId, photo }: { revId: string; photo: DefectPhoto }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    (async () => {
+      try {
+        let res;
+        try {
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+            responseType: "blob",
+          });
+        } catch (thumbError: any) {
+          if (thumbError?.response?.status !== 404) throw thumbError;
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/file`, {
+            responseType: "blob",
+          });
+        }
+        objectUrl = URL.createObjectURL(res.data);
+        if (active) setSrc(objectUrl);
+      } catch (e) {
+        console.warn("Nepodařilo se načíst thumbnail LPS závady:", e);
+      }
+    })();
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [photo.id, revId]);
+
+  if (!src) {
+    return <div className="flex aspect-[5/4] items-center justify-center rounded-lg bg-slate-100 text-xs text-slate-400">Načítám…</div>;
+  }
+
+  return <img src={src} alt={photo.caption || photo.original_name || "Fotografie závady"} className="aspect-[5/4] w-full rounded-lg object-cover" />;
+}
+
+export default function LpsSummaryPage({ safeForm, technician, isPrintView, revId, defectPhotos = [] }: Props) {
   const lps = safeForm?.lps || {};
   const measuringInstruments: any[] = useMemo(
     () => (Array.isArray(safeForm?.measuringInstruments) ? safeForm.measuringInstruments : []),
@@ -166,12 +218,6 @@ export default function LpsSummaryPage({ safeForm, technician, isPrintView }: Pr
     valueOrDash(row?.text || `Kontrola ${idx + 1}`),
     row?.ok ? "OK" : "NOK",
     valueOrDash(row?.note),
-  ]);
-
-  const defectRows = defects.map((row, idx) => [
-    <span key={`def-${idx}-text`} className="font-medium text-slate-900">{valueOrDash(row?.description)}</span>,
-    valueOrDash(row?.standard || row?.article),
-    valueOrDash(row?.recommendation || row?.remedy),
   ]);
 
   const scopeTextItems = scopeChecks.map((key) => scopeLabels[key] || key);
@@ -301,10 +347,42 @@ export default function LpsSummaryPage({ safeForm, technician, isPrintView }: Pr
           </section>
         )}
 
-        {defectRows.length > 0 && (
+        {defects.length > 0 && (
           <section className="mb-6">
             <SectionTitle>Zjištěné závady</SectionTitle>
-            <Table headers={["Popis", "Norma / čl.", "Doporučené opatření"]} rows={defectRows} emptyText="Nebyla zadána žádná závada." />
+            <div className="space-y-4">
+              {defects.map((row, idx) => {
+                const assignedPhotos = defectPhotos.filter((photo) => photo.defect_uid && photo.defect_uid === row?.uid);
+                const recommendation = valueOrDash(row?.recommendation || row?.remedy);
+                return (
+                  <div key={row?.uid || idx} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="text-sm leading-relaxed text-slate-800">
+                      <strong>{idx + 1}.</strong> <span>{valueOrDash(row?.description)}</span>{" "}
+                      {defectNormSuffix(row) ? <strong>{defectNormSuffix(row)}</strong> : null}
+                    </div>
+
+                    {recommendation !== "—" ? (
+                      <div className="mt-2 text-sm text-slate-600">
+                        <strong>Doporučené opatření:</strong> {recommendation}
+                      </div>
+                    ) : null}
+
+                    {assignedPhotos.length > 0 && revId ? (
+                      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
+                        {assignedPhotos.map((photo) => (
+                          <div key={photo.id} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2">
+                            <LpsDefectThumb revId={revId} photo={photo} />
+                            {photo.caption?.trim() ? (
+                              <div className="mt-2 text-xs leading-snug text-slate-600">{photo.caption.trim()}</div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </section>
         )}
 

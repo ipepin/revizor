@@ -41,9 +41,17 @@ function SummaryDefectThumb({ revId, photo }: { revId: string; photo: DefectPhot
     let objectUrl = "";
     (async () => {
       try {
-        const res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
-          responseType: "blob",
-        });
+        let res;
+        try {
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+            responseType: "blob",
+          });
+        } catch (thumbError: any) {
+          if (thumbError?.response?.status !== 404) throw thumbError;
+          res = await api.get(`/revisions/${revId}/photos/${photo.id}/file`, {
+            responseType: "blob",
+          });
+        }
         objectUrl = URL.createObjectURL(res.data);
         if (active) setSrc(objectUrl);
       } catch (e) {
@@ -371,6 +379,7 @@ export default function SummaryPage() {
     await renderAndDownloadLpsDocx({
       form: safeForm,
       revId,
+      defectPhotos,
       templateUrl: "/templates/lps_report.docx",
     });
   };
@@ -417,7 +426,13 @@ export default function SummaryPage() {
             </div>
           )}
           <main className={isPrintView ? "flex-1 font-sans" : "flex-1 p-6 font-sans md:p-10"}>
-            <LpsSummaryPage safeForm={safeForm} technician={technician} isPrintView={isPrintView} />
+            <LpsSummaryPage
+              safeForm={safeForm}
+              technician={technician}
+              isPrintView={isPrintView}
+              revId={revId}
+              defectPhotos={defectPhotos}
+            />
           </main>
         </div>
       </div>

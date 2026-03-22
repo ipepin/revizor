@@ -94,9 +94,17 @@ export async function prepareDefectTemplateImages(
   const prepared = await Promise.all(
     defectPhotos.map(async (photo) => {
       try {
-        const response = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
-          responseType: "blob",
-        });
+        let response;
+        try {
+          response = await api.get(`/revisions/${revId}/photos/${photo.id}/thumb`, {
+            responseType: "blob",
+          });
+        } catch (thumbError: any) {
+          if (thumbError?.response?.status !== 404) throw thumbError;
+          response = await api.get(`/revisions/${revId}/photos/${photo.id}/file`, {
+            responseType: "blob",
+          });
+        }
         const imageValue = await normalizeBlobToPng(response.data);
         return [photo.id, imageValue] as const;
       } catch (error) {

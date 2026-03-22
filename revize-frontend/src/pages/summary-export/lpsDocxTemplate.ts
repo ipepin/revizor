@@ -1,10 +1,26 @@
 // Legacy export name kept for compatibility with SummaryPage
 import { saveAs } from "file-saver";
+import api from "../../api/axios";
 import { buildLpsWordBlob, dataUrlToBytes, getSketchSize } from "./lpsWordBuilder";
+
+export type LpsDefectPhoto = {
+  id: number;
+  revision_id: number;
+  defect_uid?: string | null;
+  caption: string;
+  original_name?: string | null;
+};
+
+export type LpsPreparedDefectPhoto = LpsDefectPhoto & {
+  bytes: Uint8Array;
+  size?: { width: number; height: number };
+};
 
 export type LpsGenArgs = {
   form: any;
   revId?: string | number;
+  defectPhotos?: LpsDefectPhoto[];
+  templateUrl?: string;
 };
 
 export async function renderAndDownloadLpsDocx(args: LpsGenArgs) {
@@ -12,11 +28,66 @@ export async function renderAndDownloadLpsDocx(args: LpsGenArgs) {
   const sketchDataUrl = safeForm?.lps?.sketchPng || safeForm?.sketchPng;
   const sketchBytes = dataUrlToBytes(sketchDataUrl);
   const sketchSize = await getSketchSize(sketchDataUrl);
+  const preparedDefectPhotos = await loadPreparedDefectPhotos(args.revId, args.defectPhotos);
 
-  const blob = await buildLpsWordBlob(safeForm, sketchBytes, sketchSize);
+  const blob = await buildLpsWordBlob(safeForm, sketchBytes, sketchSize, preparedDefectPhotos);
   const fileId = String(safeForm?.evidencni || args.revId || "lps");
-  const UUID = dash(safeForm?.uuid);
   saveAs(blob, `lps_revizni_zprava_${fileId}.docx`);
+}
+
+async function loadPreparedDefectPhotos(revId?: string | number, initialPhotos?: LpsDefectPhoto[]) {
+  let photos = Array.isArray(initialPhotos) ? initialPhotos : [];
+  if ((!photos.length || photos.every((photo) => !photo?.defect_uid)) && revId != null) {
+    try {
+      const res = await api.get<LpsDefectPhoto[]>(`/revisions/${revId}/photos`);
+      photos = Array.isArray(res.data) ? res.data : [];
+    } catch (e) {
+      console.warn("Nepodařilo se načíst LPS fotografie závad pro export:", e);
+      photos = [];
+    }
+  }
+
+  const assignedPhotos = photos.filter((photo) => photo?.defect_uid);
+  const prepared = await Promise.all(
+    assignedPhotos.map(async (photo) => {
+      if (revId == null) return null;
+      try {
+        const res = await api.get(`/revisions/${revId}/photos/${photo.id}/file`, {
+          responseType: "blob",
+        });
+        const blob = res.data as Blob;
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const size = await getBlobImageSize(blob);
+        return {
+          ...photo,
+          bytes,
+          size,
+        } satisfies LpsPreparedDefectPhoto;
+      } catch (e) {
+        console.warn(`Nepodařilo se načíst LPS fotografii ${photo.id} pro export:`, e);
+        return null;
+      }
+    })
+  );
+
+  return prepared.filter((photo): photo is LpsPreparedDefectPhoto => Boolean(photo));
+}
+
+function getBlobImageSize(blob: Blob) {
+  if (typeof Image === "undefined") return Promise.resolve(undefined);
+  return new Promise<{ width: number; height: number } | undefined>((resolve) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(undefined);
+    };
+    img.src = objectUrl;
+  });
 }
 
 function buildDataMap(safe: any, lps: any) {
