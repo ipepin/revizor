@@ -1,7 +1,7 @@
 # src/routers/catalog.py
 
-from typing import List           # ← add this
-from fastapi import APIRouter, Depends, HTTPException,status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ComponentType, Manufacturer, ComponentModel
@@ -14,7 +14,7 @@ from schemas import (
     ComponentModelCreate,
     ComponentModelUpdate,
 )
-from sqlalchemy.exc import IntegrityError   # ← přidej
+from sqlalchemy.exc import IntegrityError
 
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -42,12 +42,22 @@ def create_type(payload: ComponentTypeCreate, db: Session = Depends(get_db)):
 
 @router.get("/manufacturers", response_model=List[ManufacturerRead])
 def list_manufacturers(type_id: int, db: Session = Depends(get_db)):
-    return (
-        db.query(Manufacturer)
-          .filter(Manufacturer.type_id == type_id)
-          .order_by(Manufacturer.name)
-          .all()
-    )
+    try:
+        rows = (
+            db.query(Manufacturer.id, Manufacturer.name, Manufacturer.type_id)
+            .filter(Manufacturer.type_id == type_id)
+            .order_by(Manufacturer.name)
+            .all()
+        )
+        return [
+            {"id": row.id, "name": (row.name or ""), "type_id": row.type_id}
+            for row in rows
+        ]
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Manufacturers query failed: {type(exc).__name__}",
+        )
 
 
 @router.post("/manufacturers", response_model=ManufacturerRead, status_code=status.HTTP_201_CREATED)
@@ -79,12 +89,22 @@ def create_manufacturer(payload: ManufacturerCreate, db: Session = Depends(get_d
 
 @router.get("/models", response_model=List[ComponentModelRead])
 def list_models(manufacturer_id: int, db: Session = Depends(get_db)):
-    return (
-        db.query(ComponentModel)
-          .filter(ComponentModel.manufacturer_id == manufacturer_id)
-          .order_by(ComponentModel.name)
-          .all()
-    )
+    try:
+        rows = (
+            db.query(ComponentModel.id, ComponentModel.name)
+            .filter(ComponentModel.manufacturer_id == manufacturer_id)
+            .order_by(ComponentModel.name)
+            .all()
+        )
+        return [
+            {"id": row.id, "name": (row.name or "")}
+            for row in rows
+        ]
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Models query failed: {type(exc).__name__}",
+        )
 
 @router.post("/models", response_model=ComponentModelRead, status_code=status.HTTP_201_CREATED)
 def create_model(payload: ComponentModelCreate, db: Session = Depends(get_db)):
