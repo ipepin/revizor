@@ -1,18 +1,24 @@
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from sqlalchemy.engine import Engine
+from pathlib import Path
+import os
 import sqlite3
 
-DATABASE_URL = "sqlite:///./projects.db"  # dej raději ./, ať se nevytváří jinde
-SQLALCHEMY_DATABASE_URL = DATABASE_URL    # ← přidej tento řádek
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-# Vytvoření engine
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_SQLITE_PATH = BASE_DIR / "projects.db"
+DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DEFAULT_SQLITE_PATH.as_posix()}"
+SQLALCHEMY_DATABASE_URL = DATABASE_URL
+
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
 )
 
-# 🔧 Aktivace cizích klíčů pro SQLite
+
 @event.listens_for(Engine, "connect")
 def enable_sqlite_foreign_keys(dbapi_connection, connection_record):
     if isinstance(dbapi_connection, sqlite3.Connection):
@@ -20,11 +26,11 @@ def enable_sqlite_foreign_keys(dbapi_connection, connection_record):
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
-# Vytvoření session a základny pro ORM
+
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
-# ✅ Funkce pro získání databázové session pro FastAPI
+
 def get_db():
     db: Session = SessionLocal()
     try:
