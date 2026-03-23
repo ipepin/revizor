@@ -2,9 +2,9 @@ export function defectNormSuffix(defect: any): string {
   const standard = String(defect?.standard || "").trim();
   const article = String(defect?.article || "").trim();
 
-  if (standard && article) return `Porušení normy ${standard}, článek ${article}.`;
-  if (standard) return `Porušení normy ${standard}.`;
-  if (article) return `Porušení normy, článek ${article}.`;
+  if (standard && article) return `Porušení ${standard}, článek ${article}.`;
+  if (standard) return `Porušení ${standard}.`;
+  if (article) return `Porušení, článek ${article}.`;
   return "";
 }
 

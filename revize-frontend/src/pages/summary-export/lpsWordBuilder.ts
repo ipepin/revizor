@@ -79,6 +79,7 @@ export async function buildLpsWordBlob(
     spd: "SPD / přepěťová ochrana",
   };
 
+  const nextRevision = dash(safe.conclusion?.validUntil || lps.nextRevision);
   const children: Paragraph[] | (Paragraph | Table)[] = [
     headerBlock(safe, lps),
     spacer(60),

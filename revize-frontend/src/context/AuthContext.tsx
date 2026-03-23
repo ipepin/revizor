@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { loginUser, RegisterPayload, registerUser } from "../api/auth";
+import { clearStoredAuth, expireSession, EMAIL_KEY, TOKEN_KEY } from "../auth/session";
 
 interface AuthContextValue {
   token: string | null;
@@ -10,9 +11,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const TOKEN_KEY = "revize_jwt";
-const EMAIL_KEY = "revize_email";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
@@ -38,8 +36,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(() => {
     setToken(null);
     setUserEmail(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(EMAIL_KEY);
+    clearStoredAuth();
+    setTimeout(() => expireSession(), 0);
   }, []);
 
   // Token expiry handling – basic example (decode exp every mount)
