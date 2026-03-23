@@ -40,7 +40,9 @@ except Exception:  # pragma: no cover
 router = APIRouter(prefix="/revisions", tags=["revisions"])
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "uploads" / "revision_photos"
-MAX_PHOTO_SIZE = 15 * 1024 * 1024
+MAX_PHOTO_UPLOAD_SIZE = 40 * 1024 * 1024
+MAX_PHOTO_LONG_EDGE = 1600
+JPEG_QUALITY = 82
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
     "image/jpg": ".jpg",
@@ -162,6 +164,45 @@ def _safe_photo_extension(upload: UploadFile) -> str:
         return ".jpg" if suffix == ".jpeg" else suffix
 
     raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only image uploads are supported")
+
+
+def _compress_upload_image(
+    payload: bytes,
+    source_ext: str,
+    content_type: str | None,
+) -> tuple[bytes, str, str]:
+    if Image is None or ImageOps is None:
+        return payload, source_ext, (content_type or "application/octet-stream").lower()
+
+    try:
+        from io import BytesIO
+
+        with Image.open(BytesIO(payload)) as img:
+            img = ImageOps.exif_transpose(img)
+
+            width, height = img.size
+            longest_edge = max(width, height)
+            if longest_edge > MAX_PHOTO_LONG_EDGE:
+                scale = MAX_PHOTO_LONG_EDGE / float(longest_edge)
+                resized = (
+                    max(1, int(round(width * scale))),
+                    max(1, int(round(height * scale))),
+                )
+                img = img.resize(resized, Image.Resampling.LANCZOS)
+
+            if img.mode in {"RGBA", "LA"} or (img.mode == "P" and "transparency" in img.info):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                alpha = img.convert("RGBA")
+                background.paste(alpha, mask=alpha.getchannel("A"))
+                img = background
+            else:
+                img = img.convert("RGB")
+
+            out = BytesIO()
+            img.save(out, format="JPEG", quality=JPEG_QUALITY, optimize=True)
+            return out.getvalue(), ".jpg", "image/jpeg"
+    except Exception:
+        return payload, source_ext, (content_type or "application/octet-stream").lower()
 
 
 def _delete_file_if_exists(path_str: str | None, rev_id: int | None = None) -> None:
@@ -461,12 +502,14 @@ async def upload_revision_photo(
 ):
     _get_revision_or_403(db, rev_id, user)
 
-    ext = _safe_photo_extension(file)
+    source_ext = _safe_photo_extension(file)
     payload = await file.read()
     if not payload:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Uploaded file is empty")
-    if len(payload) > MAX_PHOTO_SIZE:
+    if len(payload) > MAX_PHOTO_UPLOAD_SIZE:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Photo is too large")
+
+    payload, ext, mime_type = _compress_upload_image(payload, source_ext, file.content_type)
 
     upload_dir = _revision_upload_dir(rev_id)
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -480,7 +523,7 @@ async def upload_revision_photo(
         caption=str(caption or "").strip(),
         defect_uid=str(defect_uid or "").strip() or None,
         original_name=file.filename or filename,
-        mime_type=(file.content_type or "application/octet-stream").lower(),
+        mime_type=mime_type,
         file_size=len(payload),
         file_path=_photo_storage_value(rev_id, filename),
     )
