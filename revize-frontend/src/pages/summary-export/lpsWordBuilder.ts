@@ -23,22 +23,23 @@ import {
   FONT,
   SMALL,
   makeFooter,
-  makeHeader,
 } from "../summary-utils/docx";
 
-const EMU_PER_PIXEL = 9525;
 const MAX_IMAGE_WIDTH_PX = 750;
 const MAX_IMAGE_HEIGHT_PX = 520;
+const DEFECT_PHOTO_MAX_WIDTH_PX = 250;
+const DEFECT_PHOTO_MAX_HEIGHT_PX = 180;
+
 const COLOR_TEXT = COL_TEXT.toUpperCase();
 const COLOR_MUTED = COL_MUTE.toUpperCase();
 const COLOR_BORDER = COL_BORDER.toUpperCase();
 const COLOR_HEADER = COL_HEAD.toUpperCase();
 const COLOR_STRIPE = "F1F5F9";
+const COLOR_DANGER = "C62828";
+
 const CELL_PADDING = { top: 120, bottom: 120, left: 120, right: 120 };
 const SMALL_PADDING = { top: 80, bottom: 80, left: 90, right: 90 };
 const EARTH_PADDING = { top: 60, bottom: 60, left: 80, right: 80 };
-const DEFECT_PHOTO_MAX_WIDTH_PX = 250;
-const DEFECT_PHOTO_MAX_HEIGHT_PX = 180;
 
 type LpsPreparedDefectPhoto = {
   id: number;
@@ -60,10 +61,10 @@ export async function buildLpsWordBlob(
 
   const measuringInstruments: any[] = Array.isArray(safe.measuringInstruments) ? safe.measuringInstruments : [];
   const earth: any[] = Array.isArray(lps.earthResistance) ? lps.earthResistance : [];
-  const continuity: any[] = Array.isArray(lps.continuity) ? lps.continuity : [];
   const spd: any[] = Array.isArray(lps.spdTests) ? lps.spdTests : [];
   const visual: any[] = Array.isArray(lps.visualChecks) ? lps.visualChecks : [];
   const defects: any[] = Array.isArray(safe.defects) ? safe.defects : [];
+
   const defectPhotosByUid = new Map<string, LpsPreparedDefectPhoto[]>();
   for (const photo of defectPhotos) {
     if (!photo?.defect_uid) continue;
@@ -81,9 +82,16 @@ export async function buildLpsWordBlob(
     spd: "SPD / přepěťová ochrana",
   };
 
-  const nextRevision = dash(safe.conclusion?.validUntil || lps.nextRevision);
-  const children: Paragraph[] | (Paragraph | Table)[] = [
-    headerBlock(safe, lps),
+  const isNegativeAssessment = safe?.conclusion?.safety === "not_able";
+  const assessmentText = safetyAssessment(safe);
+  const nextRevision = isNegativeAssessment
+    ? "Po odstranění závad"
+    : dash(safe?.conclusion?.validUntil || lps?.nextRevision);
+  const objectDescription = dash(lps?.reportText || safe?.extraNotes || "");
+  const conclusionText = dash(safe?.conclusion?.text || lps?.reportTextConclusion || "");
+
+  const children: Array<Paragraph | Table> = [
+    headerBlock(safe),
     spacer(60),
     sectionHeading("Identifikace objektu"),
     ...twoColumnRows(
@@ -119,7 +127,7 @@ export async function buildLpsWordBlob(
       ["Přístroj", "Výrobní číslo", "Kalibrační list"],
       measuringInstruments.map((inst) => [
         dash(inst?.name || inst?.measurement_text),
-        dash(inst?.serial || inst?.measurement_text || inst?.serial_no || inst?.sn),
+        dash(inst?.serial || inst?.serial_no || inst?.sn),
         dash(inst?.calibration_code || inst?.calibration_list || inst?.calibration),
       ]),
       "Nejsou uvedeny žádné přístroje.",
@@ -128,11 +136,16 @@ export async function buildLpsWordBlob(
     ),
     spacer(120),
     sectionHeading("Celkový posudek"),
-    cardParagraph(safetyAssessment(safe), true),
+    assessmentCardParagraph(assessmentText, isNegativeAssessment, true),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [
-        new TextRun({ text: "Doporučený termín příští revize: ", bold: true, color: COLOR_MUTED, font: FONT }),
+        new TextRun({
+          text: "Doporučený termín příští revize: ",
+          bold: true,
+          color: COLOR_MUTED,
+          font: FONT,
+        }),
         new TextRun({ text: nextRevision, font: FONT }),
       ],
       spacing: { before: 40, after: 120 },
@@ -161,35 +174,42 @@ export async function buildLpsWordBlob(
       spacing: { before: 60, after: 160 },
     }),
     sectionHeading("Popis objektu a poznámky"),
-    cardParagraph(lps.reportText || safe.extraNotes || "-"),
+    cardParagraph(objectDescription),
     spacer(120),
     sectionHeading("Měření zemních odporů"),
     styledTable(
       ["Zemnič", "Odpor [Ω]", "Poznámka"],
-      earth.map((row, idx) => [dash(row?.label || `Zemnič ${idx + 1}`), row?.valueOhm ? `${row.valueOhm} Ω` : "-", dash(row?.note)]),
+      earth.map((row, idx) => [
+        dash(row?.label || `Zemnič ${idx + 1}`),
+        row?.valueOhm ? `${row.valueOhm} Ω` : "-",
+        dash(row?.note),
+      ]),
       "Záznam o měření není k dispozici.",
       true,
       EARTH_PADDING
     ),
   ];
 
-  // Kontinuita svodů se v LPS výstupu nezobrazuje
-
   if (Array.isArray(lps.scopeChecks) && lps.scopeChecks.includes("spd")) {
+    children.push(spacer(120));
+    children.push(sectionHeading("SPD / přepěťová ochrana"));
     if (lps?.spdProtectionUsed === "no") {
-      children.push(spacer(120));
-      children.push(sectionHeading("SPD / přepěťová ochrana"));
       children.push(cardParagraph("SPD není použita."));
     } else if (spd.length) {
-      children.push(spacer(120));
-      children.push(sectionHeading("SPD / přepěťová ochrana"));
       children.push(
         styledTable(
           ["Místo", "Typ", "Výsledek", "Poznámka"],
-          spd.map((row, idx) => [dash(row?.location || `Stanoviště ${idx + 1}`), dash(row?.type), dash(row?.result), dash(row?.note)]),
+          spd.map((row, idx) => [
+            dash(row?.location || `Stanoviště ${idx + 1}`),
+            dash(row?.type),
+            dash(row?.result),
+            dash(row?.note),
+          ]),
           "Bez záznamu o SPD."
         )
       );
+    } else {
+      children.push(cardParagraph("Bez záznamu o SPD."));
     }
   }
 
@@ -199,7 +219,11 @@ export async function buildLpsWordBlob(
     children.push(
       styledTable(
         ["Položka", "Stav", "Poznámka"],
-        visual.map((row, idx) => [dash(row?.text || `Kontrola ${idx + 1}`), row?.ok ? "Vyhovuje" : "Nevyhovuje", dash(row?.note)]),
+        visual.map((row, idx) => [
+          dash(row?.text || `Kontrola ${idx + 1}`),
+          row?.ok ? "Vyhovuje" : "Nevyhovuje",
+          dash(row?.note),
+        ]),
         "Nebyla zadána žádná kontrola."
       )
     );
@@ -217,12 +241,17 @@ export async function buildLpsWordBlob(
   );
 
   children.push(spacer(120));
-  children.push(sectionHeading("Zjistene zavady"));
+  children.push(sectionHeading("Zjištěné závady"));
   if (!defects.length) {
-    children.push(cardParagraph("Zadne zavady."));
+    children.push(cardParagraph("Žádné závady."));
   } else {
     defects.forEach((row, index) => {
-      const suffix = dash(row?.standard && row?.article ? `${row.standard}, článek ${row.article}` : row?.standard || row?.article);
+      const standardText = dash(formatStandardName(row?.standard));
+      const suffix = dash(
+        row?.standard && row?.article
+          ? `${standardText}, článek ${row.article}`
+          : standardText || row?.article
+      );
       const recommendation = dash(row?.recommendation || row?.remedy);
       const defectUid = row?.uid ? String(row.uid) : "";
       const assignedPhotos = defectUid ? defectPhotosByUid.get(defectUid) || [] : [];
@@ -259,7 +288,11 @@ export async function buildLpsWordBlob(
 
   children.push(spacer(120));
   children.push(sectionHeading("Závěr"));
-  children.push(cardParagraph(dash(safe.conclusion?.text || lps.reportText)));
+  if (conclusionText !== "-") {
+    children.push(cardParagraph(conclusionText));
+    children.push(spacer(40));
+  }
+  children.push(assessmentCardParagraph(assessmentText, isNegativeAssessment));
 
   const doc = new Document({
     styles: {
@@ -342,8 +375,7 @@ function sectionHeading(text: string) {
   return new Paragraph({ text, style: "SectionHeading" });
 }
 
-function headerBlock(safe: any, lps: any) {
-  const standard = formatStandardName(lps.standard);
+function headerBlock(safe: any) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: noTableBorders(),
@@ -449,6 +481,24 @@ function styledTable(headers: string[], rows: string[][], emptyText: string, wit
 }
 
 function cardParagraph(text: string, withBorder = false) {
+  return cardRunsParagraph([new TextRun({ text: dash(text), font: FONT })], withBorder);
+}
+
+function assessmentCardParagraph(text: string, isNegative: boolean, withBorder = false) {
+  return cardRunsParagraph(
+    [
+      new TextRun({
+        text: dash(text),
+        font: FONT,
+        bold: isNegative,
+        color: isNegative ? COLOR_DANGER : COLOR_TEXT,
+      }),
+    ],
+    withBorder
+  );
+}
+
+function cardRunsParagraph(children: TextRun[], withBorder = false) {
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
@@ -458,7 +508,7 @@ function cardParagraph(text: string, withBorder = false) {
             borders: withBorder ? tableBorders() : noCellBorders(),
             margins: { top: 180, bottom: 180, left: 180, right: 180 },
             shading: { fill: "FFFFFF" },
-            children: [new Paragraph({ text: dash(text) })],
+            children: [new Paragraph({ children })],
           }),
         ],
       }),
@@ -519,8 +569,8 @@ function formatDate(value?: string) {
 function formatStandardName(value?: string) {
   const normalized = (value || "").toLowerCase();
   if (!normalized) return "-";
-  if (normalized.includes("62305")) return "ČSN EN 62305-3 ed.2";
-  if (normalized.includes("341390")) return "ČSN 34 1390";
+  if (normalized.includes("62305")) return "ČSN EN 62305";
+  if (normalized.includes("341390") || normalized.includes("34_1390")) return "ČSN 34 1390";
   return value;
 }
 
@@ -559,10 +609,16 @@ export function getSketchSize(dataUrl?: string) {
 }
 
 function calculateTransformation(size?: { width: number; height: number }) {
-  if (!size) return { width: MAX_IMAGE_WIDTH_PX, height: Math.min(MAX_IMAGE_WIDTH_PX * 0.6, MAX_IMAGE_HEIGHT_PX) };
-  const width = Math.min(size.width, MAX_IMAGE_WIDTH_PX);
-  const height = Math.min(size.height, MAX_IMAGE_HEIGHT_PX);
-  return { width, height };
+  if (!size) {
+    return {
+      width: MAX_IMAGE_WIDTH_PX,
+      height: Math.min(MAX_IMAGE_WIDTH_PX * 0.6, MAX_IMAGE_HEIGHT_PX),
+    };
+  }
+  return {
+    width: Math.min(size.width, MAX_IMAGE_WIDTH_PX),
+    height: Math.min(size.height, MAX_IMAGE_HEIGHT_PX),
+  };
 }
 
 function calculateDefectPhotoTransformation(size?: { width: number; height: number }) {
@@ -633,15 +689,13 @@ function buildDefectPhotoGrid(photos: LpsPreparedDefectPhoto[]) {
 
 function safetyAssessment(safe: any) {
   const safety = safe?.conclusion?.safety;
-  const standardCode = (safe as any)?.lps?.standard;
-  const stdName =
-    standardCode === "CSN_EN_62305"
-      ? "ČSN EN 62305"
-      : standardCode === "CSN_34_1390"
-      ? "ČSN 34 1390"
-      : "zvolené normě";
-  if (safety === "able") return `Instalované hromosvodné zařízení vyhovuje požadavkům normy ${stdName} a jeho součásti jsou ve funkčním stavu.`;
-  if (safety === "not_able") return `Instalované hromosvodné zařízení nevyhovuje požadavkům normy ${stdName} a jeho součásti nejsou ve funkčním stavu.`;
+  const stdName = formatStandardName((safe as any)?.lps?.standard);
+  if (safety === "able") {
+    return `Instalované hromosvodné zařízení vyhovuje požadavkům normy ${stdName} a jeho součásti jsou ve funkčním stavu.`;
+  }
+  if (safety === "not_able") {
+    return `Instalované hromosvodné zařízení nevyhovuje požadavkům normy ${stdName} a jeho součásti nejsou ve funkčním stavu.`;
+  }
   return dash(safety || safe?.conclusion?.safetyText);
 }
 
