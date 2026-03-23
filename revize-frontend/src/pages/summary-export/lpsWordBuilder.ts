@@ -2,8 +2,10 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Header,
   ImageRun,
   Packer,
+  PageNumber,
   Paragraph,
   Table,
   TableCell,
@@ -579,7 +581,6 @@ function calculateDefectPhotoTransformation(size?: { width: number; height: numb
     width: Math.max(80, Math.round(size.width * scale)),
     height: Math.max(60, Math.round(size.height * scale)),
   };
-  const nextRevision = dash(safe.conclusion?.validUntil || lps.nextRevision);
 }
 
 function buildDefectPhotoGrid(photos: LpsPreparedDefectPhoto[]) {
