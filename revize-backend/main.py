@@ -31,6 +31,8 @@ ALLOWED_ORIGINS = [
     "https://revizor-3.onrender.com",
     "https://lb-eltech.online",
     "https://www.lb-eltech.online",
+    "https://revize.lb-eltech.cz",
+    "https://api-revize.lb-eltech.cz",
 ]
 
 
@@ -44,7 +46,7 @@ def _is_allowed_origin(origin: str) -> bool:
 
     return bool(
         re.fullmatch(
-            r"(https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
+            r"(https://.*\.onrender\.com|https://.*\.run\.app|https://([a-z0-9-]+\.)?lb-eltech\.(online|cz)|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
             origin,
         )
     )
@@ -53,7 +55,7 @@ def _is_allowed_origin(origin: str) -> bool:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"(https://.*\.onrender\.com|https://(www\.)?lb-eltech\.online|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
+    allow_origin_regex=r"(https://.*\.onrender\.com|https://.*\.run\.app|https://([a-z0-9-]+\.)?lb-eltech\.(online|cz)|http://localhost:\d+|http://127\.0\.0\.1:\d+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=[

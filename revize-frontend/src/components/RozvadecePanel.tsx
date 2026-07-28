@@ -1,6 +1,6 @@
 // src/components/RozvadecePanel.tsx
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import api from "../api/axios";
 
@@ -288,6 +288,29 @@ export default function RozvadecePanel() {
     };
 
   }, [newComp.popisId]);
+
+  const refreshComponentCatalog = useCallback(
+    async ({ typeId, manufacturerId }: { typeId?: string; manufacturerId?: string }) => {
+      const [typesResponse, manufacturersResponse, modelsResponse] = await Promise.all([
+        api.get("/catalog/types"),
+        typeId
+          ? api.get("/catalog/manufacturers", { params: { type_id: typeId } })
+          : Promise.resolve({ data: [] }),
+        manufacturerId
+          ? api.get("/catalog/models", { params: { manufacturer_id: manufacturerId } })
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      setTypes(Array.isArray(typesResponse.data) ? typesResponse.data : []);
+      if (typeId) {
+        setManufacturers(Array.isArray(manufacturersResponse.data) ? manufacturersResponse.data : []);
+      }
+      if (manufacturerId) {
+        setModels(Array.isArray(modelsResponse.data) ? modelsResponse.data : []);
+      }
+    },
+    []
+  );
 
 
 
@@ -2124,6 +2147,8 @@ export default function RozvadecePanel() {
           }}
 
           onParentChange={(pid) => setNewComp((c) => ({ ...c, parentId: pid ?? null }))}
+
+          onCatalogChanged={refreshComponentCatalog}
 
           onCancel={() => {
 

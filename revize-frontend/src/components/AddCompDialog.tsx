@@ -5,6 +5,7 @@ import api from "../api/axios";
 type CompWithParent = Komponenta & { parentId?: number | null; rowId?: number | null };
 type SearchManufacturer = { id: number; name: string; typeId: number };
 type CatalogItem = { id: number; name: string; typeId?: number; type_id?: number };
+type CatalogChangedPayload = { typeId?: string; manufacturerId?: string };
 
 const OTHER_MANUFACTURER_ID = "__other__";
 const OTHER_MANUFACTURER_NAME = "Ostatní";
@@ -49,6 +50,7 @@ interface AddCompDialogProps {
   onRowChange?: (rowId: number | null) => void;
   onParentChange: (pid: number | null) => void;
   polesWarning?: string;
+  onCatalogChanged?: (payload: CatalogChangedPayload) => Promise<void> | void;
   onCancel: () => void;
   onAdd: () => void;
 }
@@ -81,6 +83,7 @@ export default function AddCompDialog({
   onRowChange,
   onParentChange,
   polesWarning,
+  onCatalogChanged,
   onCancel,
   onAdd,
 }: AddCompDialogProps) {
@@ -444,6 +447,7 @@ export default function AddCompDialog({
       const wantsModel = !!modelName;
 
       if (!wantsManufacturer && !wantsModel) {
+        await onCatalogChanged?.({ typeId: String(typeId) });
         setIsCustom(false);
         setNewComp((current) => ({
           ...current,
@@ -478,6 +482,7 @@ export default function AddCompDialog({
       if (!manufacturerId) throw new Error("Vyberte výrobce.");
 
       if (!wantsModel) {
+        await onCatalogChanged?.({ typeId: String(typeId), manufacturerId: String(manufacturerId) });
         setIsCustom(false);
         setNewComp((current) => ({
           ...current,
@@ -518,6 +523,7 @@ export default function AddCompDialog({
       }));
       setModelCache((prev) => ({ ...prev, [String(manufacturerId)]: refreshedModels }));
       setInlineManufacturers(refreshedManufacturers);
+      await onCatalogChanged?.({ typeId: String(typeId), manufacturerId: String(manufacturerId) });
 
       setIsCustom(false);
       setNewComp((current) => ({
