@@ -1,5 +1,5 @@
 ﻿// src/pages/Dashboard.tsx (obnovený původní vzhled + VV + mazání s heslem)
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useAuth } from "../context/AuthContext";
@@ -94,6 +94,8 @@ export default function Dashboard() {
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectData, setNewProjectData] = useState({ address: "", client: "" });
   const [search, setSearch] = useState("");
+  const importJsonInputRef = useRef<HTMLInputElement | null>(null);
+  const [importJsonBusy, setImportJsonBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
@@ -209,6 +211,38 @@ export default function Dashboard() {
       });
     } catch (e: any) {
       setCopyDialog((d) => ({ ...d, busy: false, err: e?.message || "Kopírování selhalo" }));
+    }
+  };
+
+  const handleImportJsonFile = async (file: File | null) => {
+    if (!file || !token) return;
+    setImportJsonBusy(true);
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const res = await fetch(apiUrl("/revisions/import-json"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader(token) },
+        body: JSON.stringify({ data_json: data, preserve_identifiers: true }),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail = body?.detail ? String(body.detail) : "";
+        } catch {}
+        throw new Error(detail || `Import selhal (${res.status})`);
+      }
+      const imported = await res.json();
+      await fetchProjects();
+      setExpandedProjectId(imported.project_id ?? null);
+      alert("Revize byla importována.");
+    } catch (e: any) {
+      console.error("Import JSON selhal:", e);
+      alert(`Import JSON selhal: ${e?.message || e}`);
+    } finally {
+      setImportJsonBusy(false);
+      if (importJsonInputRef.current) importJsonInputRef.current.value = "";
     }
   };
 
@@ -475,7 +509,33 @@ export default function Dashboard() {
       <Sidebar mode="dashboard" onNewProject={() => setShowNewProjectDialog(true)} />
 
       <main className="flex-1 p-6">
-        <h1 className="text-3xl font-bold text-blue-800 mb-4">📁 Projekty</h1>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold text-blue-800">📁 Projekty</h1>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
+              onClick={() => setShowNewProjectDialog(true)}
+            >
+              + Nový projekt
+            </button>
+            <button
+              type="button"
+              className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:opacity-60"
+              onClick={() => importJsonInputRef.current?.click()}
+              disabled={importJsonBusy}
+            >
+              {importJsonBusy ? "Importuji…" : "Import JSON"}
+            </button>
+            <input
+              ref={importJsonInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => handleImportJsonFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+        </div>
 
         <input
           type="text"

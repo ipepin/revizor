@@ -284,6 +284,20 @@ def _generate_revision_number(
     return f"{prefix}{next_seq:03d}"
 
 
+def _generate_project_number(db: Session, owner_id: int) -> str:
+    rows = db.query(Project.number).filter(Project.owner_id == owner_id).all()
+    max_seq = 0
+    for (number,) in rows:
+        raw = str(number or "").strip()
+        if not raw:
+            continue
+        try:
+            max_seq = max(max_seq, int(raw))
+        except ValueError:
+            continue
+    return str(max_seq + 1)
+
+
 
 def _can_access_project(user: UserModel, prj: Project) -> bool:
     """VlastnĂ­k projektu, nebo uĹľivatel, se kterĂ˝m je projekt sdĂ­len."""
@@ -696,9 +710,144 @@ class CopyRevisionBody(BaseModel):
     target_project_id: int
 
 
+class RevisionJsonImportBody(BaseModel):
+    data_json: Dict[str, Any]
+    project_address: Optional[str] = None
+    project_client: Optional[str] = None
+    revision_type: Optional[str] = None
+    preserve_identifiers: bool = True
+
+
 class RevisionPhotoPatchBody(BaseModel):
     caption: Optional[str] = None
     defect_uid: Optional[str] = None
+
+
+def _first_text(*values: Any) -> str:
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return ""
+
+
+def _infer_import_revision_type(data: Dict[str, Any], explicit: Optional[str]) -> str:
+    raw = _first_text(explicit, data.get("type"), data.get("typ"), data.get("typRevize"))
+    upper = raw.upper()
+    if "LPS" in upper:
+        return "LPS"
+    if "FVE" in upper or "FOTOVOL" in upper:
+        return "FVE"
+    return "Elektroinstalace"
+
+
+def _infer_import_date(data: Dict[str, Any]) -> date:
+    for key in ("date_end", "date_done", "date_created", "date_start", "datum", "date"):
+        parsed = _ensure_date(data.get(key))
+        if parsed:
+            return parsed
+    return date.today()
+
+
+def _infer_import_valid_until(data: Dict[str, Any]) -> Optional[date]:
+    for key in ("valid_until", "conclusion_valid_until", "platnost"):
+        parsed = _ensure_date(data.get(key))
+        if parsed:
+            return parsed
+    conclusion = data.get("conclusion")
+    if isinstance(conclusion, dict):
+        for key in ("valid_until", "validUntil", "conclusion_valid_until"):
+            parsed = _ensure_date(conclusion.get(key))
+            if parsed:
+                return parsed
+    return None
+
+
+def _identifier_available(db: Session, field_name: str, value: str) -> bool:
+    if not value:
+        return False
+    field = getattr(Revision, field_name)
+    return db.query(Revision.id).filter(field == value).first() is None
+
+
+@router.post("/import-json", response_model=RevisionRead, status_code=status.HTTP_201_CREATED)
+def import_revision_json(
+    payload: RevisionJsonImportBody,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    data_json_val = _ensure_dict(payload.data_json)
+    if not data_json_val:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="JSON revize je prázdný nebo neplatný")
+
+    address = _first_text(payload.project_address, data_json_val.get("adresa"), data_json_val.get("address"), data_json_val.get("objekt"))
+    client = _first_text(payload.project_client, data_json_val.get("objednatel"), data_json_val.get("client"), data_json_val.get("zakaznik"))
+    if not address:
+        address = "Importovaná revize"
+    if not client:
+        client = "Neznámý objednatel"
+
+    rev_type = _infer_import_revision_type(data_json_val, payload.revision_type)
+    date_done = _infer_import_date(data_json_val)
+    valid_until = _infer_import_valid_until(data_json_val)
+    prefix_val = "LPS" if rev_type.upper() == "LPS" else "RZ"
+
+    project = Project(
+        number=_generate_project_number(db, user.id),
+        address=address,
+        client=client,
+        owner_id=user.id,
+    )
+    db.add(project)
+    db.flush()
+
+    imported_number = _first_text(data_json_val.get("evidencni"), data_json_val.get("number"))
+    imported_uuid = _first_text(data_json_val.get("uuid"))
+
+    if payload.preserve_identifiers and _identifier_available(db, "number", imported_number):
+        number = imported_number
+    else:
+        number = _generate_revision_number(db, project.id, getattr(project, "number", None), date_done.year, prefix_val)
+
+    if payload.preserve_identifiers and _identifier_available(db, "uuid", imported_uuid):
+        rev_uuid = imported_uuid
+    else:
+        rev_uuid = generate_revision_uuid()
+
+    data_json_val["evidencni"] = number
+    data_json_val["uuid"] = rev_uuid
+    data_json_val["adresa"] = address
+    data_json_val["objednatel"] = client
+
+    try:
+        rev = Revision(
+            project_id=project.id,
+            type=rev_type,
+            uuid=rev_uuid,
+            number=number,
+            date_done=date_done,
+            valid_until=valid_until,
+            status="Rozpracovaná",
+            data_json=data_json_val,
+            conclusion_text=_first_text(data_json_val.get("conclusion_text")),
+            conclusion_safety=_first_text(data_json_val.get("conclusion_safety")),
+            conclusion_valid_until=valid_until,
+            defects=_json.dumps(data_json_val.get("defects", []), ensure_ascii=False)
+            if isinstance(data_json_val.get("defects"), list)
+            else _first_text(data_json_val.get("defects")),
+        )
+        db.add(rev)
+        db.commit()
+        db.refresh(rev)
+        return _to_schema(rev)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Import revize selhal: {type(e).__name__}: {str(e)}",
+        )
 
 
 @router.post("/{rev_id}/copy", response_model=RevisionRead, status_code=status.HTTP_201_CREATED)
