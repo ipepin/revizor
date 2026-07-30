@@ -21,8 +21,8 @@ const runtimeConfigOrigin =
   typeof window !== "undefined" ? window.__APP_CONFIG__?.apiOrigin : undefined;
 
 const resolvedBase = resolveApiBase(
-  import.meta.env.VITE_API_URL as MaybeString,
-  runtimeConfigOrigin
+  runtimeConfigOrigin,
+  import.meta.env.VITE_API_URL as MaybeString
 );
 
 export const API_ORIGIN = resolvedBase.baseUrl;
@@ -45,8 +45,8 @@ export const apiUrl = (path: string) => {
   return `${resolvedBase.baseUrl}${normalizedPath}`;
 };
 
-function resolveApiBase(envOrigin: MaybeString, runtimeOrigin: MaybeString): ResolvedApiBase {
-  const candidates: MaybeString[] = [envOrigin, runtimeOrigin];
+function resolveApiBase(runtimeOrigin: MaybeString, envOrigin: MaybeString): ResolvedApiBase {
+  const candidates: MaybeString[] = [runtimeOrigin, envOrigin];
 
   for (const candidate of candidates) {
     const built = buildBase(candidate);
@@ -69,7 +69,7 @@ function buildBase(value: MaybeString): ResolvedApiBase | null {
   }
   const trimmed = `${value}`.trim();
   if (!trimmed) {
-    return { baseUrl: "", isAbsolute: false };
+    return null;
   }
 
   let normalized = trimmed.replace(/\/+$/, "");
