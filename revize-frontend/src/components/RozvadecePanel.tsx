@@ -177,6 +177,8 @@ export default function RozvadecePanel() {
 
   const [models, setModels] = useState<{ id: number; name: string }[]>([]);
 
+  const [componentCatalogError, setComponentCatalogError] = useState("");
+
   const [dimenzeOptions, setDimenzeOptions] = useState<string[]>(favoriteDimenze);
 
 
@@ -221,7 +223,14 @@ export default function RozvadecePanel() {
 
     let cancel = false;
 
-    api.get("/catalog/types").then((r) => !cancel && setTypes(r.data)).catch(() => {});
+    setComponentCatalogError("");
+
+    api
+      .get("/catalog/types")
+      .then((r) => !cancel && setTypes(Array.isArray(r.data) ? r.data : []))
+      .catch(() => {
+        if (!cancel) setComponentCatalogError("Katalog přístrojů se nepodařilo načíst.");
+      });
 
     return () => {
 
@@ -241,9 +250,19 @@ export default function RozvadecePanel() {
 
         .get("/catalog/manufacturers", { params: { type_id: newComp.nazevId } })
 
-        .then((r) => !cancel && setManufacturers(r.data))
+        .then((r) => {
+          if (!cancel) {
+            setManufacturers(Array.isArray(r.data) ? r.data : []);
+            setComponentCatalogError("");
+          }
+        })
 
-        .catch(() => {});
+        .catch(() => {
+          if (!cancel) {
+            setManufacturers([]);
+            setComponentCatalogError("Výrobce se nepodařilo načíst.");
+          }
+        });
 
     } else {
 
@@ -271,9 +290,19 @@ export default function RozvadecePanel() {
 
         .get("/catalog/models", { params: { manufacturer_id: newComp.popisId } })
 
-        .then((r) => !cancel && setModels(r.data))
+        .then((r) => {
+          if (!cancel) {
+            setModels(Array.isArray(r.data) ? r.data : []);
+            setComponentCatalogError("");
+          }
+        })
 
-        .catch(() => {});
+        .catch(() => {
+          if (!cancel) {
+            setModels([]);
+            setComponentCatalogError("Modely se nepodařilo načíst.");
+          }
+        });
 
     } else {
 
@@ -291,26 +320,45 @@ export default function RozvadecePanel() {
 
   const refreshComponentCatalog = useCallback(
     async ({ typeId, manufacturerId }: { typeId?: string; manufacturerId?: string }) => {
-      const [typesResponse, manufacturersResponse, modelsResponse] = await Promise.all([
-        api.get("/catalog/types"),
-        typeId
-          ? api.get("/catalog/manufacturers", { params: { type_id: typeId } })
-          : Promise.resolve({ data: [] }),
-        manufacturerId
-          ? api.get("/catalog/models", { params: { manufacturer_id: manufacturerId } })
-          : Promise.resolve({ data: [] }),
-      ]);
+      try {
+        setComponentCatalogError("");
+        const [typesResponse, manufacturersResponse, modelsResponse] = await Promise.all([
+          api.get("/catalog/types"),
+          typeId
+            ? api.get("/catalog/manufacturers", { params: { type_id: typeId } })
+            : Promise.resolve({ data: [] }),
+          manufacturerId
+            ? api.get("/catalog/models", { params: { manufacturer_id: manufacturerId } })
+            : Promise.resolve({ data: [] }),
+        ]);
 
-      setTypes(Array.isArray(typesResponse.data) ? typesResponse.data : []);
-      if (typeId) {
-        setManufacturers(Array.isArray(manufacturersResponse.data) ? manufacturersResponse.data : []);
-      }
-      if (manufacturerId) {
-        setModels(Array.isArray(modelsResponse.data) ? modelsResponse.data : []);
+        setTypes(Array.isArray(typesResponse.data) ? typesResponse.data : []);
+        if (typeId) {
+          setManufacturers(Array.isArray(manufacturersResponse.data) ? manufacturersResponse.data : []);
+        }
+        if (manufacturerId) {
+          setModels(Array.isArray(modelsResponse.data) ? modelsResponse.data : []);
+        }
+      } catch {
+        setComponentCatalogError("Katalog se po uložení nepodařilo obnovit.");
+        throw new Error("Katalog se po uložení nepodařilo obnovit.");
       }
     },
     []
   );
+
+  useEffect(() => {
+    if (!showCompDialog) return;
+    refreshComponentCatalog({
+      typeId: newComp.nazevId ? String(newComp.nazevId) : undefined,
+      manufacturerId:
+        newComp.popisId && newComp.popisId !== OTHER_MANUFACTURER_ID
+          ? String(newComp.popisId)
+          : undefined,
+    }).catch(() => {
+      // Chybu zobrazí dialog přes componentCatalogError.
+    });
+  }, [showCompDialog]);
 
 
 
@@ -2113,6 +2161,8 @@ export default function RozvadecePanel() {
           manufacturers={manufacturers}
 
           models={models}
+
+          catalogError={componentCatalogError}
 
           polesOptions={allowedPolesOptions}
 

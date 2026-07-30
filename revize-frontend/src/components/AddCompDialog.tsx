@@ -31,6 +31,7 @@ interface AddCompDialogProps {
   types: { id: number; name: string }[];
   manufacturers: CatalogItem[];
   models: { id: number; name: string }[];
+  catalogError?: string;
   polesOptions: string[];
   dimenzeOptions: string[];
   favoriteDimenze?: string[];
@@ -74,6 +75,7 @@ export default function AddCompDialog({
   types,
   manufacturers,
   models,
+  catalogError,
   polesOptions,
   dimenzeOptions,
   favoriteDimenze,
@@ -95,6 +97,9 @@ export default function AddCompDialog({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBusy, setSearchBusy] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [serverSearchOptions, setServerSearchOptions] = useState<SearchOption[]>([]);
+  const [selectedNotice, setSelectedNotice] = useState("");
   const [searchManufacturerCache, setSearchManufacturerCache] = useState<
     Record<string, SearchManufacturer[]>
   >({});
@@ -152,9 +157,44 @@ export default function AddCompDialog({
 
   useEffect(() => {
     const q = searchQuery.trim();
-    if (q.length < 2 || !types.length) return;
+    if (q.length < 2) {
+      setSearchError("");
+      setServerSearchOptions([]);
+      return;
+    }
 
+    let cancel = false;
     const fetchSearchData = async () => {
+      setSearchError("");
+      setSearchBusy(true);
+      try {
+        const searchResponse = await api.get("/catalog/search", { params: { q, limit: 40 } });
+        if (!cancel && Array.isArray(searchResponse.data)) {
+          setServerSearchOptions(
+            searchResponse.data.map((row: any) => ({
+              kind: row.modelId ? "typeManufacturerModel" : "typeManufacturer",
+              id: `server-${row.typeId || ""}-${row.manufacturerId || ""}-${row.modelId || ""}`,
+              label: row.label || [row.typeName, row.manufacturerName, row.modelName].filter(Boolean).join(" "),
+              typeId: row.typeId != null ? String(row.typeId) : "",
+              typeName: row.typeName || "",
+              manufacturerId: row.manufacturerId != null ? String(row.manufacturerId) : "",
+              manufacturerName: row.manufacturerName || "",
+              modelId: row.modelId != null ? String(row.modelId) : "",
+              modelName: row.modelName || "",
+            }))
+          );
+        }
+      } catch {
+        if (!cancel) {
+          setServerSearchOptions([]);
+          setSearchError("Vyhledávání v katalogu se nepodařilo načíst.");
+        }
+      } finally {
+        if (!cancel) setSearchBusy(false);
+      }
+
+      if (!types.length) return;
+
       const missingTypeIds = types
         .map((t) => String(t.id))
         .filter((id) => !searchManufacturerCache[id]);
@@ -167,7 +207,6 @@ export default function AddCompDialog({
         if (!missingModels.length) return;
       }
 
-      setSearchBusy(true);
       try {
         if (missingTypeIds.length) {
           const results = await Promise.all(
@@ -175,7 +214,10 @@ export default function AddCompDialog({
               api
                 .get("/catalog/manufacturers", { params: { type_id: typeId } })
                 .then((r) => ({ typeId: Number(typeId), rows: Array.isArray(r.data) ? r.data : [] }))
-                .catch(() => ({ typeId: Number(typeId), rows: [] }))
+                .catch(() => {
+                  setSearchError("Výrobce se nepodařilo načíst.");
+                  return { typeId: Number(typeId), rows: [] };
+                })
             )
           );
 
@@ -198,7 +240,10 @@ export default function AddCompDialog({
               api
                 .get("/catalog/models", { params: { manufacturer_id: m.id } })
                 .then((r) => ({ id: m.id, rows: Array.isArray(r.data) ? r.data : [] }))
-                .catch(() => ({ id: m.id, rows: [] }))
+                .catch(() => {
+                  setSearchError("Modely se nepodařilo načíst.");
+                  return { id: m.id, rows: [] };
+                })
             )
           );
 
@@ -211,11 +256,14 @@ export default function AddCompDialog({
           });
         }
       } finally {
-        setSearchBusy(false);
+        if (!cancel) setSearchBusy(false);
       }
     };
 
     fetchSearchData();
+    return () => {
+      cancel = true;
+    };
   }, [searchQuery, types, searchManufacturerCache, modelCache]);
 
   useEffect(() => {
@@ -310,6 +358,8 @@ export default function AddCompDialog({
       out.push(opt);
     };
 
+    serverSearchOptions.forEach(add);
+
     const typeMatches = types.filter((t) => t.name.toLowerCase().includes(q));
     const fallbackManufacturers = manufacturers
       .map((m) => ({
@@ -369,9 +419,10 @@ export default function AddCompDialog({
     });
 
     return out.slice(0, 20);
-  }, [searchQuery, types, manufacturers, searchManufacturers, modelCache, selectedTypeId]);
+  }, [searchQuery, types, manufacturers, searchManufacturers, modelCache, selectedTypeId, serverSearchOptions]);
 
   const handleSearchSelect = (opt: SearchOption) => {
+    setSelectedNotice(`Vybráno: ${opt.label}`);
     if (opt.kind === "type") {
       setIsCustom(false);
       setNewComp({
@@ -447,6 +498,7 @@ export default function AddCompDialog({
       const wantsModel = !!modelName;
 
       if (!wantsManufacturer && !wantsModel) {
+        const notice = `Předvyplněno: ${typeName}`;
         await onCatalogChanged?.({ typeId: String(typeId) });
         setIsCustom(false);
         setNewComp((current) => ({
@@ -458,6 +510,7 @@ export default function AddCompDialog({
           typId: "",
           typ: "",
         }));
+        setSelectedNotice(notice);
         setInlineSuccess("Přístroj byl přidán do katalogu a předvyplněn.");
         setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
         setInlineOpen(false);
@@ -482,6 +535,7 @@ export default function AddCompDialog({
       if (!manufacturerId) throw new Error("Vyberte výrobce.");
 
       if (!wantsModel) {
+        const notice = `Předvyplněno: ${[typeName, manufacturerName].filter(Boolean).join(" ")}`;
         await onCatalogChanged?.({ typeId: String(typeId), manufacturerId: String(manufacturerId) });
         setIsCustom(false);
         setNewComp((current) => ({
@@ -493,6 +547,7 @@ export default function AddCompDialog({
           typId: "",
           typ: "",
         }));
+        setSelectedNotice(notice);
         setInlineSuccess("Výrobce byl přidán do katalogu a předvyplněn.");
         setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
         setInlineOpen(false);
@@ -524,6 +579,9 @@ export default function AddCompDialog({
       setModelCache((prev) => ({ ...prev, [String(manufacturerId)]: refreshedModels }));
       setInlineManufacturers(refreshedManufacturers);
       await onCatalogChanged?.({ typeId: String(typeId), manufacturerId: String(manufacturerId) });
+      const selectedLabel = [typeName, manufacturerName, modelResp.data?.name || modelName]
+        .filter(Boolean)
+        .join(" ");
 
       setIsCustom(false);
       setNewComp((current) => ({
@@ -535,6 +593,7 @@ export default function AddCompDialog({
         typId: String(modelResp.data?.id || ""),
         typ: modelResp.data?.name || modelName,
       }));
+      setSelectedNotice(`Předvyplněno: ${selectedLabel}`);
 
       setInlineSuccess("Položka byla přidána do katalogu a vybrána.");
       setInlineForm({ ...INLINE_EMPTY_STATE, typeId: String(typeId) });
@@ -597,9 +656,30 @@ export default function AddCompDialog({
             className="w-full rounded border p-1.5 text-sm"
             placeholder="Napište např. Eaton nebo PL7"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSelectedNotice("");
+              setSearchQuery(e.target.value);
+            }}
           />
+          {catalogError && (
+            <div className="mt-1 rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+              {catalogError}
+            </div>
+          )}
           {searchBusy && <div className="mt-1 text-xs text-gray-500">Načítám možnosti…</div>}
+          {searchError && (
+            <div className="mt-1 rounded border border-rose-300 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+              {searchError}
+            </div>
+          )}
+          {selectedNotice && (
+            <div className="mt-1 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+              {selectedNotice}
+            </div>
+          )}
+          {!searchBusy && !searchError && searchQuery.trim().length >= 2 && searchOptions.length === 0 && (
+            <div className="mt-1 text-xs text-gray-500">Nic nenalezeno. Položku můžete přidat do katalogu níže.</div>
+          )}
           {searchOptions.length > 0 && (
             <div className="mt-1 max-h-48 overflow-auto rounded border bg-white text-sm">
               {searchOptions.map((opt) => (

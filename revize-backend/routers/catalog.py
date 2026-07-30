@@ -15,6 +15,7 @@ from schemas import (
     ComponentModelUpdate,
 )
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -39,6 +40,56 @@ def create_type(payload: ComponentTypeCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(obj)
     return obj
+
+
+@router.get("/search")
+def search_components(q: str, limit: int = 30, db: Session = Depends(get_db)):
+    query = (q or "").strip()
+    if len(query) < 2:
+        return []
+
+    safe_limit = max(1, min(int(limit or 30), 80))
+    like = f"%{query}%"
+
+    rows = (
+        db.query(
+            ComponentType.id.label("type_id"),
+            ComponentType.name.label("type_name"),
+            Manufacturer.id.label("manufacturer_id"),
+            Manufacturer.name.label("manufacturer_name"),
+            ComponentModel.id.label("model_id"),
+            ComponentModel.name.label("model_name"),
+        )
+        .join(Manufacturer, Manufacturer.type_id == ComponentType.id)
+        .outerjoin(ComponentModel, ComponentModel.manufacturer_id == Manufacturer.id)
+        .filter(
+            or_(
+                ComponentType.name.ilike(like),
+                Manufacturer.name.ilike(like),
+                ComponentModel.name.ilike(like),
+            )
+        )
+        .order_by(ComponentType.name, Manufacturer.name, ComponentModel.name)
+        .limit(safe_limit)
+        .all()
+    )
+
+    return [
+        {
+            "typeId": row.type_id,
+            "typeName": row.type_name or "",
+            "manufacturerId": row.manufacturer_id,
+            "manufacturerName": row.manufacturer_name or "",
+            "modelId": row.model_id,
+            "modelName": row.model_name or "",
+            "label": " ".join(
+                part
+                for part in [row.type_name, row.manufacturer_name, row.model_name]
+                if str(part or "").strip()
+            ),
+        }
+        for row in rows
+    ]
 
 @router.get("/manufacturers", response_model=List[ManufacturerRead])
 def list_manufacturers(type_id: int, db: Session = Depends(get_db)):
