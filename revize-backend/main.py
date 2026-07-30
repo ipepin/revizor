@@ -118,13 +118,14 @@ app.include_router(admin_router)
 def _ensure_runtime_tables():
     Base.metadata.create_all(bind=engine, tables=[RevisionPhoto.__table__])
     with engine.begin() as conn:
-        defect_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info('defects')").fetchall()}
+        defect_cols = {column["name"] for column in inspect(conn).get_columns("defects")}
         if defect_cols and "citation" not in defect_cols:
             conn.exec_driver_sql("ALTER TABLE defects ADD COLUMN citation TEXT")
 
 from fastapi import HTTPException, status
 from typing import Optional
 from pydantic import BaseModel
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from database import Base, engine, get_db
 from models import RevisionPhoto, User as UserModel
