@@ -1,13 +1,12 @@
-// public/app-config.js
-// Tento soubor se načítá před bundlovanou aplikací a umožňuje
-// přepsat konfiguraci bez rebuildování (např. na hostingu Render).
-// Podle potřeby odkomentuj a nastav vlastní backend URL:
-// window.__APP_CONFIG__ = {
-//   apiOrigin: "https://revizor-1.onrender.com",
-// };
-
 window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
-// Router mode:
-// - 'browser' = clean URLs, needs server rewrite to index.html
-// - 'hash' = URLs with #/, works everywhere (no server rewrites)
-window.__APP_CONFIG__.routerMode = window.__APP_CONFIG__.routerMode || 'hash';
+
+if (
+  typeof window !== "undefined" &&
+  !window.__APP_CONFIG__.apiOrigin &&
+  !["localhost", "127.0.0.1"].includes(window.location.hostname)
+) {
+  window.__APP_CONFIG__.apiOrigin =
+    "https://revize-backend-382571869063.europe-west1.run.app";
+}
+
+window.__APP_CONFIG__.routerMode = window.__APP_CONFIG__.routerMode || "hash";
