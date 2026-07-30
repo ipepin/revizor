@@ -9,6 +9,7 @@ from sqlalchemy import inspect, text
 from database import Base, engine
 import models  # noqa: F401 - registers all SQLAlchemy models on Base.metadata
 from seed_catalogs import main as seed_catalogs
+from seed_catalog_component_items import main as seed_catalog_component_items
 
 
 CORE_TABLES = {"users", "projects", "revisions"}
@@ -30,11 +31,14 @@ def main() -> None:
         Base.metadata.create_all(bind=engine)
         command.stamp(alembic_config(), "head")
         seed_catalogs()
+        seed_catalog_component_items()
         return
 
     if ALEMBIC_VERSION_TABLE not in tables:
         print("Core tables found but Alembic version table is missing; stamping head.")
         command.stamp(alembic_config(), "head")
+        seed_catalogs()
+        seed_catalog_component_items()
         return
 
     with engine.connect() as connection:
@@ -44,11 +48,13 @@ def main() -> None:
         print("Core tables found but Alembic version is empty; stamping head.")
         command.stamp(alembic_config(), "head")
         seed_catalogs()
+        seed_catalog_component_items()
         return
 
     print("Core tables found; running Alembic migrations.")
     command.upgrade(alembic_config(), "head")
     seed_catalogs()
+    seed_catalog_component_items()
 
 
 if __name__ == "__main__":

@@ -325,6 +325,51 @@ class ComponentModel(Base):
     manufacturer    = relationship("Manufacturer", back_populates="models")
 
 
+class CatalogComponentItem(Base):
+    __tablename__ = "catalog_component_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    granularity = Column(String, nullable=False, default="variant")
+    manufacturer = Column(String, nullable=False, index=True)
+    device = Column(String, nullable=False, index=True)
+    series = Column(String, nullable=False, index=True)
+    manufacturer_type = Column(String, nullable=True, index=True)
+    catalog_number = Column(String, nullable=True, index=True)
+    rated_current_a = Column(String, nullable=True)
+    poles_total = Column(String, nullable=True)
+    poles_protected = Column(String, nullable=True)
+    pole_configuration = Column(String, nullable=True)
+    characteristic = Column(String, nullable=True)
+    breaking_capacity_ka = Column(String, nullable=True)
+    residual_current_ma = Column(String, nullable=True)
+    rcd_type = Column(String, nullable=True)
+    voltage_type = Column(String, nullable=True)
+    heat_loss_w = Column(String, nullable=True)
+    heat_loss_basis = Column(String, nullable=True)
+    catalog_status = Column(String, nullable=False, default="current", index=True)
+    verification = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    source_url = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "manufacturer",
+            "device",
+            "series",
+            "manufacturer_type",
+            "catalog_number",
+            "rated_current_a",
+            "pole_configuration",
+            "characteristic",
+            "residual_current_ma",
+            "rcd_type",
+            name="uq_catalog_component_item_identity",
+        ),
+    )
+
+
 class CableFamily(Base):
     __tablename__ = "cable_families"
 

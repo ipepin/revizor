@@ -274,6 +274,10 @@ class ComponentTypeCreate(BaseModel):
     name: str = Field(..., min_length=1)
 
 
+class ComponentTypeUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+
+
 class ComponentModelRead(BaseModel):
     id: int
     name: Optional[str] = None
@@ -288,6 +292,69 @@ class ComponentModelRead(BaseModel):
 class ManufacturerCreate(BaseModel):
     name: str = Field(..., min_length=1)
     type_id: int
+
+
+class ManufacturerUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    type_id: Optional[int] = None
+
+
+class CatalogComponentItemBase(BaseModel):
+    granularity: str = "variant"
+    manufacturer: str
+    device: str
+    series: str
+    manufacturer_type: Optional[str] = None
+    catalog_number: Optional[str] = None
+    rated_current_a: Optional[str] = None
+    poles_total: Optional[str] = None
+    poles_protected: Optional[str] = None
+    pole_configuration: Optional[str] = None
+    characteristic: Optional[str] = None
+    breaking_capacity_ka: Optional[str] = None
+    residual_current_ma: Optional[str] = None
+    rcd_type: Optional[str] = None
+    voltage_type: Optional[str] = None
+    heat_loss_w: Optional[str] = None
+    heat_loss_basis: Optional[str] = None
+    catalog_status: str = "current"
+    verification: Optional[str] = None
+    notes: Optional[str] = None
+    source_url: Optional[str] = None
+
+
+class CatalogComponentItemCreate(CatalogComponentItemBase):
+    pass
+
+
+class CatalogComponentItemUpdate(BaseModel):
+    granularity: Optional[str] = None
+    manufacturer: Optional[str] = None
+    device: Optional[str] = None
+    series: Optional[str] = None
+    manufacturer_type: Optional[str] = None
+    catalog_number: Optional[str] = None
+    rated_current_a: Optional[str] = None
+    poles_total: Optional[str] = None
+    poles_protected: Optional[str] = None
+    pole_configuration: Optional[str] = None
+    characteristic: Optional[str] = None
+    breaking_capacity_ka: Optional[str] = None
+    residual_current_ma: Optional[str] = None
+    rcd_type: Optional[str] = None
+    voltage_type: Optional[str] = None
+    heat_loss_w: Optional[str] = None
+    heat_loss_basis: Optional[str] = None
+    catalog_status: Optional[str] = None
+    verification: Optional[str] = None
+    notes: Optional[str] = None
+    source_url: Optional[str] = None
+
+
+class CatalogComponentItemRead(CatalogComponentItemBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ComponentRead(BaseModel):

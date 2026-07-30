@@ -11,7 +11,7 @@ const OTHER_MANUFACTURER_ID = "__other__";
 const OTHER_MANUFACTURER_NAME = "Ostatní";
 
 type SearchOption = {
-  kind: "type" | "typeManufacturer" | "typeManufacturerModel";
+  kind: "catalogItem" | "type" | "typeManufacturer" | "typeManufacturerModel";
   id: string;
   label: string;
   manufacturerId?: string;
@@ -20,6 +20,16 @@ type SearchOption = {
   typeName?: string;
   modelId?: string;
   modelName?: string;
+  catalogItemId?: string;
+  device?: string;
+  series?: string;
+  manufacturerType?: string;
+  ratedCurrentA?: string;
+  poleConfiguration?: string;
+  characteristic?: string;
+  breakingCapacityKa?: string;
+  residualCurrentMa?: string;
+  rcdType?: string;
 };
 
 interface AddCompDialogProps {
@@ -168,20 +178,46 @@ export default function AddCompDialog({
       setSearchError("");
       setSearchBusy(true);
       try {
-        const searchResponse = await api.get("/catalog/search", { params: { q, limit: 40 } });
-        if (!cancel && Array.isArray(searchResponse.data)) {
+        const [itemSearchResponse, searchResponse] = await Promise.all([
+          api.get("/catalog/component-items/search", { params: { q, limit: 40 } }).catch(() => ({ data: [] })),
+          api.get("/catalog/search", { params: { q, limit: 40 } }).catch(() => ({ data: [] })),
+        ]);
+        if (!cancel) {
+          const itemOptions = Array.isArray(itemSearchResponse.data)
+            ? itemSearchResponse.data.map((row: any) => ({
+                kind: "catalogItem" as const,
+                id: `catalog-item-${row.id}`,
+                catalogItemId: row.id != null ? String(row.id) : "",
+                label: row.label || [row.device, row.manufacturer, row.manufacturerType || row.series].filter(Boolean).join(" "),
+                typeName: row.device || "",
+                manufacturerName: row.manufacturer || "",
+                modelName: row.manufacturerType || row.series || "",
+                device: row.device || "",
+                series: row.series || "",
+                manufacturerType: row.manufacturerType || "",
+                ratedCurrentA: row.ratedCurrentA || "",
+                poleConfiguration: row.poleConfiguration || "",
+                characteristic: row.characteristic || "",
+                breakingCapacityKa: row.breakingCapacityKa || "",
+                residualCurrentMa: row.residualCurrentMa || "",
+                rcdType: row.rcdType || "",
+              }))
+            : [];
+          const legacyOptions = Array.isArray(searchResponse.data)
+            ? searchResponse.data.map((row: any) => ({
+                kind: row.modelId ? "typeManufacturerModel" : "typeManufacturer",
+                id: `server-${row.typeId || ""}-${row.manufacturerId || ""}-${row.modelId || ""}`,
+                label: row.label || [row.typeName, row.manufacturerName, row.modelName].filter(Boolean).join(" "),
+                typeId: row.typeId != null ? String(row.typeId) : "",
+                typeName: row.typeName || "",
+                manufacturerId: row.manufacturerId != null ? String(row.manufacturerId) : "",
+                manufacturerName: row.manufacturerName || "",
+                modelId: row.modelId != null ? String(row.modelId) : "",
+                modelName: row.modelName || "",
+              }))
+            : [];
           setServerSearchOptions(
-            searchResponse.data.map((row: any) => ({
-              kind: row.modelId ? "typeManufacturerModel" : "typeManufacturer",
-              id: `server-${row.typeId || ""}-${row.manufacturerId || ""}-${row.modelId || ""}`,
-              label: row.label || [row.typeName, row.manufacturerName, row.modelName].filter(Boolean).join(" "),
-              typeId: row.typeId != null ? String(row.typeId) : "",
-              typeName: row.typeName || "",
-              manufacturerId: row.manufacturerId != null ? String(row.manufacturerId) : "",
-              manufacturerName: row.manufacturerName || "",
-              modelId: row.modelId != null ? String(row.modelId) : "",
-              modelName: row.modelName || "",
-            }))
+            [...itemOptions, ...legacyOptions]
           );
         }
       } catch {
@@ -423,7 +459,25 @@ export default function AddCompDialog({
 
   const handleSearchSelect = (opt: SearchOption) => {
     setSelectedNotice(`Vybráno: ${opt.label}`);
-    if (opt.kind === "type") {
+    if (opt.kind === "catalogItem") {
+      const modelName = opt.manufacturerType || opt.series || opt.modelName || "";
+      const characteristicSuffix = opt.characteristic ? ` ${opt.characteristic}` : "";
+      const currentSuffix = opt.ratedCurrentA ? ` ${opt.ratedCurrentA}A` : "";
+      setIsCustom(true);
+      setNewComp({
+        ...defaultComp,
+        parentId: newComp.parentId ?? null,
+        rowId: newComp.rowId ?? null,
+        nazevId: "",
+        nazev: opt.device || opt.typeName || "",
+        popisId: "",
+        popis: opt.manufacturerName || "",
+        typId: opt.catalogItemId || "",
+        typ: `${modelName}${characteristicSuffix}${currentSuffix}`.trim(),
+        poles: opt.poleConfiguration || "",
+        vybavovaciProudmA: opt.residualCurrentMa || "",
+      });
+    } else if (opt.kind === "type") {
       setIsCustom(false);
       setNewComp({
         ...defaultComp,

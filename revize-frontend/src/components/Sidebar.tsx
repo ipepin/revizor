@@ -490,7 +490,7 @@ export default function Sidebar({ mode, active, onSelect, onNewProject, actions 
                   }`}
                   onClick={() => go("/katalog")}
                 >
-                  Katalog komponent
+                  Správa komponent
                 </li>
                 <li
                   className="p-2 hover:bg-gray-100 cursor-pointer"
