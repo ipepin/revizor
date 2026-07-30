@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "python bootstrap_db.py && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
