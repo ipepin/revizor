@@ -4,13 +4,14 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from database import Base, engine
 import models  # noqa: F401 - registers all SQLAlchemy models on Base.metadata
 
 
 CORE_TABLES = {"users", "projects", "revisions"}
+ALEMBIC_VERSION_TABLE = "alembic_version"
 
 
 def alembic_config() -> Config:
@@ -26,6 +27,19 @@ def main() -> None:
         missing = ", ".join(sorted(CORE_TABLES - tables))
         print(f"Core tables missing ({missing}); creating current schema and stamping Alembic head.")
         Base.metadata.create_all(bind=engine)
+        command.stamp(alembic_config(), "head")
+        return
+
+    if ALEMBIC_VERSION_TABLE not in tables:
+        print("Core tables found but Alembic version table is missing; stamping head.")
+        command.stamp(alembic_config(), "head")
+        return
+
+    with engine.connect() as connection:
+        version = connection.execute(text("select version_num from alembic_version limit 1")).scalar()
+
+    if not version:
+        print("Core tables found but Alembic version is empty; stamping head.")
         command.stamp(alembic_config(), "head")
         return
 
