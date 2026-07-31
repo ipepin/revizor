@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 from datetime import date
+from io import BytesIO
 import json as _json
+import os
 from pathlib import Path, PureWindowsPath
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload, defer
@@ -27,6 +29,11 @@ except Exception:  # pragma: no cover
     ImageOps = None
 
 try:
+    from google.cloud import storage as gcs_storage  # type: ignore
+except Exception:  # pragma: no cover
+    gcs_storage = None
+
+try:
     # oÄŤekĂˇvĂˇ se soubor auth/security.py s funkcĂ­ verify_password(plain, hashed)
     from utils.security import verify_password  # type: ignore
 except Exception:  # pragma: no cover
@@ -40,6 +47,7 @@ except Exception:  # pragma: no cover
 router = APIRouter(prefix="/revisions", tags=["revisions"])
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[1] / "uploads" / "revision_photos"
+PHOTO_BUCKET = (os.getenv("PHOTO_BUCKET") or os.getenv("GCS_PHOTO_BUCKET") or "").strip()
 MAX_PHOTO_UPLOAD_SIZE = 40 * 1024 * 1024
 MAX_PHOTO_LONG_EDGE = 1600
 JPEG_QUALITY = 82
@@ -56,6 +64,25 @@ ALLOWED_IMAGE_TYPES = {
     "image/heic-sequence": ".heic",
     "image/heif-sequence": ".heif",
 }
+_gcs_client = None
+
+
+def _use_gcs_photos() -> bool:
+    return bool(PHOTO_BUCKET)
+
+
+def _get_photo_bucket():
+    global _gcs_client
+    if not _use_gcs_photos():
+        return None
+    if gcs_storage is None:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google Cloud Storage client is not installed",
+        )
+    if _gcs_client is None:
+        _gcs_client = gcs_storage.Client()
+    return _gcs_client.bucket(PHOTO_BUCKET)
 
 
 # ---------- Helpers ----------
@@ -94,7 +121,55 @@ def _revision_upload_dir(rev_id: int) -> Path:
 
 
 def _photo_storage_value(rev_id: int, filename: str) -> str:
+    if _use_gcs_photos():
+        return f"revision_photos/{rev_id}/{filename}"
     return f"{rev_id}/{filename}"
+
+
+def _thumb_storage_value(file_path: str | None, rev_id: int | None = None) -> str | None:
+    if not file_path:
+        return None
+    if _use_gcs_photos():
+        raw = str(file_path).strip()
+        if not raw:
+            return None
+        p = Path(raw)
+        return str(p.with_name(f"{p.stem}_thumb.jpg")).replace("\\", "/")
+    resolved = _resolve_photo_path(file_path, rev_id=rev_id)
+    return str(_thumb_path_for(resolved)) if resolved else None
+
+
+def _upload_photo_object(object_name: str, payload: bytes, content_type: str) -> None:
+    bucket = _get_photo_bucket()
+    if bucket is None:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Photo bucket is not configured")
+    blob = bucket.blob(object_name)
+    blob.upload_from_string(payload, content_type=content_type)
+
+
+def _download_photo_object(object_name: str | None) -> bytes | None:
+    if not object_name:
+        return None
+    bucket = _get_photo_bucket()
+    if bucket is None:
+        return None
+    blob = bucket.blob(str(object_name).strip().lstrip("/"))
+    if not blob.exists():
+        return None
+    return blob.download_as_bytes()
+
+
+def _delete_photo_object(object_name: str | None) -> None:
+    if not object_name:
+        return
+    bucket = _get_photo_bucket()
+    if bucket is None:
+        return
+    blob = bucket.blob(str(object_name).strip().lstrip("/"))
+    try:
+        blob.delete()
+    except Exception:
+        pass
 
 
 def _resolve_photo_path(file_path: str | None, rev_id: int | None = None) -> Path | None:
@@ -206,6 +281,9 @@ def _compress_upload_image(
 
 
 def _delete_file_if_exists(path_str: str | None, rev_id: int | None = None) -> None:
+    if _use_gcs_photos():
+        _delete_photo_object(path_str)
+        return
     path = _resolve_photo_path(path_str, rev_id=rev_id)
     if not path:
         return
@@ -235,6 +313,21 @@ def _generate_thumbnail(image_path: Path) -> Path:
         return thumb_path
     except Exception:
         return image_path
+
+
+def _generate_thumbnail_bytes(payload: bytes) -> bytes | None:
+    if Image is None or ImageOps is None:
+        return None
+    try:
+        with Image.open(BytesIO(payload)) as img:
+            img = ImageOps.exif_transpose(img)
+            img = img.convert("RGB")
+            img.thumbnail((480, 360))
+            out = BytesIO()
+            img.save(out, format="JPEG", quality=82, optimize=True)
+            return out.getvalue()
+    except Exception:
+        return None
 
 def _normalize_project_number(project_number: Any, project_id: Any) -> str:
     raw = str(project_number or "").strip()
@@ -525,12 +618,21 @@ async def upload_revision_photo(
 
     payload, ext, mime_type = _compress_upload_image(payload, source_ext, file.content_type)
 
-    upload_dir = _revision_upload_dir(rev_id)
-    upload_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid4().hex}{ext}"
-    target_path = upload_dir / filename
-    target_path.write_bytes(payload)
-    _generate_thumbnail(target_path)
+    storage_value = _photo_storage_value(rev_id, filename)
+
+    if _use_gcs_photos():
+        _upload_photo_object(storage_value, payload, mime_type)
+        thumb_payload = _generate_thumbnail_bytes(payload)
+        thumb_storage = _thumb_storage_value(storage_value, rev_id=rev_id)
+        if thumb_payload and thumb_storage:
+            _upload_photo_object(thumb_storage, thumb_payload, "image/jpeg")
+    else:
+        upload_dir = _revision_upload_dir(rev_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        target_path = upload_dir / filename
+        target_path.write_bytes(payload)
+        _generate_thumbnail(target_path)
 
     photo = RevisionPhoto(
         revision_id=rev_id,
@@ -539,7 +641,7 @@ async def upload_revision_photo(
         original_name=file.filename or filename,
         mime_type=mime_type,
         file_size=len(payload),
-        file_path=_photo_storage_value(rev_id, filename),
+        file_path=storage_value,
     )
     db.add(photo)
     db.commit()
@@ -556,6 +658,15 @@ def get_revision_photo_file(
 ):
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+    if _use_gcs_photos():
+        payload = _download_photo_object(photo.file_path)
+        if payload is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
+        headers = {}
+        if photo.original_name:
+            headers["Content-Disposition"] = f'inline; filename="{photo.original_name}"'
+        return Response(content=payload, media_type=photo.mime_type, headers=headers)
+
     path = _resolve_photo_path(photo.file_path, rev_id=rev_id)
     if not path or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
@@ -571,6 +682,18 @@ def get_revision_photo_thumb(
 ):
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
+    if _use_gcs_photos():
+        thumb_storage = _thumb_storage_value(photo.file_path, rev_id=rev_id)
+        payload = _download_photo_object(thumb_storage)
+        if payload is None:
+            original = _download_photo_object(photo.file_path)
+            if original is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
+            payload = _generate_thumbnail_bytes(original) or original
+            if payload is not original and thumb_storage:
+                _upload_photo_object(thumb_storage, payload, "image/jpeg")
+        return Response(content=payload, media_type="image/jpeg")
+
     path = _resolve_photo_path(photo.file_path, rev_id=rev_id)
     if not path or not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Stored photo file not found")
@@ -611,8 +734,7 @@ def delete_revision_photo(
     _get_revision_or_403(db, rev_id, user)
     photo = _get_revision_photo_or_404(db, rev_id, photo_id)
     file_path = photo.file_path
-    resolved_path = _resolve_photo_path(file_path, rev_id=rev_id)
-    thumb_path = str(_thumb_path_for(resolved_path)) if resolved_path else None
+    thumb_path = _thumb_storage_value(file_path, rev_id=rev_id)
     db.delete(photo)
     db.commit()
     _delete_file_if_exists(file_path, rev_id=rev_id)
@@ -699,7 +821,7 @@ def delete_revision(
     db.commit()
     for path in photo_paths:
         _delete_file_if_exists(path)
-        _delete_file_if_exists(str(_thumb_path_for(Path(path))))
+        _delete_file_if_exists(_thumb_storage_value(path))
     # 204 No Content# ---------- Stav: dokonÄŤit / odemknout ----------
 
 class PasswordBody(BaseModel):
