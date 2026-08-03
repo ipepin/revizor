@@ -83,6 +83,32 @@ const valueRun = (t?: string | null) =>
 const kvLine = (label: string, value?: string | null) =>
   new Paragraph({ children: [labelRun(label), valueRun(value)], spacing: { before: 0, after: 40 } });
 
+type SafetyState = "able" | "not_able" | "";
+
+function normalizeSafety(value: any): SafetyState {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return "";
+  if (["able", "ok", "vyhovuje", "kladna", "kladná", "pozitivni", "pozitivní"].includes(text)) {
+    return "able";
+  }
+  if (
+    [
+      "not",
+      "not_able",
+      "not-able",
+      "negative",
+      "negativni",
+      "negativní",
+      "nevyhovuje",
+      "neschopna",
+      "neschopná",
+    ].includes(text)
+  ) {
+    return "not_able";
+  }
+  return "";
+}
+
 /** BezrĂˇmeÄŤkovĂ˝ 2-sloupcovĂ˝ grid z dvojic [label, value] â€” bez jakĂ˝chkoliv ÄŤar */
 function keyValueTwoCols(pairs: Array<[string, string | null | undefined]>): Table {
   const cellsPerRow = 2;
@@ -208,6 +234,7 @@ export async function generateSummaryDocx({
   revId,
   schemaImages,
 }: GenArgs) {
+  const safetyState = normalizeSafety(safeForm.conclusion?.safety);
   const inspectionLines = (() => {
     const text = htmlToBulletText(safeForm.inspectionDescription || "");
     const lines = text
@@ -240,7 +267,7 @@ export async function generateSummaryDocx({
 
   // ---------- VĂ˝sledek (rĂˇmeÄŤek + vÄ›tĹˇĂ­ text, vystĹ™edÄ›nĂ˝) ----------
   const safetyLabel = (() => {
-    const s = safeForm.conclusion?.safety;
+    const s = safetyState;
     if (!s) return "ChybĂ­ informace";
     if (s === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
     if (s === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
@@ -248,7 +275,7 @@ export async function generateSummaryDocx({
   })();
   const result = resultBox(safetyLabel);
   const nextRevisionLabel =
-    safeForm.conclusion?.safety === "not_able"
+    safetyState === "not_able"
       ? "Po odstranění závad"
       : dash(safeForm.conclusion?.validUntil);
 
@@ -460,7 +487,7 @@ export async function generateSummaryDocx({
 
   // ---------- 6. ZĂˇvÄ›r ----------
   const safetySummaryLabel = (() => {
-    const s = safeForm.conclusion?.safety;
+    const s = safetyState;
     if (s === "able") return "Revize vyhovuje";
     if (s === "not_able") return "Revize nevyhovuje";
     return "ChybĂ­ informace";

@@ -72,15 +72,42 @@ const dash = (value: any) => {
   return text || "";
 };
 
+type SafetyState = "able" | "not_able" | "";
+
+const normalizeSafety = (value: any): SafetyState => {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return "";
+  if (["able", "ok", "vyhovuje", "kladna", "kladná", "pozitivni", "pozitivní"].includes(text)) {
+    return "able";
+  }
+  if (
+    [
+      "not",
+      "not_able",
+      "not-able",
+      "negative",
+      "negativni",
+      "negativní",
+      "nevyhovuje",
+      "neschopna",
+      "neschopná",
+    ].includes(text)
+  ) {
+    return "not_able";
+  }
+  return "";
+};
+
 const joinList = (items: any[] | undefined) =>
   (Array.isArray(items) ? items : [])
     .map((item) => dash(item))
     .filter(Boolean)
     .join(", ");
 
-const formatSafety = (value: string) => {
-  if (value === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
-  if (value === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
+const formatSafety = (value: any) => {
+  const state = normalizeSafety(value);
+  if (state === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
+  if (state === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
   return dash(value);
 };
 
@@ -120,6 +147,11 @@ function buildTemplateData(
   { safeForm, technician, normsAll, usedInstruments, defectPhotos = [], revId }: TemplateArgs,
   defectTemplateImages: Map<number, DocxTemplateImageValue>
 ) {
+  const safetyState = normalizeSafety(safeForm?.conclusion?.safety);
+  const safetyText = formatSafety(safetyState);
+  const nextRevision =
+    safetyState === "not_able" ? "Po odstranění závad" : dash(safeForm?.conclusion?.validUntil);
+
   const mericiPristroje = (usedInstruments || []).map((item) => ({
     nazev: dash(item.name),
     mereni: dash(item.measurement_text),
@@ -347,19 +379,16 @@ function buildTemplateData(
     },
 
     zaver_text: dash(safeForm?.conclusion?.text),
-    zaver_bezpecnost: formatSafety(safeForm?.conclusion?.safety),
-    zaver_bezpecnost_normalni_rows:
-      safeForm?.conclusion?.safety === "able"
-        ? [{ text: formatSafety(safeForm?.conclusion?.safety) }]
-        : [],
-    zaver_bezpecnost_cervena_rows:
-      safeForm?.conclusion?.safety === "not_able"
-        ? [{ text: formatSafety(safeForm?.conclusion?.safety) }]
-        : [],
-    pristi_revize:
-      safeForm?.conclusion?.safety === "not_able"
-        ? "Po odstranění závad"
-        : dash(safeForm?.conclusion?.validUntil),
+    zaver_stav: safetyState,
+    zaver_je_kladny: safetyState === "able",
+    zaver_je_negativni: safetyState === "not_able",
+    zaver_bezpecnost: safetyText,
+    zaver_bezpecnost_normalni_rows: safetyState === "able" ? [{ text: safetyText }] : [],
+    zaver_bezpecnost_cervena_rows: safetyState === "not_able" ? [{ text: safetyText }] : [],
+    zaver_bezpecnost_kladna_rows: safetyState === "able" ? [{ text: safetyText }] : [],
+    zaver_bezpecnost_negativni_rows: safetyState === "not_able" ? [{ text: safetyText }] : [],
+    pristi_revize: nextRevision,
+    dalsi_revize: nextRevision,
   };
 }
 

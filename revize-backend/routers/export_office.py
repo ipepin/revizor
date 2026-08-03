@@ -17,6 +17,26 @@ def dash(v: Any) -> str:
     s = "" if v is None else str(v)
     return s.strip() if s.strip() else "—"
 
+def _normalize_safety(value: Any) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if text in {"able", "ok", "vyhovuje", "kladna", "kladná", "pozitivni", "pozitivní"}:
+        return "able"
+    if text in {
+        "not",
+        "not_able",
+        "not-able",
+        "negative",
+        "negativni",
+        "negativní",
+        "nevyhovuje",
+        "neschopna",
+        "neschopná",
+    }:
+        return "not_able"
+    return ""
+
 def _pick(d: dict, keys: List[str], default: str = "") -> str:
     for k in keys:
         v = d.get(k)
@@ -83,7 +103,7 @@ def _build_docx_context(rev: Revision) -> Dict[str, Any]:
     data = rev.data_json or {}
     # FE „safeForm“ -> tady se snažíme o kompatibilitu
     norms = (data.get("norms") or []) + [x for x in [data.get("customNorm1"), data.get("customNorm2"), data.get("customNorm3")] if x]
-    safety = (data.get("conclusion") or {}).get("safety")
+    safety = _normalize_safety((data.get("conclusion") or {}).get("safety"))
     if safety == "able":
         safety_label = "Elektrická instalace je z hlediska bezpečnosti schopna provozu"
     elif safety == "not_able":
@@ -217,7 +237,9 @@ def _build_docx_context(rev: Revision) -> Dict[str, Any]:
         "zaver": {
             "text": dash((data.get("conclusion") or {}).get("text")),
             "bezpecnost": safety_label,
-            "pristi_revize": dash((data.get("conclusion") or {}).get("validUntil")),
+            "pristi_revize": "Po odstranění závad"
+            if safety == "not_able"
+            else dash((data.get("conclusion") or {}).get("validUntil")),
         },
     }
     return ctx

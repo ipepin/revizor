@@ -21,6 +21,32 @@ import {
 import { dash, listOrDash } from "./summary-utils/text";
 import { defectNormSuffix } from "./summary-utils/defects";
 
+type SafetyState = "able" | "not_able" | "";
+
+function normalizeSafety(value: any): SafetyState {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return "";
+  if (["able", "ok", "vyhovuje", "kladna", "kladná", "pozitivni", "pozitivní"].includes(text)) {
+    return "able";
+  }
+  if (
+    [
+      "not",
+      "not_able",
+      "not-able",
+      "negative",
+      "negativni",
+      "negativní",
+      "nevyhovuje",
+      "neschopna",
+      "neschopná",
+    ].includes(text)
+  ) {
+    return "not_able";
+  }
+  return "";
+}
+
 /* =============================== */
 /* ======== Summary Page ========= */
 /* =============================== */
@@ -286,17 +312,22 @@ export default function SummaryPage() {
     });
   }, [safeForm.tests]);
 
+  const safetyState = useMemo(
+    () => normalizeSafety(safeForm.conclusion?.safety),
+    [safeForm.conclusion?.safety]
+  );
+
   const safetyLabel = useMemo(() => {
-    const s = safeForm.conclusion?.safety;
+    const s = safetyState;
     if (!s) return "Chybí informace";
     if (s === "able") return "Elektrická instalace vyhovuje požadavkům příslušných norem a je schopna bezpečného provozu.";
     if (s === "not_able") return "Elektrická instalace nevyhovuje požadavkům příslušných norem a není schopna bezpečného provozu.";
     return String(s);
-  }, [safeForm.conclusion?.safety]);
+  }, [safetyState]);
   const nextRevisionLabel = useMemo(() => {
-    if (safeForm.conclusion?.safety === "not_able") return "Po odstranění závad";
+    if (safetyState === "not_able") return "Po odstranění závad";
     return dash(safeForm.conclusion?.validUntil);
-  }, [safeForm.conclusion?.safety, safeForm.conclusion?.validUntil]);
+  }, [safetyState, safeForm.conclusion?.validUntil]);
 
   // Přístroje (checked)
   const usedInstruments = useMemo(() => {
