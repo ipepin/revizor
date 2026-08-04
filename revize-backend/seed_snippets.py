@@ -1,9 +1,5 @@
 """
-Seed default snippets for EI and LPS scopes.
-
-Usage:
-    uvicorn/main env: activate venv
-    python seed_snippets.py
+Seed default quick sentences for EI and LPS conclusion sections.
 """
 
 from datetime import datetime
@@ -14,7 +10,6 @@ from models import Snippet, SnippetScope
 
 
 DEFAULT_SNIPPETS = [
-    # EI (elektroinstalace)
     {
         "scope": SnippetScope.EI,
         "label": "Revize dle ČSN",
@@ -28,12 +23,12 @@ DEFAULT_SNIPPETS = [
     {
         "scope": SnippetScope.EI,
         "label": "Přechodový odpor (PE/pospoj.)",
-        "body": "Naměřená hodnota přechodového odporu pospojovacího/ochranného vodiče nepřesáhla 0,1 Ω a svým průřezem splňuje požadavky ČSN 33 2000-5-54 ed. 3:2012, čl. 544.2.",
+        "body": "Naměřená hodnota přechodového odporu pospojovacího/ochranného vodiče nepřesáhla 0,1 Ω a svým průřezem splňuje požadavky ČSN 33 2000-5-54 ed.3:2012, čl. 544.2.",
     },
     {
         "scope": SnippetScope.EI,
         "label": "Impedance smyček (AOZ)",
-        "body": "Naměřené hodnoty impedance smyček uvedené v revizní zprávě jsou v souladu s dimenzemi předřazených jistících přístrojů a zajišťují tak požadavky ochrany automatickým odpojením od zdroje v předepsané době podle normy ČSN 33 2000-4-41 ed. 3:2018, čl. 411.4.4, a to i při uvažování bezpečnostního součinitele (2/3) dle ČSN 33 2000-6 ed. 2:2017, čl. D.6.4.3.7.3.",
+        "body": "Naměřené hodnoty impedance smyček uvedené v revizní zprávě jsou v souladu s dimenzemi předřazených jistících přístrojů a zajišťují požadavky ochrany automatickým odpojením od zdroje v předepsané době podle ČSN 33 2000-4-41 ed.3:2018, čl. 411.4.4, a to i při uvažování bezpečnostního součinitele 2/3 dle ČSN 33 2000-6 ed.2:2017, čl. D.6.4.3.7.3.",
     },
     {
         "scope": SnippetScope.EI,
@@ -43,68 +38,69 @@ DEFAULT_SNIPPETS = [
     {
         "scope": SnippetScope.EI,
         "label": "Poučení obsluhy",
-        "body": "Bylo provedeno poučení a doporučena pravidelná kontrola bezpečnostních prvků.",
+        "body": "Bylo provedeno poučení obsluhy a doporučena pravidelná kontrola bezpečnostních prvků.",
     },
     {
         "scope": SnippetScope.EI,
-        "label": "BOZP – vyhl. 48/82",
-        "body": "Ve smyslu vyhlášky č. 48/82 (BOZP) musí být obsluha elektrotechnických zařízení seznámena s bezpečným ovládáním a vypínáním těchto zařízení. Elektrická zařízení musí splňovat všechny požadované funkce a musí být udržována ve stavu odpovídajícím platným předpisům.",
+        "label": "BOZP - vyhl. 48/1982 Sb.",
+        "body": "Ve smyslu vyhlášky č. 48/1982 Sb. musí být obsluha elektrických zařízení seznámena s bezpečným ovládáním a vypínáním těchto zařízení. Elektrická zařízení musí splňovat požadované funkce a musí být udržována ve stavu odpovídajícím platným předpisům.",
     },
     {
         "scope": SnippetScope.EI,
         "label": "Protipožární ochrana",
-        "body": "Protipožární ochrana: ",
+        "body": "Protipožární ochrana byla při revizi posouzena v rozsahu přístupných částí elektroinstalace.",
     },
     {
         "scope": SnippetScope.EI,
         "label": "Prostory s vanou/sprchou",
-        "body": "Vzhledem k tomu, že se v objektu vyskytují prostory s vanou a sprchou (ČSN 33 2000-7-701 ed. 2).",
+        "body": "V objektu se nacházejí prostory s vanou nebo sprchou, které byly posouzeny dle ČSN 33 2000-7-701 ed.2.",
     },
     {
         "scope": SnippetScope.EI,
         "label": "Odpovědnost provozovatele",
-        "body": "Za provozuschopnost a bezpečnost zařízení odpovídá provozovatel.",
+        "body": "Za provozuschopnost a bezpečnost zařízení po provedení revize odpovídá provozovatel.",
     },
-    # LPS
     {
         "scope": SnippetScope.LPS,
         "label": "Odpor zemničů v toleranci",
-        "body": "Odpor zemničů je v toleranci stanovené normou (≤ 15 Ω).",
+        "body": "Odpor zemničů je v toleranci stanovené použitou normou.",
     },
     {
         "scope": SnippetScope.LPS,
         "label": "Odpor zemničů mimo toleranci",
-        "body": "Odpor zemničů není v toleranci stanovené normou (> 15 Ω).",
+        "body": "Odpor zemničů není v toleranci stanovené použitou normou.",
     },
     {
         "scope": SnippetScope.LPS,
         "label": "Zařízení v dobrém stavu",
-        "body": "Hromosvodné zařízení je v dobrém stavu a odpovídá platným normám.",
+        "body": "Hromosvodné zařízení je v dobrém technickém stavu a odpovídá požadavkům použité normy.",
     },
     {
         "scope": SnippetScope.LPS,
         "label": "Zařízení není v dobrém stavu",
-        "body": "Hromosvodné zařízení není v dobrém stavu a odpovídá platným normám.",
+        "body": "Hromosvodné zařízení není v dobrém technickém stavu a neodpovídá požadavkům použité normy.",
     },
     {
         "scope": SnippetScope.LPS,
-        "label": "SPD instalovány – funkční",
-        "body": "Byly instalovány ochrany SPD, které jsou funkční.",
+        "label": "SPD instalovány - funkční",
+        "body": "Přepěťové ochrany SPD jsou instalovány a při kontrole nevykazují závadu.",
     },
     {
         "scope": SnippetScope.LPS,
-        "label": "SPD instalovány – nefunkční",
-        "body": "Byly instalovány ochrany SPD, které nejsou funkční.",
+        "label": "SPD instalovány - nefunkční",
+        "body": "Přepěťové ochrany SPD jsou instalovány, avšak při kontrole vykazují závadu.",
     },
     {
         "scope": SnippetScope.LPS,
         "label": "SPD neinstalovány",
-        "body": "Nebyly instalovány ochrany SPD.",
+        "body": "Přepěťové ochrany SPD nebyly v kontrolovaném rozsahu instalovány.",
     },
 ]
 
 
-def seed(db: Session) -> None:
+def seed(db: Session) -> tuple[int, int]:
+    added = 0
+    skipped = 0
     for item in DEFAULT_SNIPPETS:
         exists = (
             db.query(Snippet)
@@ -116,24 +112,28 @@ def seed(db: Session) -> None:
             .first()
         )
         if exists:
+            skipped += 1
             continue
-        s = Snippet(
-            scope=item["scope"],
-            label=item["label"],
-            body=item["body"],
-            user_id=None,
-            is_default=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+        db.add(
+            Snippet(
+                scope=item["scope"],
+                label=item["label"],
+                body=item["body"],
+                user_id=None,
+                is_default=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
         )
-        db.add(s)
+        added += 1
     db.commit()
+    return added, skipped
 
 
 if __name__ == "__main__":
     db = SessionLocal()
     try:
-        seed(db)
-        print("Seed snippets: done")
+        added, skipped = seed(db)
+        print(f"Seed snippets completed: added={added}, skipped={skipped}")
     finally:
         db.close()

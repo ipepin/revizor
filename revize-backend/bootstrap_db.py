@@ -12,6 +12,7 @@ from seed_catalogs import main as seed_catalogs
 from seed_catalog_component_items import main as seed_catalog_component_items
 from seed_defects_from_json import main as seed_defects
 from seed_norms import seed as seed_norms
+from seed_snippets import seed as seed_snippets
 from database import SessionLocal
 
 
@@ -32,6 +33,9 @@ def seed_reference_data() -> None:
     with SessionLocal() as db:
         added, updated = seed_norms(db)
     print(f"Norm seed completed: added={added}, updated={updated}")
+    with SessionLocal() as db:
+        added, skipped = seed_snippets(db)
+    print(f"Snippet seed completed: added={added}, skipped={skipped}")
 
 
 def main() -> None:
