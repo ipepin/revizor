@@ -47,13 +47,13 @@ export default function AdminNormsPage() {
   };
 
   useEffect(() => {
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    load();
+    void load();
   };
 
   const createNorm = async (e: React.FormEvent) => {
@@ -137,7 +137,8 @@ export default function AdminNormsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-blue-800">Správa norem</h1>
-            <p className="text-sm text-gray-600">Upravujte katalog norem pro EI/LPS.</p>
+            <p className="text-sm text-gray-600">Upravujte katalog norem pro elektroinstalace a LPS.</p>
+            <p className="text-xs text-gray-500">Zobrazeno: {items.length}</p>
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -171,7 +172,7 @@ export default function AdminNormsPage() {
         <form className="border rounded bg-white p-4 space-y-3" onSubmit={createNorm}>
           <div className="flex flex-wrap gap-3 items-end">
             <div>
-              <label className="block text-xs text-gray-600">Scope</label>
+              <label className="block text-xs text-gray-600">Oblast</label>
               <select
                 className="border rounded px-3 py-1 text-sm"
                 value={newScope}
@@ -192,7 +193,7 @@ export default function AdminNormsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600">Status</label>
+              <label className="block text-xs text-gray-600">Stav</label>
               <select
                 className="border rounded px-3 py-1 text-sm"
                 value={newStatus}
@@ -240,9 +241,9 @@ export default function AdminNormsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-2 text-left">Scope</th>
+                <th className="px-4 py-2 text-left">Oblast</th>
                 <th className="px-4 py-2 text-left">Norma</th>
-                <th className="px-4 py-2 text-left">Status</th>
+                <th className="px-4 py-2 text-left">Stav</th>
                 <th className="px-4 py-2 text-left">Vydána</th>
                 <th className="px-4 py-2 text-left">Zrušena od</th>
                 <th className="px-4 py-2 text-center">Akce</th>
@@ -251,7 +252,20 @@ export default function AdminNormsPage() {
             <tbody>
               {items.map((n) => (
                 <tr key={n.id} className="border-t align-top">
-                  <td className="px-4 py-2 font-medium">{n.scope}</td>
+                  <td className="px-4 py-2 font-medium">
+                    {editId === n.id ? (
+                      <select
+                        className="border rounded px-2 py-1 text-sm"
+                        value={editScope}
+                        onChange={(e) => setEditScope(e.target.value as NormScope)}
+                      >
+                        <option value="EI">EI</option>
+                        <option value="LPS">LPS</option>
+                      </select>
+                    ) : (
+                      n.scope
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     {editId === n.id ? (
                       <input
@@ -310,24 +324,27 @@ export default function AdminNormsPage() {
                     {editId === n.id ? (
                       <div className="flex justify-center gap-2">
                         <button
+                          type="button"
                           className="text-xs px-3 py-1 rounded bg-indigo-600 text-white"
                           onClick={saveEdit}
                         >
                           Uložit
                         </button>
-                        <button className="text-xs px-3 py-1 rounded bg-gray-200" onClick={cancelEdit}>
+                        <button type="button" className="text-xs px-3 py-1 rounded bg-gray-200" onClick={cancelEdit}>
                           Zrušit
                         </button>
                       </div>
                     ) : (
                       <div className="flex justify-center gap-2">
                         <button
+                          type="button"
                           className="text-xs px-3 py-1 rounded bg-slate-100 hover:bg-slate-200"
                           onClick={() => startEdit(n)}
                         >
                           Upravit
                         </button>
                         <button
+                          type="button"
                           className="text-xs px-3 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
                           onClick={() => remove(n.id)}
                         >

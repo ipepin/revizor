@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SummaryWrapper from "./pages/SummaryWrapper";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import AdminSnippetsPage from "./pages/AdminSnippetsPage";
+import AdminNormsPage from "./pages/admin/AdminNormsPage";
 // (pokud máš RevisionFormProvider, obal i tím – viz komentáře níž)
 
 function App() {
@@ -38,6 +39,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminSnippetsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/norms"
+              element={
+                <ProtectedRoute>
+                  <AdminNormsPage />
                 </ProtectedRoute>
               }
             />
