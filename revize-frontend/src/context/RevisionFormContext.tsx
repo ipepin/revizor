@@ -4,6 +4,7 @@
   useEffect,
   ReactNode,
   useCallback,
+  useRef,
 } from "react";
 import api from "../api/axios";
 
@@ -343,6 +344,11 @@ export function RevisionFormProvider({
     withDefaults(initialData ?? {})
   );
   const [defectPhotosVersion, setDefectPhotosVersion] = useState(0);
+  const latestFormRef = useRef(form);
+
+  useEffect(() => {
+    latestFormRef.current = form;
+  }, [form]);
 
   // NaÄŤtenĂ­ existujĂ­cĂ­ revize (s JWT pĹ™es api klient)
   useEffect(() => {
@@ -377,20 +383,29 @@ export function RevisionFormProvider({
     return () => ctrl.abort();
   }, [revId, training]);
 
+  const buildSavePayload = useCallback((sourceForm: RevisionForm) => {
+    const syncedForm = syncRevisionValidity(sourceForm);
+    const validUntil = syncedForm.conclusion.validUntil || null;
+    return {
+      data_json: syncedForm,
+      valid_until: validUntil,
+      conclusion_text: syncedForm.conclusion.text || "",
+      conclusion_safety: syncedForm.conclusion.safety || "",
+      conclusion_valid_until: validUntil,
+    };
+  }, []);
+
+  const saveForm = useCallback((sourceForm: RevisionForm) => {
+    if (training) return;
+    return api
+      .patch(`/revisions/${revId}`, buildSavePayload(sourceForm))
+      .catch((err) => console.warn("UloĹľenĂ­ revize selhalo:", err?.response?.data || err));
+  }, [buildSavePayload, revId, training]);
+
   // Funkce pro okamĹľitĂ© uloĹľenĂ­ (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
-    if (training) return;
-    const syncedForm = syncRevisionValidity(form);
-    const validUntil = syncedForm.conclusion.validUntil || null;
-    // backend ÄŤekĂˇ objekt (dict), ne string
-    api
-      .patch(`/revisions/${revId}`, {
-        data_json: syncedForm,
-        valid_until: validUntil,
-        conclusion_valid_until: validUntil,
-      })
-      .catch((err) => console.warn("UloĹľenĂ­ revize selhalo:", err?.response?.data || err));
-  }, [form, revId, training]);
+    void saveForm(latestFormRef.current);
+  }, [saveForm]);
 
   // Autosave s 800ms debouncingem
   useEffect(() => {
@@ -399,34 +414,35 @@ export function RevisionFormProvider({
     return () => clearTimeout(timeout);
   }, [form, saveNow, training]);
 
+  useEffect(() => {
+    return () => {
+      if (!training) {
+        void saveForm(latestFormRef.current);
+      }
+    };
+  }, [revId, saveForm, training]);
+
   // Označit Dokončení revize
   const finish = useCallback(async () => {
     if (training) return;
-    const syncedForm = syncRevisionValidity(form);
-    const validUntil = syncedForm.conclusion.validUntil || null;
+    const payload = buildSavePayload(latestFormRef.current);
     try {
       await api.patch(`/revisions/${revId}`, {
-        data_json: syncedForm,
-        valid_until: validUntil,
-        conclusion_valid_until: validUntil,
+        ...payload,
         status: "Dokončená",
       });
       console.log("Revize označena jako 'Dokončená'");
     } catch (err1: any) {
       console.warn("PATCH combined selhal, zkouĹˇĂ­m sekvenčně:", err1?.response?.data || err1);
       try {
-        await api.patch(`/revisions/${revId}`, {
-          data_json: syncedForm,
-          valid_until: validUntil,
-          conclusion_valid_until: validUntil,
-        });
+        await api.patch(`/revisions/${revId}`, payload);
         await api.patch(`/revisions/${revId}`, { status: "Dokončená" });
         console.log("Revize označena jako 'Dokončená' (sekvenčně).");
       } catch (err2) {
         console.warn("Dokončení revize selhalo:", (err2 as any)?.response?.data || err2);
       }
     }
-  }, [form, revId, training]);
+  }, [buildSavePayload, revId, training]);
 
   const notifyDefectPhotosChanged = useCallback(() => {
     setDefectPhotosVersion((value) => value + 1);
