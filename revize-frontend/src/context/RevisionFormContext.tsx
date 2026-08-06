@@ -329,6 +329,65 @@ function syncRevisionValidity(
   };
 }
 
+function firstNonEmpty(...values: unknown[]) {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function normalizeConclusionSafety(value: unknown): RevisionForm["conclusion"]["safety"] {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return "";
+
+  if (["able", "ok", "vyhovuje", "kladna", "kladná", "pozitivni", "pozitivní"].includes(text)) {
+    return "able";
+  }
+
+  if (
+    [
+      "not",
+      "not_able",
+      "not-able",
+      "negative",
+      "negativni",
+      "negativní",
+      "nevyhovuje",
+      "neschopna",
+      "neschopná",
+    ].includes(text)
+  ) {
+    return "not_able";
+  }
+
+  return "";
+}
+
+function mergeBackendConclusion(
+  parsed: Partial<RevisionForm>,
+  data: any
+): Partial<RevisionForm> {
+  const parsedConclusion = parsed.conclusion ?? {};
+  const safety = normalizeConclusionSafety(
+    firstNonEmpty(data?.conclusion_safety, parsedConclusion.safety)
+  );
+
+  return {
+    ...parsed,
+    conclusion: {
+      ...parsedConclusion,
+      text: firstNonEmpty(data?.conclusion_text, parsedConclusion.text),
+      safety,
+      validUntil: firstNonEmpty(
+        data?.conclusion_valid_until,
+        data?.valid_until,
+        parsedConclusion.validUntil
+      ),
+    },
+  };
+}
+
 export function RevisionFormProvider({
   revId,
   children,
@@ -344,6 +403,7 @@ export function RevisionFormProvider({
     withDefaults(initialData ?? {})
   );
   const [defectPhotosVersion, setDefectPhotosVersion] = useState(0);
+  const [loaded, setLoaded] = useState(training);
   const latestFormRef = useRef(form);
 
   useEffect(() => {
@@ -352,7 +412,11 @@ export function RevisionFormProvider({
 
   // NaÄŤtenĂ­ existujĂ­cĂ­ revize (s JWT pĹ™es api klient)
   useEffect(() => {
-    if (training) return;
+    if (training) {
+      setLoaded(true);
+      return;
+    }
+    setLoaded(false);
     const ctrl = new AbortController();
     (async () => {
       try {
@@ -360,11 +424,11 @@ export function RevisionFormProvider({
         const data = res.data;
 
         // data_json mĹŻĹľe bĂ˝t string nebo object
-        const parsed = safeParseDataJson(data?.data_json);
+        const parsed = mergeBackendConclusion(safeParseDataJson(data?.data_json), data);
 
         // SlouÄŤenĂ­ s defaulty + pĹ™epsĂˇnĂ­ ÄŤĂ­slem revize
-        setForm((prev) => {
-          const merged = withDefaults({ ...prev, ...parsed });
+        setForm(() => {
+          const merged = withDefaults(parsed);
           return syncRevisionValidity(
             {
               ...merged,
@@ -378,6 +442,10 @@ export function RevisionFormProvider({
         if (err?.name !== "CanceledError") {
           console.warn("Nelze naÄŤĂ­st revizi:", err?.response?.data || err);
         }
+      } finally {
+        if (!ctrl.signal.aborted) {
+          setLoaded(true);
+        }
       }
     })();
     return () => ctrl.abort();
@@ -386,21 +454,22 @@ export function RevisionFormProvider({
   const buildSavePayload = useCallback((sourceForm: RevisionForm) => {
     const syncedForm = syncRevisionValidity(sourceForm);
     const validUntil = syncedForm.conclusion.validUntil || null;
+    const conclusionSafety = normalizeConclusionSafety(syncedForm.conclusion.safety);
     return {
       data_json: syncedForm,
       valid_until: validUntil,
       conclusion_text: syncedForm.conclusion.text || "",
-      conclusion_safety: syncedForm.conclusion.safety || "",
+      conclusion_safety: conclusionSafety,
       conclusion_valid_until: validUntil,
     };
   }, []);
 
   const saveForm = useCallback((sourceForm: RevisionForm) => {
-    if (training) return;
+    if (training || !loaded) return;
     return api
       .patch(`/revisions/${revId}`, buildSavePayload(sourceForm))
       .catch((err) => console.warn("UloĹľenĂ­ revize selhalo:", err?.response?.data || err));
-  }, [buildSavePayload, revId, training]);
+  }, [buildSavePayload, loaded, revId, training]);
 
   // Funkce pro okamĹľitĂ© uloĹľenĂ­ (PATCH /revisions/:id)
   const saveNow = useCallback(() => {
@@ -409,18 +478,18 @@ export function RevisionFormProvider({
 
   // Autosave s 800ms debouncingem
   useEffect(() => {
-    if (training) return;
+    if (training || !loaded) return;
     const timeout = setTimeout(saveNow, 800);
     return () => clearTimeout(timeout);
-  }, [form, saveNow, training]);
+  }, [form, loaded, saveNow, training]);
 
   useEffect(() => {
     return () => {
-      if (!training) {
+      if (!training && loaded) {
         void saveForm(latestFormRef.current);
       }
     };
-  }, [revId, saveForm, training]);
+  }, [loaded, revId, saveForm, training]);
 
   // Označit Dokončení revize
   const finish = useCallback(async () => {
