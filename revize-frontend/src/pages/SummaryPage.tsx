@@ -5,11 +5,9 @@ import Sidebar from "../components/Sidebar";
 import { useRevisionForm } from "../context/RevisionFormContext";
 import { useUser } from "../context/UserContext";
 import api from "../api/axios";
-import { generateSummaryDocx } from "./summary-export/word";
 import { renderAndDownloadLpsDocx } from "./summary-export/lpsDocxTemplate";
 import { renderAndDownloadElectroTemplateDocx } from "./summary-export/electroTemplateExport";
 import LpsSummaryPage from "./LpsSummaryPage";
-import html2canvas from "html2canvas";
 
 import {
   HeaderBlock,
@@ -101,7 +99,6 @@ export default function SummaryPage() {
   const { revId } = useParams();
   const { form: ctxForm } = useRevisionForm();
   const pageRef = useRef<HTMLDivElement | null>(null);
-  const schemaCaptureRef = useRef<HTMLDivElement | null>(null);
   const { profile, company } = useUser();
   const [defectPhotos, setDefectPhotos] = useState<DefectPhoto[]>([]);
   const [showWordGuide, setShowWordGuide] = useState(() => {
@@ -202,59 +199,6 @@ export default function SummaryPage() {
     }),
     [ctxForm]
   );
-
-  const boards = (safeForm.boards || []) as any[];
-
-  const buildSchemaTree = (items: any[]) => {
-    const byId = new Map<number, any>();
-    items.forEach((c) => byId.set(c.id, { ...c, children: [] }));
-    const roots: any[] = [];
-    byId.forEach((n) => {
-      const pid = n.parentId ?? null;
-      const parent = pid != null ? byId.get(pid) : null;
-      if (parent) parent.children.push(n);
-      else roots.push(n);
-    });
-    const sortRec = (arr: any[]) => {
-      arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      arr.forEach((ch) => sortRec(ch.children));
-    };
-    sortRec(roots);
-    return roots;
-  };
-
-  const schemaFullName = (c: any) =>
-    [c?.nazev, c?.popis, c?.typ].filter((x) => (x ?? "").toString().trim()).join(" ") || "-";
-
-  const SchemaNode = ({ node }: { node: any }) => {
-    const note = (node.poznamka || "").toString().trim();
-    const label = `${schemaFullName(node)}${note ? ` - ${note}` : ""}`;
-    const children = node.children ?? [];
-    return (
-      <div className="grid grid-cols-[320px_minmax(0,1fr)] gap-x-6 items-start">
-        <div className="min-w-0">
-          <span className="inline-flex items-center px-4 py-2 rounded-full bg-slate-100 border text-base whitespace-normal break-words w-full">
-            {label}
-          </span>
-        </div>
-        {children.length > 0 ? (
-          <div className="relative">
-            <div className="absolute left-2 top-2 bottom-2 w-0.5 border-l-2 border-dashed border-blue-600" />
-            <div className="space-y-3">
-              {children.map((ch: any) => (
-                <div key={ch.id} className="relative pl-6">
-                  <span className="absolute left-2 top-4 w-4 border-t-2 border-dashed border-blue-600" />
-                  <SchemaNode node={ch} />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div />
-        )}
-      </div>
-    );
-  };
 
   const isLpsRevision =
     Boolean(safeForm?.lps && Object.keys(safeForm.lps).length > 0) ||
@@ -362,50 +306,6 @@ export default function SummaryPage() {
     });
   }, [safeForm.measuringInstruments, safeForm.instruments]);
 
-  // Export DOCX (p?vodn? gener?tor)
-  const captureSchemaImages = async () => {
-    const container = schemaCaptureRef.current;
-    if (!container) return {} as Record<string, string>;
-
-    // ensure layout/fonts are ready before html2canvas
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    try {
-      if ((document as any).fonts?.ready) await (document as any).fonts.ready;
-    } catch {}
-
-    const readNodes = () =>
-      Array.from(container.querySelectorAll<HTMLElement>("[data-schema-board-id]"));
-
-    let nodes = readNodes();
-    if (!nodes.length) {
-      for (let i = 0; i < 6; i += 1) {
-        await new Promise((r) => setTimeout(r, 80));
-        nodes = readNodes();
-        if (nodes.length) break;
-      }
-    }
-
-    const images: Record<string, string> = {};
-    for (const node of nodes) {
-      const id = node.getAttribute("data-schema-board-id");
-      if (!id) continue;
-      const rect = node.getBoundingClientRect();
-      if (!rect.width || !rect.height) continue;
-      const canvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 3, useCORS: true });
-      images[id] = canvas.toDataURL("image/png");
-    }
-    return images;
-  };
-
-  const handleGenerateDocx = async () => {
-    try {
-      const schemaImages = await captureSchemaImages();
-      await generateSummaryDocx({ safeForm, technician, normsAll, usedInstruments, revId, schemaImages });
-    } catch (e: any) {
-      alert(`Nepodařilo se vygenerovat DOCX: ${e?.message || e}`);
-    }
-  };
-
   const handleGenerateLpsDocx = async () => {
     await renderAndDownloadLpsDocx({
       form: safeForm,
@@ -498,41 +398,6 @@ export default function SummaryPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-      {!isPrintView && (
-        <div ref={schemaCaptureRef} className="fixed -left-[10000px] top-0">
-          {boards.map((b) => {
-            const roots = buildSchemaTree(b?.komponenty || []);
-            return (
-              <div
-                key={b.id}
-                data-schema-board-id={String(b.id)}
-                className="bg-white p-4 w-[900px]"
-              >
-                <div className="grid grid-cols-[90px_minmax(0,1fr)] gap-x-4 items-start">
-                  <div className="flex flex-col items-end gap-1 text-xs text-slate-600 pt-1 pr-3">
-                    <div className="font-semibold text-slate-700">{b?.supplySystem || "—"}</div>
-                    <div className="font-semibold text-slate-700">{b?.supplyPhase || "—"}</div>
-                  </div>
-                  <div className="relative flex flex-col gap-6">
-                    <div className="absolute left-0 top-4 bottom-4 w-0.5 border-l-2 border-dashed border-blue-600" />
-                    <span className="absolute -left-5 top-4 w-5 border-t-2 border-dashed border-blue-600" />
-                    {roots.length ? (
-                      roots.map((root: any) => (
-                        <div key={root.id} className="relative pl-6">
-                          <span className="absolute left-0 top-4 w-6 border-t-2 border-dashed border-blue-600" />
-                          <SchemaNode node={root} />
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-sm text-slate-500">Žádné komponenty.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
       <div className="flex" id="app-chrome">
