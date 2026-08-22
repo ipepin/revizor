@@ -127,6 +127,131 @@ const joinLines = (...lines: Array<string | undefined>) =>
     .filter(Boolean)
     .join("\n");
 
+function mapBoardComponent(component: any) {
+  const manufacturerText = dash(component?.popis || component?.description);
+  const manufacturerDisplay = manufacturerText === OTHER_MANUFACTURER_NAME ? "" : manufacturerText;
+
+  return {
+    popis_typ_text: joinLines(
+      [manufacturerDisplay, dash(component?.typ || component?.type || component?.druh)]
+        .filter(Boolean)
+        .join(" ")
+    ),
+    uroven: formatComponentLevel(component?._level ?? component?.level ?? component?.depth),
+    nazev: dash(component?.nazev || component?.name),
+    popis: dash(component?.popis || component?.description),
+    typ: dash(component?.typ || component?.type || component?.druh),
+    poly: dash(component?.poles || component?.poly || component?.pocet_polu || component?.pocetPolu),
+    dimenze: dash(component?.dimenze || component?.dim || component?.prurez),
+    riso: dash(component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation),
+    zs: dash(component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance),
+    cas_ms: dash(
+      component?.vybavovaciCasMs ??
+        component?.vybavovaci_cas_ms ??
+        component?.rcd_time ??
+        component?.trip_time ??
+        component?.vybavovaciCas ??
+        component?.cas_vybaveni
+    ),
+    idelta_ma: dash(
+      component?.vybavovaciProudmA ??
+        component?.vybavovaci_proud_ma ??
+        component?.rcd_trip_current ??
+        component?.trip_current ??
+        component?.i_fi ??
+        component?.ifi
+    ),
+    parametry_text: joinLines(
+      labeled("Póly", component?.poles || component?.poly || component?.pocet_polu || component?.pocetPolu),
+      labeled("Dim.", component?.dimenze || component?.dim || component?.prurez)
+    ),
+    mereni_text: joinLines(
+      labeled("Riso", component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation, "MΩ"),
+      labeled("Zs", component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance, "Ω"),
+      [labeled(
+        "t",
+        component?.vybavovaciCasMs ??
+          component?.vybavovaci_cas_ms ??
+          component?.rcd_time ??
+          component?.trip_time ??
+          component?.vybavovaciCas ??
+          component?.cas_vybaveni,
+        "ms"
+      ), labeled(
+        "IΔ",
+        component?.vybavovaciProudmA ??
+          component?.vybavovaci_proud_ma ??
+          component?.rcd_trip_current ??
+          component?.trip_current ??
+          component?.i_fi ??
+          component?.ifi,
+        "mA"
+      )]
+        .filter(Boolean)
+        .join(" | ")
+    ),
+    poznamka: dash(component?.poznamka ?? component?.pozn ?? component?.note),
+  };
+}
+
+function buildBoardRows(board: any) {
+  const components = Array.isArray(board?.komponenty) ? board.komponenty : [];
+  const configuredRows = Array.isArray(board?.rows) ? board.rows : [];
+  const rowIdsFromComponents = Array.from(
+    new Set(
+      components
+        .map((component: any) => Number(component?.rowId ?? 1))
+        .filter((rowId: number) => Number.isFinite(rowId))
+    )
+  );
+
+  const rows =
+    configuredRows.length > 0
+      ? configuredRows
+      : (rowIdsFromComponents.length ? rowIdsFromComponents : [1]).map((rowId, index) => ({
+          id: rowId,
+          name: `Řada ${index + 1}`,
+        }));
+
+  return rows.map((row: any, index: number) => {
+    const rowId = Number(row?.id ?? index + 1);
+    const label = dash(row?.name) || `Řada ${index + 1}`;
+    const rowComponents = components
+      .filter((component: any) => Number(component?.rowId ?? 1) === rowId)
+      .sort((a: any, b: any) => (Number(a?.order ?? 0) || 0) - (Number(b?.order ?? 0) || 0))
+      .map(mapBoardComponent);
+
+    return {
+      id: String(rowId),
+      nazev: label,
+      komponenty: rowComponents,
+    };
+  });
+}
+
+function buildFlatBoardComponentsWithRows(board: any) {
+  return buildBoardRows(board).flatMap((row) => {
+    const heading = {
+      popis_typ_text: "",
+      uroven: "0",
+      nazev: row.nazev,
+      popis: "",
+      typ: "",
+      poly: "",
+      dimenze: "",
+      riso: "",
+      zs: "",
+      cas_ms: "",
+      idelta_ma: "",
+      parametry_text: "",
+      mereni_text: "",
+      poznamka: "",
+    };
+
+    return [heading, ...row.komponenty];
+  });
+}
+
 function pairItems<T>(items: T[]) {
   const rows: Array<[T | null, T | null]> = [];
   for (let i = 0; i < items.length; i += 2) {
@@ -177,83 +302,25 @@ function buildTemplateData(
     };
   });
 
-  const rozvadece = (safeForm?.boards || []).map((board: any) => ({
-    nazev: dash(board?.name),
-    vyrobce: dash(board?.vyrobce),
-    typ: dash(board?.typ),
-    vyrobni_cislo: dash(board?.vyrobniCislo),
-    napeti: dash(board?.napeti),
-    proud: dash(board?.proud),
-    ip: dash(board?.ip),
-    odpor: dash(board?.odpor),
-    umisteni: dash(board?.umisteni),
-    poznamky_html: String(board?.poznamkyHtml || board?.poznamky || "").trim(),
-    poznamky_text: dash(htmlToBulletText(board?.poznamkyHtml || board?.poznamky || "")),
-    komponenty: (Array.isArray(board?.komponenty) ? board.komponenty : []).map((component: any) => {
-      const manufacturerText = dash(component?.popis || component?.description);
-      const manufacturerDisplay = manufacturerText === OTHER_MANUFACTURER_NAME ? "" : manufacturerText;
-      return ({
-      popis_typ_text: joinLines(
-        [manufacturerDisplay, dash(component?.typ || component?.type || component?.druh)]
-          .filter(Boolean)
-          .join(" ")
-      ),
-      uroven: formatComponentLevel(component?._level ?? component?.level ?? component?.depth),
-      nazev: dash(component?.nazev || component?.name),
-      popis: dash(component?.popis || component?.description),
-      typ: dash(component?.typ || component?.type || component?.druh),
-      poly: dash(component?.poles || component?.poly || component?.pocet_polu || component?.pocetPolu),
-      dimenze: dash(component?.dimenze || component?.dim || component?.prurez),
-      riso: dash(component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation),
-      zs: dash(component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance),
-      cas_ms: dash(
-        component?.vybavovaciCasMs ??
-          component?.vybavovaci_cas_ms ??
-          component?.rcd_time ??
-          component?.trip_time ??
-          component?.vybavovaciCas ??
-          component?.cas_vybaveni
-      ),
-      idelta_ma: dash(
-        component?.vybavovaciProudmA ??
-          component?.vybavovaci_proud_ma ??
-          component?.rcd_trip_current ??
-          component?.trip_current ??
-          component?.i_fi ??
-          component?.ifi
-      ),
-      parametry_text: joinLines(
-        labeled("Póly", component?.poles || component?.poly || component?.pocet_polu || component?.pocetPolu),
-        labeled("Dim.", component?.dimenze || component?.dim || component?.prurez)
-      ),
-      mereni_text: joinLines(
-        labeled("Riso", component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation, "MΩ"),
-        labeled("Zs", component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance, "Ω"),
-        [labeled(
-          "t",
-          component?.vybavovaciCasMs ??
-            component?.vybavovaci_cas_ms ??
-            component?.rcd_time ??
-            component?.trip_time ??
-            component?.vybavovaciCas ??
-            component?.cas_vybaveni,
-          "ms"
-        ), labeled(
-          "IΔ",
-          component?.vybavovaciProudmA ??
-            component?.vybavovaci_proud_ma ??
-            component?.rcd_trip_current ??
-            component?.trip_current ??
-            component?.i_fi ??
-            component?.ifi,
-          "mA"
-        )]
-          .filter(Boolean)
-          .join(" | ")
-      ),
-      poznamka: dash(component?.poznamka ?? component?.pozn ?? component?.note),
-    })}),
-  }));
+  const rozvadece = (safeForm?.boards || []).map((board: any) => {
+    const rady = buildBoardRows(board);
+
+    return {
+      nazev: dash(board?.name),
+      vyrobce: dash(board?.vyrobce),
+      typ: dash(board?.typ),
+      vyrobni_cislo: dash(board?.vyrobniCislo),
+      napeti: dash(board?.napeti),
+      proud: dash(board?.proud),
+      ip: dash(board?.ip),
+      odpor: dash(board?.odpor),
+      umisteni: dash(board?.umisteni),
+      poznamky_html: String(board?.poznamkyHtml || board?.poznamky || "").trim(),
+      poznamky_text: dash(htmlToBulletText(board?.poznamkyHtml || board?.poznamky || "")),
+      rady,
+      komponenty: buildFlatBoardComponentsWithRows(board),
+    };
+  });
 
   const mistnosti = (safeForm?.rooms || []).map((room: any) => ({
     nazev: dash(room?.name),

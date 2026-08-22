@@ -25,6 +25,9 @@ export interface Komponenta {
   vybavovaciCasMs?: string;
   vybavovaciProudmA?: string;
   dotykoveNapetiV?: string;
+  parentId?: number | null;
+  order?: number;
+  rowId?: number | null;
 }
 
 export interface Device {
@@ -59,6 +62,7 @@ export interface Board {
   odpor: string;
   umisteni: string;
   poznamkyHtml: string;
+  rows?: { id: number; name: string }[];
   komponenty: Komponenta[];
 }
 
@@ -388,6 +392,11 @@ function mergeBackendConclusion(
   };
 }
 
+function dateOrNull(value: unknown) {
+  const text = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
+}
+
 export function RevisionFormProvider({
   revId,
   children,
@@ -453,7 +462,7 @@ export function RevisionFormProvider({
 
   const buildSavePayload = useCallback((sourceForm: RevisionForm) => {
     const syncedForm = syncRevisionValidity(sourceForm);
-    const validUntil = syncedForm.conclusion.validUntil || null;
+    const validUntil = dateOrNull(syncedForm.conclusion.validUntil);
     const conclusionSafety = normalizeConclusionSafety(syncedForm.conclusion.safety);
     return {
       data_json: syncedForm,
