@@ -17,6 +17,7 @@ ENV ROUTER_MODE=hash
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint-app-config.sh /docker-entrypoint.d/40-app-config.sh
-RUN chmod +x /docker-entrypoint.d/40-app-config.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/40-app-config.sh \
+  && chmod +x /docker-entrypoint.d/40-app-config.sh
 
 COPY --from=build /app/dist /usr/share/nginx/html
