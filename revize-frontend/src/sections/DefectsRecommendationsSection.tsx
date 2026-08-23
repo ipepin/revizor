@@ -1,5 +1,5 @@
 // src/sections/DefectsRecommendationsSection.tsx
-import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
 import api from "../api/axios"; // ← náš axios klient s JWT
 import { RevisionFormContext, type DefectDraft as RevisionDefectDraft } from "../context/RevisionFormContext";
 import { defectNormSuffix } from "../pages/summary-utils/defects";
@@ -178,6 +178,9 @@ export default function DefectsRecommendationsSection() {
   const [photos, setPhotos] = useState<DefectPhoto[]>([]);
   const [previewPhoto, setPreviewPhoto] = useState<DefectPhoto | null>(null);
   const [previewSrc, setPreviewSrc] = useState("");
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
+  const previewDragRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTargetUid, setPickerTargetUid] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -237,8 +240,12 @@ export default function DefectsRecommendationsSection() {
   useEffect(() => {
     if (!previewPhoto) {
       setPreviewSrc("");
+      setPreviewZoom(1);
+      setPreviewPan({ x: 0, y: 0 });
       return;
     }
+    setPreviewZoom(1);
+    setPreviewPan({ x: 0, y: 0 });
     let active = true;
     let objectUrl = "";
     (async () => {
@@ -257,6 +264,63 @@ export default function DefectsRecommendationsSection() {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [previewPhoto, revId]);
+
+  const closePreview = useCallback(() => {
+    setPreviewPhoto(null);
+    previewDragRef.current = null;
+  }, []);
+
+  const resetPreviewTransform = useCallback(() => {
+    setPreviewZoom(1);
+    setPreviewPan({ x: 0, y: 0 });
+  }, []);
+
+  const changePreviewZoom = useCallback((nextZoom: number) => {
+    const zoom = Math.min(5, Math.max(1, Number(nextZoom.toFixed(2))));
+    setPreviewZoom(zoom);
+    if (zoom === 1) setPreviewPan({ x: 0, y: 0 });
+  }, []);
+
+  const handlePreviewWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      changePreviewZoom(previewZoom + direction * 0.2);
+    },
+    [changePreviewZoom, previewZoom]
+  );
+
+  const startPreviewDrag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (previewZoom <= 1) return;
+      previewDragRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+        startX: previewPan.x,
+        startY: previewPan.y,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [previewPan.x, previewPan.y, previewZoom]
+  );
+
+  const movePreviewDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = previewDragRef.current;
+    if (!drag) return;
+    setPreviewPan({
+      x: drag.startX + event.clientX - drag.x,
+      y: drag.startY + event.clientY - drag.y,
+    });
+  }, []);
+
+  const stopPreviewDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    previewDragRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Pointer mohl být uvolněn mimo element.
+    }
+  }, []);
 
   // Při otevření pickeru vždy načti čerstvý katalog
   useEffect(() => {
@@ -1319,7 +1383,7 @@ export default function DefectsRecommendationsSection() {
       {previewPhoto && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-          onClick={() => setPreviewPhoto(null)}
+          onClick={closePreview}
         >
           <div
             className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-xl bg-white shadow-2xl"
@@ -1332,20 +1396,65 @@ export default function DefectsRecommendationsSection() {
                 </div>
                 <div className="text-xs text-slate-500">{previewPhoto.original_name || "Bez názvu"}</div>
               </div>
-              <button
-                type="button"
-                className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                onClick={() => setPreviewPhoto(null)}
-              >
-                ✕
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="flex overflow-hidden rounded border border-slate-200 text-sm">
+                  <button
+                    type="button"
+                    className="px-2 py-1 hover:bg-slate-100"
+                    onClick={() => changePreviewZoom(previewZoom - 0.25)}
+                    title="Oddálit"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    className="border-x border-slate-200 px-2 py-1 hover:bg-slate-100"
+                    onClick={resetPreviewTransform}
+                    title="Obnovit velikost"
+                  >
+                    {Math.round(previewZoom * 100)} %
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-1 hover:bg-slate-100"
+                    onClick={() => changePreviewZoom(previewZoom + 0.25)}
+                    title="Přiblížit"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  onClick={closePreview}
+                  title="Zavřít"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            <div className="flex max-h-[calc(90vh-72px)] items-center justify-center bg-slate-900/90 p-4">
+            <div
+              className={`flex max-h-[calc(90vh-72px)] touch-none select-none items-center justify-center overflow-hidden bg-slate-900/90 p-4 ${
+                previewZoom > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-zoom-in"
+              }`}
+              onWheel={handlePreviewWheel}
+              onPointerDown={startPreviewDrag}
+              onPointerMove={movePreviewDrag}
+              onPointerUp={stopPreviewDrag}
+              onPointerCancel={stopPreviewDrag}
+              onDoubleClick={resetPreviewTransform}
+              title="Kolečkem přiblížíš/oddálíš, tažením posuneš, dvojklik vrátí 100 %"
+            >
               {previewSrc ? (
                 <img
                   src={previewSrc}
                   alt={previewPhoto.caption || previewPhoto.original_name || "Fotografie"}
-                  className="max-h-[calc(90vh-110px)] max-w-full rounded object-contain"
+                  className="max-h-[calc(90vh-110px)] max-w-full rounded object-contain transition-transform duration-75"
+                  draggable={false}
+                  style={{
+                    transform: `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom})`,
+                    transformOrigin: "center center",
+                  }}
                 />
               ) : (
                 <div className="py-16 text-sm text-slate-300">Načítám fotografii…</div>
