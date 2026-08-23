@@ -121,6 +121,15 @@ const labeled = (label: string, value: any, unit = "") => {
   return text ? `${label}: ${text}${unit ? ` ${unit}` : ""}` : "";
 };
 
+const labeledMeasured = (label: string, value: any, unit: string) => {
+  const text = dash(value);
+  if (!text) return "";
+  const normalized = text.replace(",", ".").trim();
+  const numeric = /^-?\d+(\.\d+)?$/.test(normalized);
+  const hasUnit = text.toLowerCase().includes(unit.toLowerCase()) || /[a-zA-ZΩΔ]/.test(text);
+  return `${label}: ${text}${numeric && !hasUnit ? ` ${unit}` : ""}`;
+};
+
 const joinLines = (...lines: Array<string | undefined>) =>
   lines
     .map((line) => String(line || "").trim())
@@ -166,9 +175,9 @@ function mapBoardComponent(component: any) {
       labeled("Dim.", component?.dimenze || component?.dim || component?.prurez)
     ),
     mereni_text: joinLines(
-      labeled("Riso", component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation, "MΩ"),
-      labeled("Zs", component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance, "Ω"),
-      [labeled(
+      labeledMeasured("Riso", component?.riso ?? component?.Riso ?? component?.izolace ?? component?.insulation, "MΩ"),
+      labeledMeasured("Zs", component?.ochrana ?? component?.zs ?? component?.Zs ?? component?.loop_impedance, "Ω"),
+      [labeledMeasured(
         "t",
         component?.vybavovaciCasMs ??
           component?.vybavovaci_cas_ms ??
@@ -177,7 +186,7 @@ function mapBoardComponent(component: any) {
           component?.vybavovaciCas ??
           component?.cas_vybaveni,
         "ms"
-      ), labeled(
+      ), labeledMeasured(
         "IΔ",
         component?.vybavovaciProudmA ??
           component?.vybavovaci_proud_ma ??
@@ -234,7 +243,7 @@ function buildFlatBoardComponentsWithRows(board: any) {
     const heading = {
       popis_typ_text: "",
       uroven: "0",
-      nazev: row.nazev,
+      nazev: `--- ${row.nazev.toUpperCase()} ---`,
       popis: "",
       typ: "",
       poly: "",
