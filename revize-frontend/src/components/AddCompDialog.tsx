@@ -22,6 +22,7 @@ type SearchOption = {
   modelName?: string;
   catalogItemId?: string;
   device?: string;
+  manufacturer?: string;
   series?: string;
   manufacturerType?: string;
   ratedCurrentA?: string;
@@ -190,6 +191,7 @@ export default function AddCompDialog({
                 catalogItemId: row.id != null ? String(row.id) : "",
                 label: row.label || [row.device, row.manufacturer, row.manufacturerType || row.series].filter(Boolean).join(" "),
                 typeName: row.device || "",
+                manufacturer: row.manufacturer || "",
                 manufacturerName: row.manufacturer || "",
                 modelName: row.manufacturerType || row.series || "",
                 device: row.device || "",
@@ -460,20 +462,30 @@ export default function AddCompDialog({
   const handleSearchSelect = (opt: SearchOption) => {
     setSelectedNotice(`Vybráno: ${opt.label}`);
     if (opt.kind === "catalogItem") {
-      const modelName = opt.manufacturerType || opt.series || opt.modelName || "";
+      const manufacturerName = opt.manufacturerName || opt.manufacturer || "";
+      const typeName = opt.device || opt.typeName || "";
+      const typeMatch = types.find((t) => t.name.trim().toLowerCase() === typeName.trim().toLowerCase());
+      const manufacturerMatch = typeMatch
+        ? manufacturers.find((m) => m.name.trim().toLowerCase() === manufacturerName.trim().toLowerCase())
+        : undefined;
+      const modelBase = opt.manufacturerType || opt.series || opt.modelName || "";
       const characteristicSuffix = opt.characteristic ? ` ${opt.characteristic}` : "";
       const currentSuffix = opt.ratedCurrentA ? ` ${opt.ratedCurrentA}A` : "";
-      setIsCustom(true);
+      const modelName = `${modelBase}${characteristicSuffix}${currentSuffix}`.trim();
+      const modelMatch = manufacturerMatch
+        ? models.find((m) => m.name.trim().toLowerCase() === modelName.trim().toLowerCase())
+        : undefined;
+      setIsCustom(!(typeMatch && manufacturerMatch));
       setNewComp({
         ...defaultComp,
         parentId: newComp.parentId ?? null,
         rowId: newComp.rowId ?? null,
-        nazevId: "",
-        nazev: opt.device || opt.typeName || "",
-        popisId: "",
-        popis: opt.manufacturerName || "",
-        typId: opt.catalogItemId || "",
-        typ: `${modelName}${characteristicSuffix}${currentSuffix}`.trim(),
+        nazevId: typeMatch ? String(typeMatch.id) : "",
+        nazev: typeName,
+        popisId: manufacturerMatch ? String(manufacturerMatch.id) : "",
+        popis: manufacturerName,
+        typId: modelMatch ? String(modelMatch.id) : opt.catalogItemId || "",
+        typ: modelName,
         poles: opt.poleConfiguration || "",
         vybavovaciProudmA: opt.residualCurrentMa || "",
       });

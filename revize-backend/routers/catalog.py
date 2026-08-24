@@ -1,7 +1,7 @@
 ﻿from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -131,6 +131,21 @@ def _item_search_query(db: Session, q: str | None = None):
     return query
 
 
+def _item_search_rank(q: str | None):
+    text = (q or "").strip()
+    if not text:
+        return CatalogComponentItem.manufacturer
+    like = f"%{text}%"
+    return case(
+        (CatalogComponentItem.manufacturer_type.ilike(like), 0),
+        (CatalogComponentItem.series.ilike(like), 1),
+        (CatalogComponentItem.catalog_number.ilike(like), 2),
+        (CatalogComponentItem.manufacturer.ilike(like), 3),
+        (CatalogComponentItem.device.ilike(like), 4),
+        else_=5,
+    )
+
+
 @router.get("/component-items", response_model=List[CatalogComponentItemRead])
 def list_component_items(
     q: str | None = None,
@@ -184,6 +199,7 @@ def search_component_items(
         _item_search_query(db, text)
         .filter(CatalogComponentItem.granularity != "series")
         .order_by(
+            _item_search_rank(text),
             CatalogComponentItem.catalog_status,
             CatalogComponentItem.manufacturer,
             CatalogComponentItem.device,
