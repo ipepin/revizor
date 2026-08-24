@@ -11,6 +11,43 @@ BASE_DIR = Path(__file__).resolve().parent
 COMPONENTS_JSON = BASE_DIR / "komponenty.json"
 DEVICES_JSON = BASE_DIR / "pristroje_katalog.json"
 
+TEXT_FIXES = {
+    "Z�suvka": "Zásuvka",
+    "Obecn�": "Obecné",
+    "Obecn� z�suvka 230V": "Obecná zásuvka 230 V",
+    "Obecn� z�suvka 230V s krytem": "Obecná zásuvka 230 V s krytem",
+    "Sv�tidlo": "Svítidlo",
+    "Obecn� sv�tidlo E27 (plast)": "Obecné svítidlo E27 (plast)",
+    "Obecn� sv�tidlo E27 (kovov� t�lo)": "Obecné svítidlo E27 (kovové tělo)",
+    "Obecn� sv�tidlo E27 venkovn�": "Obecné svítidlo E27 venkovní",
+    "Vyp�na�": "Vypínač",
+    "P�ep�na�": "Přepínač",
+    "Tla��tko": "Tlačítko",
+    "Datov� z�suvka": "Datová zásuvka",
+    "Nouzov� sv�tidlo": "Nouzové svítidlo",
+}
+
+DEFAULT_DEVICES = [
+    {"druh_pristroje": "Zásuvka", "vyrobce": "ABB", "typ": "Tango 5518A-A02357 B", "trida_ochrany": "I", "kryti": "IP20"},
+    {"druh_pristroje": "Zásuvka", "vyrobce": "ABB", "typ": "Tango 5518A-A02357 C", "trida_ochrany": "I", "kryti": "IP44"},
+    {"druh_pristroje": "Zásuvka", "vyrobce": "Schneider Electric", "typ": "Asfora EPH2800121", "trida_ochrany": "I", "kryti": "IP20"},
+    {"druh_pristroje": "Zásuvka", "vyrobce": "Legrand", "typ": "Valena Life 753021", "trida_ochrany": "I", "kryti": "IP20"},
+    {"druh_pristroje": "Zásuvka", "vyrobce": "SEZ", "typ": "PCE 1653-6 230 V/16 A", "trida_ochrany": "I", "kryti": "IP44"},
+    {"druh_pristroje": "Zásuvka", "vyrobce": "SEZ", "typ": "PCE 3253-6 400 V/32 A", "trida_ochrany": "I", "kryti": "IP44"},
+    {"druh_pristroje": "Vypínač", "vyrobce": "ABB", "typ": "Tango 3559-A01345", "trida_ochrany": "II", "kryti": "IP20"},
+    {"druh_pristroje": "Vypínač", "vyrobce": "Schneider Electric", "typ": "Asfora EPH0100121", "trida_ochrany": "II", "kryti": "IP20"},
+    {"druh_pristroje": "Vypínač", "vyrobce": "Legrand", "typ": "Valena Life 752101", "trida_ochrany": "II", "kryti": "IP20"},
+    {"druh_pristroje": "Svítidlo", "vyrobce": "OMS", "typ": "LED panel 600x600", "trida_ochrany": "I", "kryti": "IP20"},
+    {"druh_pristroje": "Svítidlo", "vyrobce": "Kanlux", "typ": "T8 LED prachotěsné", "trida_ochrany": "I", "kryti": "IP65"},
+    {"druh_pristroje": "Svítidlo", "vyrobce": "Philips", "typ": "LEDinaire WT060C", "trida_ochrany": "I", "kryti": "IP65"},
+    {"druh_pristroje": "Nouzové svítidlo", "vyrobce": "ABB", "typ": "VanLien Serenga LED", "trida_ochrany": "II", "kryti": "IP40"},
+    {"druh_pristroje": "Nouzové svítidlo", "vyrobce": "Trevos", "typ": "NOLED", "trida_ochrany": "II", "kryti": "IP65"},
+    {"druh_pristroje": "Ventilátor", "vyrobce": "Elektrodesign", "typ": "Silent 100 CZ", "trida_ochrany": "II", "kryti": "IP45"},
+    {"druh_pristroje": "Ventilátor", "vyrobce": "Vents", "typ": "100 Quiet", "trida_ochrany": "II", "kryti": "IP45"},
+    {"druh_pristroje": "Datová zásuvka", "vyrobce": "Solarix", "typ": "CAT6 UTP 1xRJ45", "trida_ochrany": "III", "kryti": "IP20"},
+    {"druh_pristroje": "Datová zásuvka", "vyrobce": "Legrand", "typ": "Valena Life RJ45 CAT6", "trida_ochrany": "III", "kryti": "IP20"},
+]
+
 CABLES: dict[str, list[str]] = {
     "CYKY": [
         "CYKY 2x1,5", "CYKY 2x2,5", "CYKY 2x4", "CYKY 2x6", "CYKY 2x10", "CYKY 2x16",
@@ -63,6 +100,13 @@ CABLES: dict[str, list[str]] = {
 }
 
 
+def fix_text(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return TEXT_FIXES.get(text, text)
+
+
 def seed_components(db) -> tuple[int, int, int]:
     data = json.loads(COMPONENTS_JSON.read_text(encoding="utf-8"))
     added_types = added_manufacturers = added_models = 0
@@ -113,12 +157,13 @@ def seed_components(db) -> tuple[int, int, int]:
 
 def seed_devices(db) -> int:
     data = json.loads(DEVICES_JSON.read_text(encoding="utf-8"))
+    data.extend(DEFAULT_DEVICES)
     added = 0
 
     for item in data:
-        name = (item.get("druh_pristroje") or "").strip()
-        manufacturer = (item.get("vyrobce") or "").strip()
-        model = (item.get("typ") or "").strip()
+        name = fix_text(item.get("druh_pristroje"))
+        manufacturer = fix_text(item.get("vyrobce"))
+        model = fix_text(item.get("typ"))
         if not name or not manufacturer or not model:
             continue
 
@@ -135,8 +180,8 @@ def seed_devices(db) -> int:
                 name=name,
                 manufacturer=manufacturer,
                 model=model,
-                trida=(item.get("trida_ochrany") or "").strip() or None,
-                ip=(item.get("kryti") or "").strip() or None,
+                trida=fix_text(item.get("trida_ochrany")) or None,
+                ip=fix_text(item.get("kryti")) or None,
                 note=None,
             )
         )
