@@ -64,6 +64,15 @@ export async function loginUser(
   return (await res.json()) as LoginResponse;
 }
 
+export async function refreshAccessToken(token: string): Promise<LoginResponse> {
+  const res = await fetch(apiUrl("/auth/refresh"), {
+    method: "POST",
+    headers: { ...authHeader(token) },
+  });
+  await throwIfNotOk(res);
+  return (await res.json()) as LoginResponse;
+}
+
 /** Registrace â€“ JSON payload (name, email, password, ...). */
 export async function registerUser(data: RegisterPayload) {
   const res = await fetch(apiUrl("/auth/register"), {

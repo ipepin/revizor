@@ -172,6 +172,11 @@ def login(
     access_token = create_access_token({"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/refresh", response_model=TokenOut)
+def refresh_session(current: User = Depends(get_current_user)):
+    access_token = create_access_token({"sub": current.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @router.get("/me", response_model=UserOut)
 def read_me(current: User = Depends(get_current_user)):
     return current
