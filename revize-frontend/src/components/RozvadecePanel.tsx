@@ -284,7 +284,7 @@ export default function RozvadecePanel() {
 
     let cancel = false;
 
-    if (newComp.popisId && newComp.popisId !== OTHER_MANUFACTURER_ID) {
+    if (newComp.popisId && newComp.popisId !== OTHER_MANUFACTURER_ID && /^\d+$/.test(String(newComp.popisId))) {
 
       api
 

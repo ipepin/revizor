@@ -160,11 +160,27 @@ export default function AddCompDialog({
     if (!newComp.nazevId) return [] as Array<CatalogItem | { id: string; name: string }>;
 
     const hasOther = manufacturers.some((m) => m.name === OTHER_MANUFACTURER_NAME);
+    const hasSelectedManufacturer =
+      !newComp.popisId ||
+      manufacturers.some((m) => String(m.id) === String(newComp.popisId)) ||
+      newComp.popisId === OTHER_MANUFACTURER_ID;
+    const selectedManufacturer =
+      !hasSelectedManufacturer && newComp.popis
+        ? [{ id: newComp.popisId, name: newComp.popis }]
+        : [];
 
-    return hasOther
+    const base = hasOther
       ? manufacturers
       : [...manufacturers, { id: OTHER_MANUFACTURER_ID, name: OTHER_MANUFACTURER_NAME }];
-  }, [manufacturers, newComp.nazevId]);
+    return [...selectedManufacturer, ...base];
+  }, [manufacturers, newComp.nazevId, newComp.popisId, newComp.popis]);
+
+  const modelsWithSelected = useMemo(() => {
+    const hasSelectedModel =
+      !newComp.typId || models.some((m) => String(m.id) === String(newComp.typId));
+    if (hasSelectedModel || !newComp.typ) return models;
+    return [{ id: newComp.typId as any, name: newComp.typ }, ...models];
+  }, [models, newComp.typId, newComp.typ]);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -475,14 +491,14 @@ export default function AddCompDialog({
       const modelMatch = manufacturerMatch
         ? models.find((m) => m.name.trim().toLowerCase() === modelName.trim().toLowerCase())
         : undefined;
-      setIsCustom(!(typeMatch && manufacturerMatch));
+      setIsCustom(!typeMatch);
       setNewComp({
         ...defaultComp,
         parentId: newComp.parentId ?? null,
         rowId: newComp.rowId ?? null,
         nazevId: typeMatch ? String(typeMatch.id) : "",
         nazev: typeName,
-        popisId: manufacturerMatch ? String(manufacturerMatch.id) : "",
+        popisId: manufacturerMatch ? String(manufacturerMatch.id) : `catalog-manufacturer-${manufacturerName}`,
         popis: manufacturerName,
         typId: modelMatch ? String(modelMatch.id) : opt.catalogItemId || "",
         typ: modelName,
@@ -1056,7 +1072,7 @@ export default function AddCompDialog({
                   }}
                 >
                   <option value="">-- vyberte --</option>
-                  {models.map((m) => (
+                  {modelsWithSelected.map((m) => (
                     <option key={m.id} value={String(m.id)}>
                       {m.name}
                     </option>
