@@ -233,6 +233,31 @@ def repair_existing_rows(db) -> int:
     return repaired
 
 
+def deduplicate_existing_rows(db) -> int:
+    groups: dict[tuple[str, ...], list[CatalogComponentItem]] = {}
+    for item in db.query(CatalogComponentItem).all():
+        key = tuple(str(getattr(item, field) or "") for field in IDENTITY_FIELDS)
+        groups.setdefault(key, []).append(item)
+
+    deleted = 0
+    for items in groups.values():
+        if len(items) < 2:
+            continue
+        items.sort(
+            key=lambda row: (
+                sum(1 for field in MODEL_FIELDS if getattr(row, field)),
+                row.id or 0,
+            ),
+            reverse=True,
+        )
+        for duplicate in items[1:]:
+            db.delete(duplicate)
+            deleted += 1
+    if deleted:
+        db.flush()
+    return deleted
+
+
 def seed(csv_path: Path = DEFAULT_CSV) -> tuple[int, int, int]:
     if not csv_path.exists():
         raise FileNotFoundError(f"CSV nenalezeno: {csv_path}")
@@ -245,6 +270,7 @@ def seed(csv_path: Path = DEFAULT_CSV) -> tuple[int, int, int]:
 
     with SessionLocal() as db:
         repaired = repair_existing_rows(db)
+        deduplicated = deduplicate_existing_rows(db)
         for source_row in rows:
             row = normalize_row(source_row)
             if not row["manufacturer"] or not row["device"] or not row["series"]:
@@ -272,7 +298,8 @@ def seed(csv_path: Path = DEFAULT_CSV) -> tuple[int, int, int]:
 
     print(
         "Catalog component items seed completed: "
-        f"inserted={inserted}, updated={updated}, skipped={skipped}, repaired={repaired}"
+        f"inserted={inserted}, updated={updated}, skipped={skipped}, "
+        f"repaired={repaired}, deduplicated={deduplicated}"
     )
     return inserted, updated, skipped
 

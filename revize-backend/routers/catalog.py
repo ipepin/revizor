@@ -210,30 +210,37 @@ def search_component_items(
         .all()
     )
 
-    return [
-        {
-            "kind": "catalogItem",
-            "id": row.id,
-            "label": _item_label(row),
-            "device": row.device,
-            "manufacturer": row.manufacturer,
-            "series": row.series,
-            "manufacturerType": row.manufacturer_type,
-            "catalogNumber": row.catalog_number,
-            "ratedCurrentA": row.rated_current_a,
-            "polesTotal": row.poles_total,
-            "polesProtected": row.poles_protected,
-            "poleConfiguration": row.pole_configuration,
-            "characteristic": row.characteristic,
-            "breakingCapacityKa": row.breaking_capacity_ka,
-            "residualCurrentMa": row.residual_current_ma,
-            "rcdType": row.rcd_type,
-            "voltageType": row.voltage_type,
-            "catalogStatus": row.catalog_status,
-            "granularity": row.granularity,
-        }
-        for row in rows
-    ]
+    results = []
+    seen_labels: set[str] = set()
+    for row in rows:
+        label = _item_label(row)
+        if label in seen_labels:
+            continue
+        seen_labels.add(label)
+        results.append(
+            {
+                "kind": "catalogItem",
+                "id": row.id,
+                "label": label,
+                "device": row.device,
+                "manufacturer": row.manufacturer,
+                "series": row.series,
+                "manufacturerType": row.manufacturer_type,
+                "catalogNumber": row.catalog_number,
+                "ratedCurrentA": row.rated_current_a,
+                "polesTotal": row.poles_total,
+                "polesProtected": row.poles_protected,
+                "poleConfiguration": row.pole_configuration,
+                "characteristic": row.characteristic,
+                "breakingCapacityKa": row.breaking_capacity_ka,
+                "residualCurrentMa": row.residual_current_ma,
+                "rcdType": row.rcd_type,
+                "voltageType": row.voltage_type,
+                "catalogStatus": row.catalog_status,
+                "granularity": row.granularity,
+            }
+        )
+    return results
 
 
 @router.post("/component-items", response_model=CatalogComponentItemRead, status_code=status.HTTP_201_CREATED)
