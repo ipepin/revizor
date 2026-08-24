@@ -8,9 +8,11 @@ import { useUser } from "../context/UserContext";
 type Defect = {
   uid: string;
   id?: number;
+  kind?: "catalog" | "custom_text";
   description: string;
   standard: string;
   article: string;
+  citation?: string;
 };
 
 type DefectPhoto = {
@@ -352,6 +354,7 @@ export default function DefectsRecommendationsSection() {
             ? {
                 ...defect,
                 description: mergeDefectDescription(defect.description, d.description || ""),
+                kind: "catalog",
                 standard: d.standard || "",
                 article: d.article || "",
               }
@@ -361,6 +364,7 @@ export default function DefectsRecommendationsSection() {
     } else {
       const item: Defect = {
         uid: makeUid("defect"),
+        kind: "catalog",
         description: d.description || "",
         standard: d.standard || "",
         article: d.article || "",
@@ -382,6 +386,17 @@ export default function DefectsRecommendationsSection() {
     }
     setShowPicker(false);
     setPickerTargetUid(null);
+  }
+
+  function addCustomDefectText() {
+    const item: Defect = {
+      uid: makeUid("custom-defect"),
+      kind: "custom_text",
+      description: "",
+      standard: "",
+      article: "",
+    };
+    setForm((f) => ({ ...f, defects: [...(f.defects || []), item] }));
   }
 
   function openPickerForDefect(uid: string) {
@@ -649,6 +664,7 @@ export default function DefectsRecommendationsSection() {
   const createDefectFromPhoto = async (photo: DefectPhoto) => {
     const newDefect: Defect = {
       uid: makeUid("defect"),
+      kind: "catalog",
       description: photo.caption?.trim() || "Nová závada",
       standard: "",
       article: "",
@@ -667,6 +683,7 @@ export default function DefectsRecommendationsSection() {
   async function convertDraftToDefect(draft: RevisionDefectDraft) {
     const newDefect: Defect = {
       uid: makeUid("defect"),
+      kind: "catalog",
       description: draft.text?.trim() || "Nová závada",
       standard: "",
       article: "",
@@ -821,24 +838,35 @@ export default function DefectsRecommendationsSection() {
 
       <div data-guide-id="def-text" className="space-y-3">
         {(form.defects || []).length > 0 ? (
-          (form.defects || []).map((defect, index) => (
+          (form.defects || []).map((defect, index) => {
+            const isCustomText = defect.kind === "custom_text";
+
+            return (
             <div key={defect.uid} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-slate-800">Závada {index + 1}</div>
-                  <div className="text-xs text-slate-500">Text závady a norma jsou editované odděleně, bez parsování pomlček.</div>
+                  <div className="text-sm font-semibold text-slate-800">
+                    {isCustomText ? "Vlastní záznam" : "Závada"} {index + 1}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {isCustomText
+                      ? "Volný text bez automatického doplnění normy."
+                      : "Text závady a norma jsou editované odděleně, bez parsování pomlček."}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
                     {(photosByDefect.get(defect.uid) || []).length} foto
                   </div>
-                  <button
-                    type="button"
-                    className="rounded bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
-                    onClick={() => openPickerForDefect(defect.uid)}
-                  >
-                    Závadovník
-                  </button>
+                  {!isCustomText ? (
+                    <button
+                      type="button"
+                      className="rounded bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                      onClick={() => openPickerForDefect(defect.uid)}
+                    >
+                      Závadovník
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="rounded bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
@@ -851,41 +879,47 @@ export default function DefectsRecommendationsSection() {
 
               <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">Text závady</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    {isCustomText ? "Text záznamu" : "Text závady"}
+                  </label>
                   <textarea
                     className="w-full rounded border px-3 py-2 text-sm"
                     rows={4}
                     value={defect.description || ""}
                     onChange={(e) => updateDefect(defect.uid, { description: e.target.value })}
-                    placeholder="Popis závady"
+                    placeholder={isCustomText ? "Např. doporučení, poznámka nebo upřesnění" : "Popis závady"}
                   />
                 </div>
 
                 <div className="grid gap-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">Norma</label>
-                    <input
-                      className="w-full rounded border px-3 py-2 text-sm"
-                      value={defect.standard || ""}
-                      onChange={(e) => updateDefect(defect.uid, { standard: e.target.value })}
-                      placeholder="ČSN ..."
-                    />
-                  </div>
+                  {!isCustomText ? (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Norma</label>
+                        <input
+                          className="w-full rounded border px-3 py-2 text-sm"
+                          value={defect.standard || ""}
+                          onChange={(e) => updateDefect(defect.uid, { standard: e.target.value })}
+                          placeholder="ČSN ..."
+                        />
+                      </div>
 
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">Článek</label>
-                    <input
-                      className="w-full rounded border px-3 py-2 text-sm"
-                      value={defect.article || ""}
-                      onChange={(e) => updateDefect(defect.uid, { article: e.target.value })}
-                      placeholder="např. 542.4"
-                    />
-                  </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Článek</label>
+                        <input
+                          className="w-full rounded border px-3 py-2 text-sm"
+                          value={defect.article || ""}
+                          onChange={(e) => updateDefect(defect.uid, { article: e.target.value })}
+                          placeholder="např. 542.4"
+                        />
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-slate-700">
                     <div className="font-medium text-slate-700">Výsledný text do reportu</div>
                     <div className="mt-1 leading-relaxed">
-                      <span>{defect.description || "Bez textu závady."}</span>{" "}
+                      <span>{defect.description || (isCustomText ? "Bez textu záznamu." : "Bez textu závady.")}</span>{" "}
                       {defectNormSuffix(defect) ? <strong>{defectNormSuffix(defect)}</strong> : null}
                     </div>
                   </div>
@@ -905,7 +939,8 @@ export default function DefectsRecommendationsSection() {
                 )}
               </div>
             </div>
-          ))
+          );
+          })
         ) : (
           <div className="rounded border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
             Zatím tu nejsou žádné závady. Přidej je přes katalog, nebo vytvoř novou závadu z fotografie.
@@ -918,13 +953,19 @@ export default function DefectsRecommendationsSection() {
           className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
           onClick={() => setShowPicker(true)}
         >
-          ➕ Přidat závadu
+          + Přidat závadu
+        </button>
+        <button
+          className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
+          onClick={addCustomDefectText}
+        >
+          + Vlastní záznam
         </button>
         <button
           className="rounded bg-gray-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-700"
           onClick={() => setShowEditor(true)}
         >
-          ⚙️ Editor katalogu
+          Editor katalogu
         </button>
       </div>
 

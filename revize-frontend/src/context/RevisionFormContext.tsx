@@ -69,6 +69,7 @@ export interface Board {
 // â€”â€“â€“ Data pro jednu zĂˇvadu
 export interface Defect {
   uid: string;
+  kind?: "catalog" | "custom_text";
   description: string;
   standard: string;
   article: string;
@@ -281,6 +282,7 @@ function withDefaults(p: Partial<RevisionForm>): RevisionForm {
     defects: Array.isArray(p.defects)
       ? p.defects.map((d: any) => ({
           uid: String(d?.uid || d?.id || makeUid("defect")),
+          kind: d?.kind === "custom_text" ? "custom_text" : "catalog",
           description: String(d?.description || ""),
           standard: String(d?.standard || ""),
           article: String(d?.article || ""),

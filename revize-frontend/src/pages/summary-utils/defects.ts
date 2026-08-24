@@ -1,4 +1,6 @@
 export function defectNormSuffix(defect: any): string {
+  if (defect?.kind === "custom_text") return "";
+
   const standard = String(defect?.standard || "").trim();
   const article = String(defect?.article || "").trim();
 
