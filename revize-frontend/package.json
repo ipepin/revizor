@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/patch-electro-template-montage.cjs",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:lps-template": "node scripts/build-lps-template.cjs"
+    "generate:lps-template": "node scripts/build-lps-template.cjs",
+    "patch:electro-template-montage": "node scripts/patch-electro-template-montage.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
